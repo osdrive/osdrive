@@ -1,0 +1,18 @@
+ - File permissions (we should run as root or handle skipping them but track that they exist)
+
+ - File size + ext + changed time, file hash (if last modified time changed), magic bytes
+ - Symbolic links
+ - Build efficient syncable index for fast search
+
+ - Linux & Windows w/ solid support
+ - Expose efficient abstraction for FS operations in rest of application
+
+ - Build a VFS which is powered by the index so another machine can show all files instantly
+
+ - Deriving stats from the index (disk usage, etc)
+ - Storing device information (Drive identifiers, etc for external drives)
+
+ - Indexing external HHD's is gonna be hella slow. What can we do?
+
+
+// https://docs.rs/jwalk/latest/jwalk/
