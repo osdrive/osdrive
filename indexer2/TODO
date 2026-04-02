@@ -1,3 +1,5 @@
+ - Can we somewhat skip read-only files (Eg `/System`, automatically)???
+
  - File permissions (we should run as root or handle skipping them but track that they exist)
 
  - File size + ext + changed time, file hash (if last modified time changed), magic bytes
@@ -14,5 +16,32 @@
 
  - Indexing external HHD's is gonna be hella slow. What can we do?
 
+ - Optional image/video previews
+
+
+ - Using bloom filters for incredibly fast lookups???
+
+ - Seperate FS watcher for updating the metadata. Can we make this native so it can stream updates straight in instead of triggering an indexer run?
+
+Can we use this to prepopulate the cache:
+https://developer.apple.com/documentation/foundation/spotlight
 
 // https://docs.rs/jwalk/latest/jwalk/
+
+
+https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/getattrlist.2.html
+     ATTR_CMN_FILEID           A u_int64_t that uniquely identifies the file
+                               system object within its volume.
+
+
+
+
+Took: 188.272791667s
+
+
+dirs=1570348 files=8218349 warnings=279 fallbacks=0 took=303.638589s
+
+
+
+Start indexer in user-folder first and do important ones (Desktop, Documents, etc).
+Allow live ingest of FS changes while the indexer is running. It should trigger it to skip stuff.

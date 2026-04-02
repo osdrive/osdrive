@@ -1939,16 +1939,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "getattrlistbulk"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e65718dfbb192923baed0b86b0e5363103570fdc39d5a2f25c572aa75144b712"
-dependencies = [
- "bitflags 2.9.0",
- "libc",
-]
-
-[[package]]
 name = "gethostname"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2655,7 +2645,7 @@ dependencies = [
 name = "indexer2"
 version = "0.1.0"
 dependencies = [
- "getattrlistbulk",
+ "libc",
 ]
 
 [[package]]

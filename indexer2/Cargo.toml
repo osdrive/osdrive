@@ -3,5 +3,9 @@ name = "indexer2"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "spotlight"
+path = "bin/spotlight.rs"
+
 [dependencies]
-getattrlistbulk = "0.1.0"
+libc = "0.2"
