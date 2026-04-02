@@ -4,6 +4,9 @@ use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::RawFd;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
 use std::time::Instant;
 
 const ROOT: &str = "/System/Volumes/Data";
@@ -55,6 +58,22 @@ struct WalkStats {
     warnings: u64,
 }
 
+struct SharedStats {
+    dirs_seen: AtomicU64,
+    files_seen: AtomicU64,
+    warnings: AtomicU64,
+}
+
+impl SharedStats {
+    fn snapshot(&self) -> WalkStats {
+        WalkStats {
+            dirs_seen: self.dirs_seen.load(Ordering::Relaxed),
+            files_seen: self.files_seen.load(Ordering::Relaxed),
+            warnings: self.warnings.load(Ordering::Relaxed),
+        }
+    }
+}
+
 enum EntryKind {
     File,
     Directory,
@@ -84,14 +103,26 @@ fn open_directory(path: &Path) -> Result<RawFd, io::Error> {
     Ok(dirfd)
 }
 
-fn open_directory_at(parent_fd: RawFd, name: &OsStr) -> Result<RawFd, io::Error> {
-    let c_name = CString::new(name.as_bytes())
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "path contains null byte"))?;
+fn open_directory_at(
+    parent_fd: RawFd,
+    name: &[u8],
+    scratch: &mut Vec<u8>,
+) -> Result<RawFd, io::Error> {
+    if name.contains(&0) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "path contains null byte",
+        ));
+    }
+
+    scratch.clear();
+    scratch.extend_from_slice(name);
+    scratch.push(0);
 
     let dirfd = unsafe {
         libc::openat(
             parent_fd,
-            c_name.as_ptr(),
+            scratch.as_ptr().cast(),
             libc::O_RDONLY | libc::O_DIRECTORY,
         )
     };
@@ -105,6 +136,11 @@ fn open_directory_at(parent_fd: RawFd, name: &OsStr) -> Result<RawFd, io::Error>
 struct DirFrame {
     fd: RawFd,
     path: PathBuf,
+}
+
+struct WorkState {
+    stack: Vec<DirFrame>,
+    active_workers: usize,
 }
 
 impl Drop for DirFrame {
@@ -151,118 +187,200 @@ fn refill_buffer(dirfd: RawFd, buffer: &mut [u8]) -> Result<usize, BulkReadError
 }
 
 fn should_skip_dir(path: &Path) -> bool {
-    path == Path::new("/dev")
-        || path == Path::new("/Volumes")
-        || path == Path::new("/System/Volumes")
+    matches!(
+        path.as_os_str().as_bytes(),
+        b"/dev" | b"/Volumes" | b"/System/Volumes"
+    )
 }
 
-fn warn_and_skip(stats: &mut WalkStats, path: &Path, error: &impl std::fmt::Display) {
-    stats.warnings += 1;
+fn warn_and_skip(stats: &SharedStats, path: &Path, error: &impl std::fmt::Display) {
+    stats.warnings.fetch_add(1, Ordering::Relaxed);
     eprintln!("warning: skipping {}: {}", path.display(), error);
 }
 
 fn walk_dir(root: &Path) -> WalkStats {
-    let mut stats = WalkStats::default();
-    let mut buffer = vec![0; BULK_BUFFER_SIZE];
-    let mut stack = Vec::new();
+    let stats = Arc::new(SharedStats {
+        dirs_seen: AtomicU64::new(0),
+        files_seen: AtomicU64::new(0),
+        warnings: AtomicU64::new(0),
+    });
 
-    match open_directory(root) {
-        Ok(fd) => stack.push(DirFrame {
+    let root_frame = match open_directory(root) {
+        Ok(fd) => DirFrame {
             fd,
             path: root.to_path_buf(),
-        }),
+        },
         Err(error) => {
-            warn_and_skip(&mut stats, root, &error);
-            return stats;
+            warn_and_skip(&stats, root, &error);
+            return stats.snapshot();
         }
+    };
+
+    let shared = Arc::new((
+        Mutex::new(WorkState {
+            stack: vec![root_frame],
+            active_workers: 0,
+        }),
+        Condvar::new(),
+    ));
+    let done = Arc::new(AtomicBool::new(false));
+    let worker_count = thread::available_parallelism()
+        .map(|count| count.get().min(8).max(1))
+        .unwrap_or(4);
+
+    thread::scope(|scope| {
+        for _ in 0..worker_count {
+            let shared = Arc::clone(&shared);
+            let done = Arc::clone(&done);
+            let stats = Arc::clone(&stats);
+
+            scope.spawn(move || {
+                let mut buffer = vec![0; BULK_BUFFER_SIZE];
+                let mut openat_name = Vec::new();
+
+                loop {
+                    let dir = {
+                        let (lock, condvar) = &*shared;
+                        let mut state = lock.lock().unwrap();
+
+                        loop {
+                            if let Some(dir) = state.stack.pop() {
+                                state.active_workers += 1;
+                                break dir;
+                            }
+
+                            if done.load(Ordering::Relaxed) {
+                                return;
+                            }
+
+                            if state.active_workers == 0 {
+                                done.store(true, Ordering::Relaxed);
+                                condvar.notify_all();
+                                return;
+                            }
+
+                            state = condvar.wait(state).unwrap();
+                        }
+                    };
+
+                    process_dir(dir, &shared, &done, &stats, &mut buffer, &mut openat_name);
+                }
+            });
+        }
+    });
+
+    stats.snapshot()
+}
+
+fn process_dir(
+    dir: DirFrame,
+    shared: &Arc<(Mutex<WorkState>, Condvar)>,
+    done: &Arc<AtomicBool>,
+    stats: &Arc<SharedStats>,
+    buffer: &mut [u8],
+    openat_name: &mut Vec<u8>,
+) {
+    if should_skip_dir(&dir.path) {
+        finish_dir(shared, done);
+        return;
     }
 
-    while let Some(dir) = stack.pop() {
-        if should_skip_dir(&dir.path) {
-            continue;
-        }
+    stats.dirs_seen.fetch_add(1, Ordering::Relaxed);
 
-        stats.dirs_seen += 1;
+    'dir: loop {
+        let entry_count = match refill_buffer(dir.fd, buffer) {
+            Ok(0) => break,
+            Ok(entry_count) => entry_count,
+            Err(BulkReadError::Io(error)) => {
+                warn_and_skip(stats, &dir.path, &error);
+                break;
+            }
+            Err(BulkReadError::Parse(error)) => {
+                stats.warnings.fetch_add(1, Ordering::Relaxed);
+                eprintln!("warning: skipping {}: {}", dir.path.display(), error);
+                break;
+            }
+        };
 
-        'dir: loop {
-            let entry_count = match refill_buffer(dir.fd, &mut buffer) {
-                Ok(0) => break,
-                Ok(entry_count) => entry_count,
-                Err(BulkReadError::Io(error)) => {
-                    warn_and_skip(&mut stats, &dir.path, &error);
-                    break;
-                }
+        let mut offset = 0usize;
+
+        for _ in 0..entry_count {
+            let entry_start = offset;
+            let (entry, entry_end) = match parse_bulk_entry(buffer, entry_start) {
+                Ok(parsed) => parsed,
                 Err(BulkReadError::Parse(error)) => {
-                    stats.warnings += 1;
-                    eprintln!("warning: skipping {}: {}", dir.path.display(), error);
-                    break;
+                    stats.warnings.fetch_add(1, Ordering::Relaxed);
+                    eprintln!(
+                        "warning: skipping remainder of {} after bulk parse failure: {}",
+                        dir.path.display(),
+                        error
+                    );
+                    break 'dir;
+                }
+                Err(BulkReadError::Io(error)) => {
+                    warn_and_skip(stats, &dir.path, &error);
+                    break 'dir;
                 }
             };
 
-            let mut offset = 0usize;
+            offset = entry_end;
 
-            for _ in 0..entry_count {
-                let entry_start = offset;
-                let (entry, entry_end) = match parse_bulk_entry(&buffer, entry_start) {
-                    Ok(parsed) => parsed,
-                    Err(BulkReadError::Parse(error)) => {
-                        stats.warnings += 1;
+            match entry.kind {
+                EntryKind::Directory => {
+                    let Some((name_start, name_end)) = entry.name_range(buffer, entry_start) else {
+                        stats.warnings.fetch_add(1, Ordering::Relaxed);
                         eprintln!(
-                            "warning: skipping remainder of {} after bulk parse failure: {}",
-                            dir.path.display(),
-                            error
+                            "warning: skipping {}: missing directory name",
+                            dir.path.display()
                         );
-                        break 'dir;
-                    }
-                    Err(BulkReadError::Io(error)) => {
-                        warn_and_skip(&mut stats, &dir.path, &error);
-                        break 'dir;
-                    }
-                };
+                        continue;
+                    };
 
-                offset = entry_end;
-
-                match entry.kind {
-                    EntryKind::Directory => {
-                        let Some((name_start, name_end)) = entry.name_range(&buffer, entry_start)
-                        else {
-                            stats.warnings += 1;
-                            eprintln!(
-                                "warning: skipping {}: missing directory name",
-                                dir.path.display()
-                            );
+                    let name = &buffer[name_start..name_end];
+                    let child_fd = match open_directory_at(dir.fd, name, openat_name) {
+                        Ok(fd) => fd,
+                        Err(error) => {
+                            let path = dir.path.join(OsStr::from_bytes(name));
+                            warn_and_skip(stats, &path, &error);
                             continue;
-                        };
-
-                        let name = OsStr::from_bytes(&buffer[name_start..name_end]);
-                        let child_fd = match open_directory_at(dir.fd, name) {
-                            Ok(fd) => fd,
-                            Err(error) => {
-                                let path = dir.path.join(name);
-                                warn_and_skip(&mut stats, &path, &error);
-                                continue;
-                            }
-                        };
-
-                        let path = dir.path.join(name);
-                        if !should_skip_dir(&path) {
-                            stack.push(DirFrame { fd: child_fd, path });
-                        } else {
-                            unsafe {
-                                libc::close(child_fd);
-                            }
                         }
+                    };
+
+                    let path = dir.path.join(OsStr::from_bytes(name));
+                    if should_skip_dir(&path) {
+                        unsafe {
+                            libc::close(child_fd);
+                        }
+                        continue;
                     }
-                    EntryKind::File => {
-                        stats.files_seen += 1;
-                    }
-                    EntryKind::Other => {}
+
+                    let (lock, condvar) = &**shared;
+                    let mut state = lock.lock().unwrap();
+                    state.stack.push(DirFrame { fd: child_fd, path });
+                    condvar.notify_one();
                 }
+                EntryKind::File => {
+                    stats.files_seen.fetch_add(1, Ordering::Relaxed);
+                }
+                EntryKind::Other => {}
             }
         }
     }
 
-    stats
+    finish_dir(shared, done);
+}
+
+fn finish_dir(shared: &Arc<(Mutex<WorkState>, Condvar)>, done: &Arc<AtomicBool>) {
+    let (lock, condvar) = &**shared;
+    let mut state = lock.lock().unwrap();
+    state.active_workers -= 1;
+
+    if state.active_workers == 0 && state.stack.is_empty() {
+        done.store(true, Ordering::Relaxed);
+        condvar.notify_all();
+    } else {
+        condvar.notify_one();
+    }
 }
 
 fn parse_bulk_entry(
