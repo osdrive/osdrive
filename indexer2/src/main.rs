@@ -1,16 +1,17 @@
+use std::env;
 use std::ffi::CString;
-use std::ffi::OsStr;
 use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::RawFd;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::ptr;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::Instant;
 
 const ROOT: &str = "/System/Volumes/Data";
-const BULK_BUFFER_SIZE: usize = 1024 * 1024;
+const DEFAULT_BULK_BUFFER_SIZE: usize = 4 * 1024 * 1024;
 
 const ATTR_BIT_MAP_COUNT: u16 = 5;
 const ATTR_CMN_RETURNED_ATTRS: u32 = 0x8000_0000;
@@ -87,8 +88,7 @@ enum BulkReadError {
 
 struct ParsedEntry {
     kind: EntryKind,
-    name_reference_offset: Option<usize>,
-    name_reference: Option<AttrReference>,
+    name_range: Option<(usize, usize)>,
 }
 
 fn open_directory(path: &Path) -> Result<RawFd, io::Error> {
@@ -108,13 +108,7 @@ fn open_directory_at(
     name: &[u8],
     scratch: &mut Vec<u8>,
 ) -> Result<RawFd, io::Error> {
-    if name.contains(&0) {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "path contains null byte",
-        ));
-    }
-
+    // Names returned by `getattrlistbulk` originate from the kernel, so they cannot contain NUL.
     scratch.clear();
     scratch.extend_from_slice(name);
     scratch.push(0);
@@ -135,7 +129,6 @@ fn open_directory_at(
 
 struct DirFrame {
     fd: RawFd,
-    path: PathBuf,
 }
 
 struct WorkState {
@@ -186,16 +179,34 @@ fn refill_buffer(dirfd: RawFd, buffer: &mut [u8]) -> Result<usize, BulkReadError
     }
 }
 
-fn should_skip_dir(path: &Path) -> bool {
-    matches!(
-        path.as_os_str().as_bytes(),
-        b"/dev" | b"/Volumes" | b"/System/Volumes"
-    )
-}
-
-fn warn_and_skip(stats: &SharedStats, path: &Path, error: &impl std::fmt::Display) {
+fn warn_with_path(stats: &SharedStats, path: &Path, error: &impl std::fmt::Display) {
     stats.warnings.fetch_add(1, Ordering::Relaxed);
     eprintln!("warning: skipping {}: {}", path.display(), error);
+}
+
+fn warn_directory(stats: &SharedStats, error: &impl std::fmt::Display) {
+    stats.warnings.fetch_add(1, Ordering::Relaxed);
+    eprintln!("warning: skipping directory: {}", error);
+}
+
+fn bulk_buffer_size() -> usize {
+    env::var("INDEXER_BULK_BUFFER_SIZE")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|&value| value >= 4096)
+        .unwrap_or(DEFAULT_BULK_BUFFER_SIZE)
+}
+
+fn worker_count() -> usize {
+    env::var("INDEXER_THREADS")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|&value| value > 0)
+        .unwrap_or_else(|| {
+            thread::available_parallelism()
+                .map(|count| count.get())
+                .unwrap_or(4)
+        })
 }
 
 fn walk_dir(root: &Path) -> WalkStats {
@@ -206,12 +217,9 @@ fn walk_dir(root: &Path) -> WalkStats {
     });
 
     let root_frame = match open_directory(root) {
-        Ok(fd) => DirFrame {
-            fd,
-            path: root.to_path_buf(),
-        },
+        Ok(fd) => DirFrame { fd },
         Err(error) => {
-            warn_and_skip(&stats, root, &error);
+            warn_with_path(&stats, root, &error);
             return stats.snapshot();
         }
     };
@@ -224,9 +232,8 @@ fn walk_dir(root: &Path) -> WalkStats {
         Condvar::new(),
     ));
     let done = Arc::new(AtomicBool::new(false));
-    let worker_count = thread::available_parallelism()
-        .map(|count| count.get().min(8).max(1))
-        .unwrap_or(4);
+    let worker_count = worker_count();
+    let bulk_buffer_size = bulk_buffer_size();
 
     thread::scope(|scope| {
         for _ in 0..worker_count {
@@ -235,8 +242,9 @@ fn walk_dir(root: &Path) -> WalkStats {
             let stats = Arc::clone(&stats);
 
             scope.spawn(move || {
-                let mut buffer = vec![0; BULK_BUFFER_SIZE];
+                let mut buffer = vec![0; bulk_buffer_size];
                 let mut openat_name = Vec::new();
+                let mut local_stats = WalkStats::default();
 
                 loop {
                     let dir = {
@@ -250,12 +258,14 @@ fn walk_dir(root: &Path) -> WalkStats {
                             }
 
                             if done.load(Ordering::Relaxed) {
+                                flush_local_stats(&stats, &mut local_stats);
                                 return;
                             }
 
                             if state.active_workers == 0 {
                                 done.store(true, Ordering::Relaxed);
                                 condvar.notify_all();
+                                flush_local_stats(&stats, &mut local_stats);
                                 return;
                             }
 
@@ -263,7 +273,15 @@ fn walk_dir(root: &Path) -> WalkStats {
                         }
                     };
 
-                    process_dir(dir, &shared, &done, &stats, &mut buffer, &mut openat_name);
+                    process_dir(
+                        dir,
+                        &shared,
+                        &done,
+                        &stats,
+                        &mut local_stats,
+                        &mut buffer,
+                        &mut openat_name,
+                    );
                 }
             });
         }
@@ -277,32 +295,29 @@ fn process_dir(
     shared: &Arc<(Mutex<WorkState>, Condvar)>,
     done: &Arc<AtomicBool>,
     stats: &Arc<SharedStats>,
+    local_stats: &mut WalkStats,
     buffer: &mut [u8],
     openat_name: &mut Vec<u8>,
 ) {
-    if should_skip_dir(&dir.path) {
-        finish_dir(shared, done);
-        return;
-    }
-
-    stats.dirs_seen.fetch_add(1, Ordering::Relaxed);
+    local_stats.dirs_seen += 1;
+    let mut discovered_dirs = Vec::new();
 
     'dir: loop {
         let entry_count = match refill_buffer(dir.fd, buffer) {
             Ok(0) => break,
             Ok(entry_count) => entry_count,
             Err(BulkReadError::Io(error)) => {
-                warn_and_skip(stats, &dir.path, &error);
+                warn_directory(stats, &error);
                 break;
             }
             Err(BulkReadError::Parse(error)) => {
-                stats.warnings.fetch_add(1, Ordering::Relaxed);
-                eprintln!("warning: skipping {}: {}", dir.path.display(), error);
+                warn_directory(stats, &error);
                 break;
             }
         };
 
         let mut offset = 0usize;
+        discovered_dirs.clear();
 
         for _ in 0..entry_count {
             let entry_start = offset;
@@ -311,14 +326,13 @@ fn process_dir(
                 Err(BulkReadError::Parse(error)) => {
                     stats.warnings.fetch_add(1, Ordering::Relaxed);
                     eprintln!(
-                        "warning: skipping remainder of {} after bulk parse failure: {}",
-                        dir.path.display(),
+                        "warning: skipping remainder of directory after bulk parse failure: {}",
                         error
                     );
                     break 'dir;
                 }
                 Err(BulkReadError::Io(error)) => {
-                    warn_and_skip(stats, &dir.path, &error);
+                    warn_directory(stats, &error);
                     break 'dir;
                 }
             };
@@ -327,12 +341,12 @@ fn process_dir(
 
             match entry.kind {
                 EntryKind::Directory => {
-                    let Some((name_start, name_end)) = entry.name_range(buffer, entry_start) else {
+                    let Some((name_start, name_end)) = entry
+                        .name_range
+                        .map(|(start, end)| (entry_start + start, entry_start + end))
+                    else {
                         stats.warnings.fetch_add(1, Ordering::Relaxed);
-                        eprintln!(
-                            "warning: skipping {}: missing directory name",
-                            dir.path.display()
-                        );
+                        eprintln!("warning: skipping directory: missing directory name");
                         continue;
                     };
 
@@ -340,34 +354,57 @@ fn process_dir(
                     let child_fd = match open_directory_at(dir.fd, name, openat_name) {
                         Ok(fd) => fd,
                         Err(error) => {
-                            let path = dir.path.join(OsStr::from_bytes(name));
-                            warn_and_skip(stats, &path, &error);
+                            warn_directory(stats, &error);
                             continue;
                         }
                     };
 
-                    let path = dir.path.join(OsStr::from_bytes(name));
-                    if should_skip_dir(&path) {
-                        unsafe {
-                            libc::close(child_fd);
-                        }
-                        continue;
-                    }
-
-                    let (lock, condvar) = &**shared;
-                    let mut state = lock.lock().unwrap();
-                    state.stack.push(DirFrame { fd: child_fd, path });
-                    condvar.notify_one();
+                    discovered_dirs.push(DirFrame { fd: child_fd });
                 }
                 EntryKind::File => {
-                    stats.files_seen.fetch_add(1, Ordering::Relaxed);
+                    local_stats.files_seen += 1;
                 }
                 EntryKind::Other => {}
+            }
+        }
+
+        if !discovered_dirs.is_empty() {
+            let discovered_count = discovered_dirs.len();
+            let (lock, condvar) = &**shared;
+            let mut state = lock.lock().unwrap();
+            state.stack.append(&mut discovered_dirs);
+            if discovered_count == 1 {
+                condvar.notify_one();
+            } else {
+                condvar.notify_all();
             }
         }
     }
 
     finish_dir(shared, done);
+}
+
+fn flush_local_stats(stats: &SharedStats, local_stats: &mut WalkStats) {
+    if local_stats.dirs_seen != 0 {
+        stats
+            .dirs_seen
+            .fetch_add(local_stats.dirs_seen, Ordering::Relaxed);
+        local_stats.dirs_seen = 0;
+    }
+
+    if local_stats.files_seen != 0 {
+        stats
+            .files_seen
+            .fetch_add(local_stats.files_seen, Ordering::Relaxed);
+        local_stats.files_seen = 0;
+    }
+
+    if local_stats.warnings != 0 {
+        stats
+            .warnings
+            .fetch_add(local_stats.warnings, Ordering::Relaxed);
+        local_stats.warnings = 0;
+    }
 }
 
 fn finish_dir(shared: &Arc<(Mutex<WorkState>, Condvar)>, done: &Arc<AtomicBool>) {
@@ -415,13 +452,13 @@ fn parse_bulk_entry(
 
     let mut offset = 4 + ATTR_SET_SIZE;
 
-    let (name_reference_offset, name_reference) = if returned_commonattr & ATTR_CMN_NAME != 0 {
+    let name_range = if returned_commonattr & ATTR_CMN_NAME != 0 {
         let reference_offset = offset;
         let attr_reference = read_attr_reference(entry, reference_offset)?;
         offset += NAME_REFERENCE_SIZE;
-        (Some(reference_offset), Some(attr_reference))
+        Some(parse_name_range(entry, reference_offset, attr_reference)?)
     } else {
-        (None, None)
+        None
     };
 
     let kind = if returned_commonattr & ATTR_CMN_OBJTYPE != 0 {
@@ -434,24 +471,7 @@ fn parse_bulk_entry(
         EntryKind::Other
     };
 
-    Ok((
-        ParsedEntry {
-            kind,
-            name_reference_offset,
-            name_reference,
-        },
-        entry_end,
-    ))
-}
-
-impl ParsedEntry {
-    fn name_range(&self, buffer: &[u8], entry_start: usize) -> Option<(usize, usize)> {
-        let reference_offset = self.name_reference_offset?;
-        let reference = self.name_reference?;
-        let entry = buffer.get(entry_start..)?;
-        let (name_start, name_end) = parse_name_range(entry, reference_offset, reference).ok()?;
-        Some((entry_start + name_start, entry_start + name_end))
-    }
+    Ok((ParsedEntry { kind, name_range }, entry_end))
 }
 
 fn read_attr_reference(entry: &[u8], offset: usize) -> Result<AttrReference, BulkReadError> {
@@ -497,18 +517,26 @@ fn parse_name_range(
 }
 
 fn read_u32(buffer: &[u8], offset: usize) -> Option<u32> {
-    let bytes: [u8; 4] = buffer.get(offset..offset + 4)?.try_into().ok()?;
-    Some(u32::from_ne_bytes(bytes))
+    let end = offset.checked_add(4)?;
+    if end > buffer.len() {
+        return None;
+    }
+
+    Some(unsafe { ptr::read_unaligned(buffer.as_ptr().add(offset).cast::<u32>()) })
 }
 
 fn read_i32(buffer: &[u8], offset: usize) -> Option<i32> {
-    let bytes: [u8; 4] = buffer.get(offset..offset + 4)?.try_into().ok()?;
-    Some(i32::from_ne_bytes(bytes))
+    let end = offset.checked_add(4)?;
+    if end > buffer.len() {
+        return None;
+    }
+
+    Some(unsafe { ptr::read_unaligned(buffer.as_ptr().add(offset).cast::<i32>()) })
 }
 
 fn main() {
     let start = Instant::now();
-    let stats = walk_dir(&PathBuf::from(ROOT));
+    let stats = walk_dir(Path::new(ROOT));
 
     println!(
         "dirs={} files={} warnings={} took={:?}",
