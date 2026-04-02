@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 const ROOT: &str = "/System/Volumes/Data";
-const BULK_BUFFER_SIZE: usize = 256 * 1024;
+const BULK_BUFFER_SIZE: usize = 1024 * 1024;
 
 const ATTR_BIT_MAP_COUNT: u16 = 5;
 const ATTR_CMN_RETURNED_ATTRS: u32 = 0x8000_0000;
@@ -32,15 +32,7 @@ struct AttrList {
 }
 
 #[repr(C)]
-struct AttributeSet {
-    commonattr: u32,
-    volattr: u32,
-    dirattr: u32,
-    fileattr: u32,
-    forkattr: u32,
-}
-
-#[repr(C)]
+#[derive(Clone, Copy)]
 struct AttrReference {
     attr_dataoffset: i32,
     attr_length: u32,
@@ -76,7 +68,8 @@ enum BulkReadError {
 
 struct ParsedEntry {
     kind: EntryKind,
-    name_range: Option<(usize, usize)>,
+    name_reference_offset: Option<usize>,
+    name_reference: Option<AttrReference>,
 }
 
 fn open_directory(path: &Path) -> Result<RawFd, io::Error> {
@@ -89,6 +82,37 @@ fn open_directory(path: &Path) -> Result<RawFd, io::Error> {
     }
 
     Ok(dirfd)
+}
+
+fn open_directory_at(parent_fd: RawFd, name: &OsStr) -> Result<RawFd, io::Error> {
+    let c_name = CString::new(name.as_bytes())
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "path contains null byte"))?;
+
+    let dirfd = unsafe {
+        libc::openat(
+            parent_fd,
+            c_name.as_ptr(),
+            libc::O_RDONLY | libc::O_DIRECTORY,
+        )
+    };
+    if dirfd < 0 {
+        return Err(io::Error::last_os_error());
+    }
+
+    Ok(dirfd)
+}
+
+struct DirFrame {
+    fd: RawFd,
+    path: PathBuf,
+}
+
+impl Drop for DirFrame {
+    fn drop(&mut self) {
+        unsafe {
+            libc::close(self.fd);
+        }
+    }
 }
 
 fn refill_buffer(dirfd: RawFd, buffer: &mut [u8]) -> Result<usize, BulkReadError> {
@@ -139,35 +163,38 @@ fn warn_and_skip(stats: &mut WalkStats, path: &Path, error: &impl std::fmt::Disp
 
 fn walk_dir(root: &Path) -> WalkStats {
     let mut stats = WalkStats::default();
-    let mut stack = vec![root.to_path_buf()];
     let mut buffer = vec![0; BULK_BUFFER_SIZE];
+    let mut stack = Vec::new();
+
+    match open_directory(root) {
+        Ok(fd) => stack.push(DirFrame {
+            fd,
+            path: root.to_path_buf(),
+        }),
+        Err(error) => {
+            warn_and_skip(&mut stats, root, &error);
+            return stats;
+        }
+    }
 
     while let Some(dir) = stack.pop() {
-        if should_skip_dir(&dir) {
+        if should_skip_dir(&dir.path) {
             continue;
         }
 
         stats.dirs_seen += 1;
 
-        let dirfd = match open_directory(&dir) {
-            Ok(dirfd) => dirfd,
-            Err(error) => {
-                warn_and_skip(&mut stats, &dir, &error);
-                continue;
-            }
-        };
-
         'dir: loop {
-            let entry_count = match refill_buffer(dirfd, &mut buffer) {
+            let entry_count = match refill_buffer(dir.fd, &mut buffer) {
                 Ok(0) => break,
                 Ok(entry_count) => entry_count,
                 Err(BulkReadError::Io(error)) => {
-                    warn_and_skip(&mut stats, &dir, &error);
+                    warn_and_skip(&mut stats, &dir.path, &error);
                     break;
                 }
                 Err(BulkReadError::Parse(error)) => {
                     stats.warnings += 1;
-                    eprintln!("warning: skipping {}: {}", dir.display(), error);
+                    eprintln!("warning: skipping {}: {}", dir.path.display(), error);
                     break;
                 }
             };
@@ -175,19 +202,20 @@ fn walk_dir(root: &Path) -> WalkStats {
             let mut offset = 0usize;
 
             for _ in 0..entry_count {
-                let (entry, entry_end) = match parse_bulk_entry(&buffer, offset) {
+                let entry_start = offset;
+                let (entry, entry_end) = match parse_bulk_entry(&buffer, entry_start) {
                     Ok(parsed) => parsed,
                     Err(BulkReadError::Parse(error)) => {
                         stats.warnings += 1;
                         eprintln!(
                             "warning: skipping remainder of {} after bulk parse failure: {}",
-                            dir.display(),
+                            dir.path.display(),
                             error
                         );
                         break 'dir;
                     }
                     Err(BulkReadError::Io(error)) => {
-                        warn_and_skip(&mut stats, &dir, &error);
+                        warn_and_skip(&mut stats, &dir.path, &error);
                         break 'dir;
                     }
                 };
@@ -196,10 +224,32 @@ fn walk_dir(root: &Path) -> WalkStats {
 
                 match entry.kind {
                     EntryKind::Directory => {
-                        if let Some((name_start, name_end)) = entry.name_range {
-                            let path = dir.join(OsStr::from_bytes(&buffer[name_start..name_end]));
-                            if !should_skip_dir(&path) {
-                                stack.push(path);
+                        let Some((name_start, name_end)) = entry.name_range(&buffer, entry_start)
+                        else {
+                            stats.warnings += 1;
+                            eprintln!(
+                                "warning: skipping {}: missing directory name",
+                                dir.path.display()
+                            );
+                            continue;
+                        };
+
+                        let name = OsStr::from_bytes(&buffer[name_start..name_end]);
+                        let child_fd = match open_directory_at(dir.fd, name) {
+                            Ok(fd) => fd,
+                            Err(error) => {
+                                let path = dir.path.join(name);
+                                warn_and_skip(&mut stats, &path, &error);
+                                continue;
+                            }
+                        };
+
+                        let path = dir.path.join(name);
+                        if !should_skip_dir(&path) {
+                            stack.push(DirFrame { fd: child_fd, path });
+                        } else {
+                            unsafe {
+                                libc::close(child_fd);
                             }
                         }
                     }
@@ -210,10 +260,6 @@ fn walk_dir(root: &Path) -> WalkStats {
                 }
             }
         }
-
-        unsafe {
-            libc::close(dirfd);
-        }
     }
 
     stats
@@ -223,7 +269,12 @@ fn parse_bulk_entry(
     buffer: &[u8],
     start_offset: usize,
 ) -> Result<(ParsedEntry, usize), BulkReadError> {
-    let entry_length = read_u32(buffer, start_offset)
+    const ENTRY_LENGTH_OFFSET: usize = 0;
+    const COMMONATTR_OFFSET: usize = 4;
+    const ATTR_SET_SIZE: usize = 20;
+    const NAME_REFERENCE_SIZE: usize = std::mem::size_of::<AttrReference>();
+
+    let entry_length = read_u32(buffer, start_offset + ENTRY_LENGTH_OFFSET)
         .ok_or(BulkReadError::Parse("missing entry length"))? as usize;
 
     if entry_length == 0 {
@@ -237,39 +288,25 @@ fn parse_bulk_entry(
         .get(start_offset..entry_end)
         .ok_or(BulkReadError::Parse("entry extends past buffer"))?;
 
-    if entry.len() < 4 + std::mem::size_of::<AttributeSet>() {
+    if entry.len() < 4 + ATTR_SET_SIZE {
         return Err(BulkReadError::Parse("entry too short"));
     }
 
-    let returned_offset = 4;
-    let returned = AttributeSet {
-        commonattr: read_u32(entry, returned_offset)
-            .ok_or(BulkReadError::Parse("missing commonattr"))?,
-        volattr: read_u32(entry, returned_offset + 4)
-            .ok_or(BulkReadError::Parse("missing volattr"))?,
-        dirattr: read_u32(entry, returned_offset + 8)
-            .ok_or(BulkReadError::Parse("missing dirattr"))?,
-        fileattr: read_u32(entry, returned_offset + 12)
-            .ok_or(BulkReadError::Parse("missing fileattr"))?,
-        forkattr: read_u32(entry, returned_offset + 16)
-            .ok_or(BulkReadError::Parse("missing forkattr"))?,
-    };
+    let returned_commonattr =
+        read_u32(entry, COMMONATTR_OFFSET).ok_or(BulkReadError::Parse("missing commonattr"))?;
 
-    let mut offset = 4 + std::mem::size_of::<AttributeSet>();
+    let mut offset = 4 + ATTR_SET_SIZE;
 
-    let name_range = if returned.commonattr & ATTR_CMN_NAME != 0 {
-        let attr_reference = read_attr_reference(entry, offset)?;
-        offset += std::mem::size_of::<AttrReference>();
-        Some(parse_name_range(
-            entry,
-            offset - std::mem::size_of::<AttrReference>(),
-            attr_reference,
-        )?)
+    let (name_reference_offset, name_reference) = if returned_commonattr & ATTR_CMN_NAME != 0 {
+        let reference_offset = offset;
+        let attr_reference = read_attr_reference(entry, reference_offset)?;
+        offset += NAME_REFERENCE_SIZE;
+        (Some(reference_offset), Some(attr_reference))
     } else {
-        None
+        (None, None)
     };
 
-    let kind = if returned.commonattr & ATTR_CMN_OBJTYPE != 0 {
+    let kind = if returned_commonattr & ATTR_CMN_OBJTYPE != 0 {
         match read_u32(entry, offset).ok_or(BulkReadError::Parse("missing object type"))? {
             VDIR => EntryKind::Directory,
             VREG => EntryKind::File,
@@ -279,20 +316,24 @@ fn parse_bulk_entry(
         EntryKind::Other
     };
 
-    let absolute_name_range = match kind {
-        EntryKind::Directory => {
-            name_range.map(|(start, end)| (start + start_offset, end + start_offset))
-        }
-        _ => None,
-    };
-
     Ok((
         ParsedEntry {
             kind,
-            name_range: absolute_name_range,
+            name_reference_offset,
+            name_reference,
         },
         entry_end,
     ))
+}
+
+impl ParsedEntry {
+    fn name_range(&self, buffer: &[u8], entry_start: usize) -> Option<(usize, usize)> {
+        let reference_offset = self.name_reference_offset?;
+        let reference = self.name_reference?;
+        let entry = buffer.get(entry_start..)?;
+        let (name_start, name_end) = parse_name_range(entry, reference_offset, reference).ok()?;
+        Some((entry_start + name_start, entry_start + name_end))
+    }
 }
 
 fn read_attr_reference(entry: &[u8], offset: usize) -> Result<AttrReference, BulkReadError> {
