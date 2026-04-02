@@ -1,4 +1,3 @@
-use std::env;
 use std::ffi::CString;
 use std::io;
 use std::os::unix::ffi::OsStrExt;
@@ -8,10 +7,16 @@ use std::ptr;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 const ROOT: &str = "/System/Volumes/Data";
 const DEFAULT_BULK_BUFFER_SIZE: usize = 4 * 1024 * 1024;
+const FD_LIMIT_RESERVE: u64 = 128;
+const MIN_OPEN_DIRS: usize = 32;
+const MAX_OPEN_DIRS: usize = 1024;
+const OPEN_RETRY_BASE_DELAY_MS: u64 = 1;
+const OPEN_RETRY_MAX_DELAY_MS: u64 = 64;
+const OPEN_RETRY_MAX_ATTEMPTS: usize = 10;
 
 const ATTR_BIT_MAP_COUNT: u16 = 5;
 const ATTR_CMN_RETURNED_ATTRS: u32 = 0x8000_0000;
@@ -57,12 +62,14 @@ struct WalkStats {
     dirs_seen: u64,
     files_seen: u64,
     warnings: u64,
+    throttles: u64,
 }
 
 struct SharedStats {
     dirs_seen: AtomicU64,
     files_seen: AtomicU64,
     warnings: AtomicU64,
+    throttles: AtomicU64,
 }
 
 impl SharedStats {
@@ -71,7 +78,44 @@ impl SharedStats {
             dirs_seen: self.dirs_seen.load(Ordering::Relaxed),
             files_seen: self.files_seen.load(Ordering::Relaxed),
             warnings: self.warnings.load(Ordering::Relaxed),
+            throttles: self.throttles.load(Ordering::Relaxed),
         }
+    }
+}
+
+struct FdLimiterState {
+    open_dirs: usize,
+}
+
+struct FdLimiter {
+    max_open_dirs: usize,
+    state: Mutex<FdLimiterState>,
+    condvar: Condvar,
+}
+
+impl FdLimiter {
+    fn new(max_open_dirs: usize) -> Self {
+        Self {
+            max_open_dirs,
+            state: Mutex::new(FdLimiterState { open_dirs: 0 }),
+            condvar: Condvar::new(),
+        }
+    }
+
+    fn acquire(&self) {
+        let mut state = self.state.lock().unwrap();
+
+        while state.open_dirs >= self.max_open_dirs {
+            state = self.condvar.wait(state).unwrap();
+        }
+
+        state.open_dirs += 1;
+    }
+
+    fn release(&self) {
+        let mut state = self.state.lock().unwrap();
+        state.open_dirs -= 1;
+        self.condvar.notify_one();
     }
 }
 
@@ -103,6 +147,14 @@ fn open_directory(path: &Path) -> Result<RawFd, io::Error> {
     Ok(dirfd)
 }
 
+fn open_directory_with_backoff(
+    path: &Path,
+    limiter: &Arc<FdLimiter>,
+    stats: &Arc<SharedStats>,
+) -> Result<RawFd, io::Error> {
+    open_with_backoff(limiter, stats, || open_directory(path))
+}
+
 fn open_directory_at(
     parent_fd: RawFd,
     name: &[u8],
@@ -127,8 +179,57 @@ fn open_directory_at(
     Ok(dirfd)
 }
 
+fn open_directory_at_with_backoff(
+    parent_fd: RawFd,
+    name: &[u8],
+    scratch: &mut Vec<u8>,
+    limiter: &Arc<FdLimiter>,
+    stats: &Arc<SharedStats>,
+) -> Result<RawFd, io::Error> {
+    open_with_backoff(limiter, stats, || {
+        open_directory_at(parent_fd, name, scratch)
+    })
+}
+
+fn open_with_backoff<F>(
+    limiter: &Arc<FdLimiter>,
+    stats: &Arc<SharedStats>,
+    mut open_fn: F,
+) -> Result<RawFd, io::Error>
+where
+    F: FnMut() -> Result<RawFd, io::Error>,
+{
+    let mut delay_ms = OPEN_RETRY_BASE_DELAY_MS;
+
+    for attempt in 0..=OPEN_RETRY_MAX_ATTEMPTS {
+        limiter.acquire();
+
+        match open_fn() {
+            Ok(fd) => return Ok(fd),
+            Err(error) if error.raw_os_error() == Some(libc::EMFILE) => {
+                limiter.release();
+
+                if attempt == OPEN_RETRY_MAX_ATTEMPTS {
+                    return Err(error);
+                }
+
+                stats.throttles.fetch_add(1, Ordering::Relaxed);
+                thread::sleep(Duration::from_millis(delay_ms));
+                delay_ms = (delay_ms.saturating_mul(2)).min(OPEN_RETRY_MAX_DELAY_MS);
+            }
+            Err(error) => {
+                limiter.release();
+                return Err(error);
+            }
+        }
+    }
+
+    unreachable!("open retry loop must return or exhaust attempts")
+}
+
 struct DirFrame {
     fd: RawFd,
+    limiter: Arc<FdLimiter>,
 }
 
 struct WorkState {
@@ -141,6 +242,7 @@ impl Drop for DirFrame {
         unsafe {
             libc::close(self.fd);
         }
+        self.limiter.release();
     }
 }
 
@@ -189,24 +291,26 @@ fn warn_directory(stats: &SharedStats, error: &impl std::fmt::Display) {
     eprintln!("warning: skipping directory: {}", error);
 }
 
-fn bulk_buffer_size() -> usize {
-    env::var("INDEXER_BULK_BUFFER_SIZE")
-        .ok()
-        .and_then(|value| value.parse::<usize>().ok())
-        .filter(|&value| value >= 4096)
-        .unwrap_or(DEFAULT_BULK_BUFFER_SIZE)
+fn worker_count() -> usize {
+    thread::available_parallelism()
+        .map(|count| count.get())
+        .unwrap_or(4)
 }
 
-fn worker_count() -> usize {
-    env::var("INDEXER_THREADS")
-        .ok()
-        .and_then(|value| value.parse::<usize>().ok())
-        .filter(|&value| value > 0)
-        .unwrap_or_else(|| {
-            thread::available_parallelism()
-                .map(|count| count.get())
-                .unwrap_or(4)
-        })
+fn max_open_dirs() -> usize {
+    let mut rlimit = libc::rlimit {
+        rlim_cur: 0,
+        rlim_max: 0,
+    };
+
+    let soft_limit = if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut rlimit) } == 0 {
+        rlimit.rlim_cur
+    } else {
+        MAX_OPEN_DIRS as libc::rlim_t + FD_LIMIT_RESERVE as libc::rlim_t
+    };
+
+    let available = soft_limit.saturating_sub(FD_LIMIT_RESERVE as libc::rlim_t);
+    (available as usize).clamp(MIN_OPEN_DIRS, MAX_OPEN_DIRS)
 }
 
 fn walk_dir(root: &Path) -> WalkStats {
@@ -214,10 +318,15 @@ fn walk_dir(root: &Path) -> WalkStats {
         dirs_seen: AtomicU64::new(0),
         files_seen: AtomicU64::new(0),
         warnings: AtomicU64::new(0),
+        throttles: AtomicU64::new(0),
     });
+    let limiter = Arc::new(FdLimiter::new(max_open_dirs()));
 
-    let root_frame = match open_directory(root) {
-        Ok(fd) => DirFrame { fd },
+    let root_frame = match open_directory_with_backoff(root, &limiter, &stats) {
+        Ok(fd) => DirFrame {
+            fd,
+            limiter: Arc::clone(&limiter),
+        },
         Err(error) => {
             warn_with_path(&stats, root, &error);
             return stats.snapshot();
@@ -233,13 +342,14 @@ fn walk_dir(root: &Path) -> WalkStats {
     ));
     let done = Arc::new(AtomicBool::new(false));
     let worker_count = worker_count();
-    let bulk_buffer_size = bulk_buffer_size();
+    let bulk_buffer_size = DEFAULT_BULK_BUFFER_SIZE;
 
     thread::scope(|scope| {
         for _ in 0..worker_count {
             let shared = Arc::clone(&shared);
             let done = Arc::clone(&done);
             let stats = Arc::clone(&stats);
+            let limiter = Arc::clone(&limiter);
 
             scope.spawn(move || {
                 let mut buffer = vec![0; bulk_buffer_size];
@@ -278,6 +388,7 @@ fn walk_dir(root: &Path) -> WalkStats {
                         &shared,
                         &done,
                         &stats,
+                        &limiter,
                         &mut local_stats,
                         &mut buffer,
                         &mut openat_name,
@@ -295,6 +406,7 @@ fn process_dir(
     shared: &Arc<(Mutex<WorkState>, Condvar)>,
     done: &Arc<AtomicBool>,
     stats: &Arc<SharedStats>,
+    limiter: &Arc<FdLimiter>,
     local_stats: &mut WalkStats,
     buffer: &mut [u8],
     openat_name: &mut Vec<u8>,
@@ -351,7 +463,13 @@ fn process_dir(
                     };
 
                     let name = &buffer[name_start..name_end];
-                    let child_fd = match open_directory_at(dir.fd, name, openat_name) {
+                    let child_fd = match open_directory_at_with_backoff(
+                        dir.fd,
+                        name,
+                        openat_name,
+                        limiter,
+                        stats,
+                    ) {
                         Ok(fd) => fd,
                         Err(error) => {
                             warn_directory(stats, &error);
@@ -359,7 +477,10 @@ fn process_dir(
                         }
                     };
 
-                    discovered_dirs.push(DirFrame { fd: child_fd });
+                    discovered_dirs.push(DirFrame {
+                        fd: child_fd,
+                        limiter: Arc::clone(limiter),
+                    });
                 }
                 EntryKind::File => {
                     local_stats.files_seen += 1;
@@ -404,6 +525,13 @@ fn flush_local_stats(stats: &SharedStats, local_stats: &mut WalkStats) {
             .warnings
             .fetch_add(local_stats.warnings, Ordering::Relaxed);
         local_stats.warnings = 0;
+    }
+
+    if local_stats.throttles != 0 {
+        stats
+            .throttles
+            .fetch_add(local_stats.throttles, Ordering::Relaxed);
+        local_stats.throttles = 0;
     }
 }
 
@@ -539,10 +667,11 @@ fn main() {
     let stats = walk_dir(Path::new(ROOT));
 
     println!(
-        "dirs={} files={} warnings={} took={:?}",
+        "dirs={} files={} warnings={} throttles={} took={:?}",
         stats.dirs_seen,
         stats.files_seen,
         stats.warnings,
+        stats.throttles,
         start.elapsed()
     );
 }
