@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::ffi::{CString, c_char, c_void};
 use std::ptr;
+use std::time::Instant;
 
 type Boolean = u8;
 type CFIndex = isize;
@@ -103,42 +104,51 @@ fn cfstring_to_string(value: CFStringRef) -> Result<String, Box<dyn Error>> {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let query_text = cfstring("kMDItemFSName != \"\" && kMDItemContentType != \"public.folder\"")?;
-    let query = unsafe {
-        MDQueryCreate(
-            ptr::null(),
-            query_text.as_ptr().cast(),
-            ptr::null(),
-            ptr::null(),
-        )
-    };
-    let query = ScopedCf::new(query.cast()).ok_or("failed to create Spotlight query")?;
+    let start = Instant::now();
 
-    let ok = unsafe { MDQueryExecute(query.as_ptr().cast(), K_MDQUERY_SYNCHRONOUS) };
-    if ok == 0 {
-        return Err("failed to execute Spotlight query".into());
-    }
+    {
+        let query_text =
+            cfstring("kMDItemFSName != \"\" && kMDItemContentType != \"public.folder\"")?;
+        let query = unsafe {
+            MDQueryCreate(
+                ptr::null(),
+                query_text.as_ptr().cast(),
+                ptr::null(),
+                ptr::null(),
+            )
+        };
+        let query = ScopedCf::new(query.cast()).ok_or("failed to create Spotlight query")?;
 
-    let result_count = unsafe { MDQueryGetResultCount(query.as_ptr().cast()) };
-
-    for index in 0..result_count {
-        let item = unsafe { MDQueryGetResultAtIndex(query.as_ptr().cast(), index) };
-        if item.is_null() {
-            continue;
+        let ok = unsafe { MDQueryExecute(query.as_ptr().cast(), K_MDQUERY_SYNCHRONOUS) };
+        if ok == 0 {
+            return Err("failed to execute Spotlight query".into());
         }
 
-        let path = unsafe { MDItemCopyAttribute(item.cast(), kMDItemPath) };
-        let Some(path) = ScopedCf::new(path) else {
-            continue;
-        };
+        let result_count = unsafe { MDQueryGetResultCount(query.as_ptr().cast()) };
 
-        let path = match cfstring_to_string(path.as_ptr()) {
-            Ok(path) => path,
-            Err(_) => continue,
-        };
+        println!("RESULTS: {}", result_count);
 
-        // println!("{path}");
+        for index in 0..result_count {
+            let item = unsafe { MDQueryGetResultAtIndex(query.as_ptr().cast(), index) };
+            if item.is_null() {
+                continue;
+            }
+
+            let path = unsafe { MDItemCopyAttribute(item.cast(), kMDItemPath) };
+            let Some(path) = ScopedCf::new(path) else {
+                continue;
+            };
+
+            // let path = match cfstring_to_string(path.as_ptr()) {
+            //     Ok(path) => path,
+            //     Err(_) => continue,
+            // };
+
+            // println!("{path}");
+        }
     }
+
+    println!("{:?}", Instant::now() - start);
 
     Ok(())
 }
