@@ -7,5 +7,9 @@ edition = "2024"
 name = "spotlight"
 path = "bin/spotlight.rs"
 
+[[bin]]
+name = "dfs"
+path = "bin/dfs.rs"
+
 [dependencies]
 libc = "0.2"
