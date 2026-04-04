@@ -3672,6 +3672,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "opendrive"
+version = "0.0.0"
+dependencies = [
+ "od-indexer",
+]
+
+[[package]]
 name = "opener"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
