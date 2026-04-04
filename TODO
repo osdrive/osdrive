@@ -1,0 +1,12 @@
+Make filters generic from indexer
+Remove stats and have it be a userspace thing
+
+
+Push index to S3
+Website to view it
+Virtual filter
+
+
+FS watching
+
+opendrive.dev

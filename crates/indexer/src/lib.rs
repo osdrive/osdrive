@@ -1,22 +1,21 @@
-use std::ffi::CString;
+//! Filesystem indexer
+
+#[cfg(not(target_os = "macos"))]
+compile_error!("macOS is only supported atm! Other OS's coming soon...");
+
+use std::ffi::{CString, OsStr};
 use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::RawFd;
-use std::path::Path;
+use std::path::Component;
+use std::path::{Path, PathBuf};
 use std::ptr;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
-use std::time::{Duration, Instant};
 
-const ROOT: &str = "/System/Volumes/Data";
-const DEFAULT_BULK_BUFFER_SIZE: usize = 4 * 1024 * 1024;
-const FD_LIMIT_RESERVE: u64 = 128;
-const MIN_OPEN_DIRS: usize = 32;
-const MAX_OPEN_DIRS: usize = 1024;
-const OPEN_RETRY_BASE_DELAY_MS: u64 = 1;
-const OPEN_RETRY_MAX_DELAY_MS: u64 = 64;
-const OPEN_RETRY_MAX_ATTEMPTS: usize = 10;
+const DEFAULT_BULK_BUFFER_SIZE: usize = 1024 * 1024;
+const MAX_WORKERS: usize = 32;
 
 const ATTR_BIT_MAP_COUNT: u16 = 5;
 const ATTR_CMN_RETURNED_ATTRS: u32 = 0x8000_0000;
@@ -58,11 +57,11 @@ unsafe extern "C" {
 }
 
 #[derive(Default)]
-struct WalkStats {
-    dirs_seen: u64,
-    files_seen: u64,
-    warnings: u64,
-    throttles: u64,
+pub struct WalkStats {
+    pub dirs_seen: u64,
+    pub files_seen: u64,
+    pub warnings: u64,
+    pub throttles: u64,
 }
 
 struct SharedStats {
@@ -83,42 +82,6 @@ impl SharedStats {
     }
 }
 
-struct FdLimiterState {
-    open_dirs: usize,
-}
-
-struct FdLimiter {
-    max_open_dirs: usize,
-    state: Mutex<FdLimiterState>,
-    condvar: Condvar,
-}
-
-impl FdLimiter {
-    fn new(max_open_dirs: usize) -> Self {
-        Self {
-            max_open_dirs,
-            state: Mutex::new(FdLimiterState { open_dirs: 0 }),
-            condvar: Condvar::new(),
-        }
-    }
-
-    fn acquire(&self) {
-        let mut state = self.state.lock().unwrap();
-
-        while state.open_dirs >= self.max_open_dirs {
-            state = self.condvar.wait(state).unwrap();
-        }
-
-        state.open_dirs += 1;
-    }
-
-    fn release(&self) {
-        let mut state = self.state.lock().unwrap();
-        state.open_dirs -= 1;
-        self.condvar.notify_one();
-    }
-}
-
 enum EntryKind {
     File,
     Directory,
@@ -135,7 +98,35 @@ struct ParsedEntry {
     name_range: Option<(usize, usize)>,
 }
 
-fn open_directory(path: &Path) -> Result<RawFd, io::Error> {
+struct ScopedDir {
+    fd: RawFd,
+}
+
+struct OpenDirWork {
+    path: PathBuf,
+    dir: ScopedDir,
+}
+
+struct WorkState {
+    stack: Vec<PathBuf>,
+    active_workers: usize,
+}
+
+#[derive(Clone, Copy)]
+pub struct WalkFilters {
+    pub skip_dev_tools: bool,
+    pub skip_cache_dirs: bool,
+}
+
+impl Drop for ScopedDir {
+    fn drop(&mut self) {
+        unsafe {
+            libc::close(self.fd);
+        }
+    }
+}
+
+fn open_directory(path: &Path) -> Result<ScopedDir, io::Error> {
     let c_path = CString::new(path.as_os_str().as_bytes())
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "path contains null byte"))?;
 
@@ -144,23 +135,14 @@ fn open_directory(path: &Path) -> Result<RawFd, io::Error> {
         return Err(io::Error::last_os_error());
     }
 
-    Ok(dirfd)
-}
-
-fn open_directory_with_backoff(
-    path: &Path,
-    limiter: &Arc<FdLimiter>,
-    stats: &Arc<SharedStats>,
-) -> Result<RawFd, io::Error> {
-    open_with_backoff(limiter, stats, || open_directory(path))
+    Ok(ScopedDir { fd: dirfd })
 }
 
 fn open_directory_at(
     parent_fd: RawFd,
     name: &[u8],
     scratch: &mut Vec<u8>,
-) -> Result<RawFd, io::Error> {
-    // Names returned by `getattrlistbulk` originate from the kernel, so they cannot contain NUL.
+) -> Result<ScopedDir, io::Error> {
     scratch.clear();
     scratch.extend_from_slice(name);
     scratch.push(0);
@@ -176,74 +158,7 @@ fn open_directory_at(
         return Err(io::Error::last_os_error());
     }
 
-    Ok(dirfd)
-}
-
-fn open_directory_at_with_backoff(
-    parent_fd: RawFd,
-    name: &[u8],
-    scratch: &mut Vec<u8>,
-    limiter: &Arc<FdLimiter>,
-    stats: &Arc<SharedStats>,
-) -> Result<RawFd, io::Error> {
-    open_with_backoff(limiter, stats, || {
-        open_directory_at(parent_fd, name, scratch)
-    })
-}
-
-fn open_with_backoff<F>(
-    limiter: &Arc<FdLimiter>,
-    stats: &Arc<SharedStats>,
-    mut open_fn: F,
-) -> Result<RawFd, io::Error>
-where
-    F: FnMut() -> Result<RawFd, io::Error>,
-{
-    let mut delay_ms = OPEN_RETRY_BASE_DELAY_MS;
-
-    for attempt in 0..=OPEN_RETRY_MAX_ATTEMPTS {
-        limiter.acquire();
-
-        match open_fn() {
-            Ok(fd) => return Ok(fd),
-            Err(error) if error.raw_os_error() == Some(libc::EMFILE) => {
-                limiter.release();
-
-                if attempt == OPEN_RETRY_MAX_ATTEMPTS {
-                    return Err(error);
-                }
-
-                stats.throttles.fetch_add(1, Ordering::Relaxed);
-                thread::sleep(Duration::from_millis(delay_ms));
-                delay_ms = (delay_ms.saturating_mul(2)).min(OPEN_RETRY_MAX_DELAY_MS);
-            }
-            Err(error) => {
-                limiter.release();
-                return Err(error);
-            }
-        }
-    }
-
-    unreachable!("open retry loop must return or exhaust attempts")
-}
-
-struct DirFrame {
-    fd: RawFd,
-    limiter: Arc<FdLimiter>,
-}
-
-struct WorkState {
-    stack: Vec<DirFrame>,
-    active_workers: usize,
-}
-
-impl Drop for DirFrame {
-    fn drop(&mut self) {
-        unsafe {
-            libc::close(self.fd);
-        }
-        self.limiter.release();
-    }
+    Ok(ScopedDir { fd: dirfd })
 }
 
 fn refill_buffer(dirfd: RawFd, buffer: &mut [u8]) -> Result<usize, BulkReadError> {
@@ -286,112 +201,59 @@ fn warn_with_path(stats: &SharedStats, path: &Path, error: &impl std::fmt::Displ
     eprintln!("warning: skipping {}: {}", path.display(), error);
 }
 
-fn warn_directory(stats: &SharedStats, error: &impl std::fmt::Display) {
-    stats.warnings.fetch_add(1, Ordering::Relaxed);
-    eprintln!("warning: skipping directory: {}", error);
-}
-
 fn worker_count() -> usize {
     thread::available_parallelism()
-        .map(|count| count.get())
-        .unwrap_or(4)
+        .map(|count| count.get().saturating_mul(2).min(MAX_WORKERS))
+        .unwrap_or(8)
 }
 
-fn max_open_dirs() -> usize {
-    let mut rlimit = libc::rlimit {
-        rlim_cur: 0,
-        rlim_max: 0,
-    };
-
-    let soft_limit = if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut rlimit) } == 0 {
-        rlimit.rlim_cur
-    } else {
-        MAX_OPEN_DIRS as libc::rlim_t + FD_LIMIT_RESERVE as libc::rlim_t
-    };
-
-    let available = soft_limit.saturating_sub(FD_LIMIT_RESERVE as libc::rlim_t);
-    (available as usize).clamp(MIN_OPEN_DIRS, MAX_OPEN_DIRS)
-}
-
-fn walk_dir(root: &Path) -> WalkStats {
+pub fn walk_dir(root: &Path, filters: WalkFilters) -> WalkStats {
     let stats = Arc::new(SharedStats {
         dirs_seen: AtomicU64::new(0),
         files_seen: AtomicU64::new(0),
         warnings: AtomicU64::new(0),
         throttles: AtomicU64::new(0),
     });
-    let limiter = Arc::new(FdLimiter::new(max_open_dirs()));
-
-    let root_frame = match open_directory_with_backoff(root, &limiter, &stats) {
-        Ok(fd) => DirFrame {
-            fd,
-            limiter: Arc::clone(&limiter),
-        },
-        Err(error) => {
-            warn_with_path(&stats, root, &error);
-            return stats.snapshot();
-        }
-    };
 
     let shared = Arc::new((
         Mutex::new(WorkState {
-            stack: vec![root_frame],
+            stack: vec![root.to_path_buf()],
             active_workers: 0,
         }),
         Condvar::new(),
     ));
     let done = Arc::new(AtomicBool::new(false));
     let worker_count = worker_count();
-    let bulk_buffer_size = DEFAULT_BULK_BUFFER_SIZE;
 
     thread::scope(|scope| {
         for _ in 0..worker_count {
             let shared = Arc::clone(&shared);
             let done = Arc::clone(&done);
             let stats = Arc::clone(&stats);
-            let limiter = Arc::clone(&limiter);
 
             scope.spawn(move || {
-                let mut buffer = vec![0; bulk_buffer_size];
+                let mut buffer = vec![0; DEFAULT_BULK_BUFFER_SIZE];
+                let mut next_child_name = Vec::new();
                 let mut openat_name = Vec::new();
+                let mut sibling_dirs = Vec::new();
                 let mut local_stats = WalkStats::default();
 
                 loop {
-                    let dir = {
-                        let (lock, condvar) = &*shared;
-                        let mut state = lock.lock().unwrap();
-
-                        loop {
-                            if let Some(dir) = state.stack.pop() {
-                                state.active_workers += 1;
-                                break dir;
-                            }
-
-                            if done.load(Ordering::Relaxed) {
-                                flush_local_stats(&stats, &mut local_stats);
-                                return;
-                            }
-
-                            if state.active_workers == 0 {
-                                done.store(true, Ordering::Relaxed);
-                                condvar.notify_all();
-                                flush_local_stats(&stats, &mut local_stats);
-                                return;
-                            }
-
-                            state = condvar.wait(state).unwrap();
-                        }
+                    let Some(path) = acquire_work(&shared, &done, &stats, &mut local_stats) else {
+                        return;
                     };
 
-                    process_dir(
-                        dir,
+                    process_dir_chain(
+                        path,
+                        filters,
                         &shared,
                         &done,
                         &stats,
-                        &limiter,
                         &mut local_stats,
                         &mut buffer,
+                        &mut next_child_name,
                         &mut openat_name,
+                        &mut sibling_dirs,
                     );
                 }
             });
@@ -401,35 +263,214 @@ fn walk_dir(root: &Path) -> WalkStats {
     stats.snapshot()
 }
 
-fn process_dir(
-    dir: DirFrame,
+fn user_relative_components<'a>(parts: &'a [&'a OsStr]) -> Option<&'a [&'a OsStr]> {
+    if let [system, volumes, data, users, _, rest @ ..] = parts {
+        if *system == OsStr::new("System")
+            && *volumes == OsStr::new("Volumes")
+            && *data == OsStr::new("Data")
+            && *users == OsStr::new("Users")
+        {
+            return Some(rest);
+        }
+    }
+
+    if let [users, _, rest @ ..] = parts {
+        if *users == OsStr::new("Users") {
+            return Some(rest);
+        }
+    }
+
+    None
+}
+
+fn is_system_data_library_caches(parts: &[&OsStr]) -> bool {
+    matches!(
+        parts,
+        [system, volumes, data, library, caches, ..]
+            if *system == OsStr::new("System")
+                && *volumes == OsStr::new("Volumes")
+                && *data == OsStr::new("Data")
+                && *library == OsStr::new("Library")
+                && *caches == OsStr::new("Caches")
+    )
+}
+
+fn is_temp_cache_root(parts: &[&OsStr]) -> bool {
+    matches!(parts, [tmp, ..] if *tmp == OsStr::new("tmp"))
+        || matches!(parts, [var, tmp, ..] if *var == OsStr::new("var") && *tmp == OsStr::new("tmp"))
+        || matches!(parts, [private, tmp, ..] if *private == OsStr::new("private") && *tmp == OsStr::new("tmp"))
+        || matches!(parts, [private, var, tmp, ..]
+            if *private == OsStr::new("private")
+                && *var == OsStr::new("var")
+                && *tmp == OsStr::new("tmp"))
+}
+
+fn should_skip_directory(path: &Path, filters: WalkFilters) -> bool {
+    let Some(name) = path.file_name() else {
+        return false;
+    };
+
+    if filters.skip_dev_tools
+        && (name == OsStr::new("target") || name == OsStr::new("node_modules"))
+    {
+        return true;
+    }
+
+    let parts: Vec<_> = path
+        .components()
+        .filter_map(|component| match component {
+            Component::Normal(part) => Some(part),
+            _ => None,
+        })
+        .collect();
+
+    if filters.skip_cache_dirs {
+        if is_system_data_library_caches(&parts) || is_temp_cache_root(&parts) {
+            return true;
+        }
+
+        if let Some(user_relative) = user_relative_components(&parts) {
+            if matches!(user_relative, [library, caches, ..]
+                if *library == OsStr::new("Library") && *caches == OsStr::new("Caches"))
+            {
+                return true;
+            }
+        }
+    }
+
+    if !filters.skip_dev_tools {
+        return false;
+    }
+
+    let Some(user_relative) = user_relative_components(&parts) else {
+        return false;
+    };
+
+    matches!(user_relative, [cache, ..] if *cache == OsStr::new(".cargo"))
+        || matches!(user_relative, [cache, ..] if *cache == OsStr::new(".rustup"))
+        || matches!(user_relative, [cache, ..] if *cache == OsStr::new(".pnpm-store"))
+        || matches!(user_relative, [dot_cache, tool, ..]
+            if *dot_cache == OsStr::new(".cache")
+                && (*tool == OsStr::new("pnpm") || *tool == OsStr::new("zig")))
+        || matches!(user_relative, [library, pnpm, ..]
+            if *library == OsStr::new("Library") && *pnpm == OsStr::new("pnpm"))
+}
+
+fn acquire_work(
     shared: &Arc<(Mutex<WorkState>, Condvar)>,
     done: &Arc<AtomicBool>,
     stats: &Arc<SharedStats>,
-    limiter: &Arc<FdLimiter>,
+    local_stats: &mut WalkStats,
+) -> Option<PathBuf> {
+    let (lock, condvar) = &**shared;
+    let mut state = lock.lock().unwrap();
+
+    loop {
+        if let Some(path) = state.stack.pop() {
+            state.active_workers += 1;
+            return Some(path);
+        }
+
+        if done.load(Ordering::Relaxed) {
+            flush_local_stats(stats, local_stats);
+            return None;
+        }
+
+        if state.active_workers == 0 {
+            done.store(true, Ordering::Relaxed);
+            condvar.notify_all();
+            flush_local_stats(stats, local_stats);
+            return None;
+        }
+
+        state = condvar.wait(state).unwrap();
+    }
+}
+
+fn process_dir_chain(
+    start_path: PathBuf,
+    filters: WalkFilters,
+    shared: &Arc<(Mutex<WorkState>, Condvar)>,
+    done: &Arc<AtomicBool>,
+    stats: &Arc<SharedStats>,
     local_stats: &mut WalkStats,
     buffer: &mut [u8],
+    next_child_name: &mut Vec<u8>,
     openat_name: &mut Vec<u8>,
+    sibling_dirs: &mut Vec<PathBuf>,
 ) {
+    let mut pending = Some(start_path);
+    let mut next_open_dir = None;
+
+    loop {
+        let current = if let Some(open_dir) = next_open_dir.take() {
+            open_dir
+        } else {
+            let path = pending
+                .take()
+                .expect("path must exist while draining DFS chain");
+            let dir = match open_directory(&path) {
+                Ok(dir) => dir,
+                Err(error) => {
+                    warn_with_path(stats, &path, &error);
+                    break;
+                }
+            };
+
+            OpenDirWork { path, dir }
+        };
+
+        next_open_dir = process_open_dir(
+            current,
+            filters,
+            shared,
+            stats,
+            local_stats,
+            buffer,
+            next_child_name,
+            openat_name,
+            sibling_dirs,
+        );
+
+        if next_open_dir.is_none() {
+            break;
+        }
+    }
+
+    finish_work(shared, done);
+}
+
+fn process_open_dir(
+    current: OpenDirWork,
+    filters: WalkFilters,
+    shared: &Arc<(Mutex<WorkState>, Condvar)>,
+    stats: &Arc<SharedStats>,
+    local_stats: &mut WalkStats,
+    buffer: &mut [u8],
+    next_child_name: &mut Vec<u8>,
+    openat_name: &mut Vec<u8>,
+    sibling_dirs: &mut Vec<PathBuf>,
+) -> Option<OpenDirWork> {
     local_stats.dirs_seen += 1;
-    let mut discovered_dirs = Vec::new();
+    sibling_dirs.clear();
+    next_child_name.clear();
+    let mut next_child_path = None;
 
     'dir: loop {
-        let entry_count = match refill_buffer(dir.fd, buffer) {
+        let entry_count = match refill_buffer(current.dir.fd, buffer) {
             Ok(0) => break,
             Ok(entry_count) => entry_count,
             Err(BulkReadError::Io(error)) => {
-                warn_directory(stats, &error);
+                warn_with_path(stats, &current.path, &error);
                 break;
             }
             Err(BulkReadError::Parse(error)) => {
-                warn_directory(stats, &error);
+                warn_with_path(stats, &current.path, &error);
                 break;
             }
         };
 
         let mut offset = 0usize;
-        discovered_dirs.clear();
 
         for _ in 0..entry_count {
             let entry_start = offset;
@@ -438,13 +479,14 @@ fn process_dir(
                 Err(BulkReadError::Parse(error)) => {
                     stats.warnings.fetch_add(1, Ordering::Relaxed);
                     eprintln!(
-                        "warning: skipping remainder of directory after bulk parse failure: {}",
+                        "warning: skipping remainder of directory {} after bulk parse failure: {}",
+                        current.path.display(),
                         error
                     );
                     break 'dir;
                 }
                 Err(BulkReadError::Io(error)) => {
-                    warn_directory(stats, &error);
+                    warn_with_path(stats, &current.path, &error);
                     break 'dir;
                 }
             };
@@ -458,29 +500,26 @@ fn process_dir(
                         .map(|(start, end)| (entry_start + start, entry_start + end))
                     else {
                         stats.warnings.fetch_add(1, Ordering::Relaxed);
-                        eprintln!("warning: skipping directory: missing directory name");
+                        eprintln!(
+                            "warning: skipping directory in {}: missing directory name",
+                            current.path.display()
+                        );
                         continue;
                     };
 
                     let name = &buffer[name_start..name_end];
-                    let child_fd = match open_directory_at_with_backoff(
-                        dir.fd,
-                        name,
-                        openat_name,
-                        limiter,
-                        stats,
-                    ) {
-                        Ok(fd) => fd,
-                        Err(error) => {
-                            warn_directory(stats, &error);
-                            continue;
-                        }
-                    };
+                    let child_path = current.path.join(Path::new(OsStr::from_bytes(name)));
 
-                    discovered_dirs.push(DirFrame {
-                        fd: child_fd,
-                        limiter: Arc::clone(limiter),
-                    });
+                    if should_skip_directory(&child_path, filters) {
+                        continue;
+                    }
+
+                    if next_child_path.is_none() {
+                        next_child_name.extend_from_slice(name);
+                        next_child_path = Some(child_path);
+                    } else {
+                        sibling_dirs.push(child_path);
+                    }
                 }
                 EntryKind::File => {
                     local_stats.files_seen += 1;
@@ -488,21 +527,37 @@ fn process_dir(
                 EntryKind::Other => {}
             }
         }
-
-        if !discovered_dirs.is_empty() {
-            let discovered_count = discovered_dirs.len();
-            let (lock, condvar) = &**shared;
-            let mut state = lock.lock().unwrap();
-            state.stack.append(&mut discovered_dirs);
-            if discovered_count == 1 {
-                condvar.notify_one();
-            } else {
-                condvar.notify_all();
-            }
-        }
     }
 
-    finish_dir(shared, done);
+    share_siblings(sibling_dirs, shared);
+
+    let next_path = next_child_path?;
+    match open_directory_at(current.dir.fd, next_child_name, openat_name) {
+        Ok(dir) => Some(OpenDirWork {
+            path: next_path,
+            dir,
+        }),
+        Err(error) => {
+            warn_with_path(stats, &next_path, &error);
+            None
+        }
+    }
+}
+
+fn share_siblings(sibling_dirs: &mut Vec<PathBuf>, shared: &Arc<(Mutex<WorkState>, Condvar)>) {
+    if sibling_dirs.is_empty() {
+        return;
+    }
+
+    let shared_count = sibling_dirs.len();
+    let (lock, condvar) = &**shared;
+    let mut state = lock.lock().unwrap();
+    state.stack.append(sibling_dirs);
+    if shared_count == 1 {
+        condvar.notify_one();
+    } else {
+        condvar.notify_all();
+    }
 }
 
 fn flush_local_stats(stats: &SharedStats, local_stats: &mut WalkStats) {
@@ -535,7 +590,7 @@ fn flush_local_stats(stats: &SharedStats, local_stats: &mut WalkStats) {
     }
 }
 
-fn finish_dir(shared: &Arc<(Mutex<WorkState>, Condvar)>, done: &Arc<AtomicBool>) {
+fn finish_work(shared: &Arc<(Mutex<WorkState>, Condvar)>, done: &Arc<AtomicBool>) {
     let (lock, condvar) = &**shared;
     let mut state = lock.lock().unwrap();
     state.active_workers -= 1;
@@ -660,18 +715,4 @@ fn read_i32(buffer: &[u8], offset: usize) -> Option<i32> {
     }
 
     Some(unsafe { ptr::read_unaligned(buffer.as_ptr().add(offset).cast::<i32>()) })
-}
-
-fn main() {
-    let start = Instant::now();
-    let stats = walk_dir(Path::new(ROOT));
-
-    println!(
-        "dirs={} files={} warnings={} throttles={} took={:?}",
-        stats.dirs_seen,
-        stats.files_seen,
-        stats.warnings,
-        stats.throttles,
-        start.elapsed()
-    );
 }

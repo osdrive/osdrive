@@ -2632,23 +2632,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0263a3d970d5c054ed9312c0057b4f3bde9c0b33836d3637361d4a9e6e7a408"
 
 [[package]]
-name = "indexer"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "num_cpus",
- "rayon",
- "walkdir",
-]
-
-[[package]]
-name = "indexer2"
-version = "0.1.0"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "indexmap"
 version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3627,6 +3610,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62948e14d923ea95ea2c7c86c71013138b66525b86bdc08d2dcc262bdb497b87"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "od-indexer"
+version = "0.0.0"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
