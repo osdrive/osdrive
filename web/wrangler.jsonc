@@ -1,0 +1,14 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "drive",
+	"main": "@solidjs/start/server/entry",
+	"compatibility_date": "2025-10-11",
+	"compatibility_flags": ["nodejs_compat"],
+	"route": {
+		"pattern": "drive.otbeaumont.me",
+		"custom_domain": true
+	},
+	"observability": {
+		"enabled": true
+	}
+}
