@@ -2,7 +2,7 @@ use od_indexer::{walk_dir, WalkControl, WalkEvent};
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Component;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::{io, path::Path, time::Instant};
 use walrus_rust::{FsyncSchedule, ReadConsistency, Walrus};
 
@@ -17,14 +17,14 @@ struct Stats {
     files_seen: u64,
     warnings: u64,
     persisted_paths: u64,
-    wal: Arc<Walrus>,
+    wal: Arc<Mutex<Walrus>>,
     pending_paths: Vec<Vec<u8>>,
     pending_bytes: usize,
     first_error: Option<String>,
 }
 
 impl Stats {
-    fn new(wal: Arc<Walrus>) -> Self {
+    fn new(wal: Arc<Mutex<Walrus>>) -> Self {
         Self {
             dirs_seen: 0,
             files_seen: 0,
@@ -58,7 +58,17 @@ impl Stats {
         }
 
         let batch: Vec<&[u8]> = self.pending_paths.iter().map(Vec::as_slice).collect();
-        match self.wal.batch_append_for_topic(WAL_TOPIC, &batch) {
+        let wal = match self.wal.lock() {
+            Ok(wal) => wal,
+            Err(error) => {
+                self.first_error = Some(format!("failed to lock walrus writer: {error}"));
+                self.pending_paths.clear();
+                self.pending_bytes = 0;
+                return;
+            }
+        };
+
+        match wal.batch_append_for_topic(WAL_TOPIC, &batch) {
             Ok(()) => {
                 self.persisted_paths += self.pending_paths.len() as u64;
             }
@@ -172,11 +182,11 @@ fn main() -> io::Result<()> {
     println!("Indexing...");
     let start = Instant::now();
 
-    let wal = Arc::new(Walrus::with_consistency_and_schedule_for_key(
+    let wal = Arc::new(Mutex::new(Walrus::with_consistency_and_schedule_for_key(
         WAL_KEY,
         ReadConsistency::StrictlyAtOnce,
         FsyncSchedule::NoFsync,
-    )?);
+    )?));
 
     let stats = walk_dir(
         Path::new(ROOT_PATH),
