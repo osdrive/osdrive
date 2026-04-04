@@ -95,8 +95,13 @@ struct OpenDirWork {
     dir: ScopedDir,
 }
 
+struct PendingDir {
+    path: PathBuf,
+    already_visited: bool,
+}
+
 struct WorkState {
-    stack: Vec<PathBuf>,
+    stack: Vec<PendingDir>,
     active_workers: usize,
 }
 
@@ -245,7 +250,10 @@ where
 {
     let shared = Arc::new((
         Mutex::new(WorkState {
-            stack: vec![root.to_path_buf()],
+            stack: vec![PendingDir {
+                path: root.to_path_buf(),
+                already_visited: false,
+            }],
             active_workers: 0,
         }),
         Condvar::new(),
@@ -306,7 +314,7 @@ where
 fn acquire_work(
     shared: &Arc<(Mutex<WorkState>, Condvar)>,
     done: &Arc<AtomicBool>,
-) -> Option<PathBuf> {
+) -> Option<PendingDir> {
     let (lock, condvar) = &**shared;
     let mut state = lock.lock().unwrap();
 
@@ -331,7 +339,7 @@ fn acquire_work(
 }
 
 fn process_dir_chain<S, Visit>(
-    start_path: PathBuf,
+    start_path: PendingDir,
     shared: &Arc<(Mutex<WorkState>, Condvar)>,
     done: &Arc<AtomicBool>,
     visit: &Visit,
@@ -339,7 +347,7 @@ fn process_dir_chain<S, Visit>(
     buffer: &mut [u8],
     next_child_name: &mut Vec<u8>,
     openat_name: &mut Vec<u8>,
-    sibling_dirs: &mut Vec<PathBuf>,
+    sibling_dirs: &mut Vec<PendingDir>,
 ) where
     Visit: Fn(WalkEvent<'_>, &mut S) -> WalkControl,
 {
@@ -354,16 +362,21 @@ fn process_dir_chain<S, Visit>(
                 .take()
                 .expect("path must exist while draining DFS chain");
 
-            if matches!(visit(WalkEvent::Dir(&path), state), WalkControl::SkipDir) {
+            if !path.already_visited
+                && matches!(
+                    visit(WalkEvent::Dir(&path.path), state),
+                    WalkControl::SkipDir
+                )
+            {
                 break;
             }
 
-            let dir = match open_directory(&path) {
+            let dir = match open_directory(&path.path) {
                 Ok(dir) => dir,
                 Err(error) => {
                     visit(
                         WalkEvent::Warning {
-                            path: &path,
+                            path: &path.path,
                             error: &error,
                         },
                         state,
@@ -372,7 +385,10 @@ fn process_dir_chain<S, Visit>(
                 }
             };
 
-            OpenDirWork { path, dir }
+            OpenDirWork {
+                path: path.path,
+                dir,
+            }
         };
 
         next_open_dir = process_open_dir(
@@ -402,7 +418,7 @@ fn process_open_dir<S, Visit>(
     buffer: &mut [u8],
     next_child_name: &mut Vec<u8>,
     openat_name: &mut Vec<u8>,
-    sibling_dirs: &mut Vec<PathBuf>,
+    sibling_dirs: &mut Vec<PendingDir>,
 ) -> Option<OpenDirWork>
 where
     Visit: Fn(WalkEvent<'_>, &mut S) -> WalkControl,
@@ -495,9 +511,15 @@ where
 
                     if next_child_path.is_none() {
                         next_child_name.extend_from_slice(name);
-                        next_child_path = Some(child_path);
+                        next_child_path = Some(PendingDir {
+                            path: child_path,
+                            already_visited: true,
+                        });
                     } else {
-                        sibling_dirs.push(child_path);
+                        sibling_dirs.push(PendingDir {
+                            path: child_path,
+                            already_visited: true,
+                        });
                     }
                 }
                 EntryKind::File => {
@@ -522,13 +544,13 @@ where
     let next_path = next_child_path?;
     match open_directory_at(current.dir.fd, next_child_name, openat_name) {
         Ok(dir) => Some(OpenDirWork {
-            path: next_path,
+            path: next_path.path,
             dir,
         }),
         Err(error) => {
             visit(
                 WalkEvent::Warning {
-                    path: &next_path,
+                    path: &next_path.path,
                     error: &error,
                 },
                 state,
@@ -538,7 +560,7 @@ where
     }
 }
 
-fn share_siblings(sibling_dirs: &mut Vec<PathBuf>, shared: &Arc<(Mutex<WorkState>, Condvar)>) {
+fn share_siblings(sibling_dirs: &mut Vec<PendingDir>, shared: &Arc<(Mutex<WorkState>, Condvar)>) {
     if sibling_dirs.is_empty() {
         return;
     }
@@ -679,4 +701,136 @@ fn read_i32(buffer: &[u8], offset: usize) -> Option<i32> {
     }
 
     Some(unsafe { ptr::read_unaligned(buffer.as_ptr().add(offset).cast::<i32>()) })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{walk_dir, WalkControl, WalkEvent};
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+
+    #[derive(Default)]
+    struct VisitState {
+        dirs: Vec<PathBuf>,
+        files: Vec<PathBuf>,
+    }
+
+    #[test]
+    fn visits_each_directory_once() {
+        let root = temp_test_dir();
+        fs::create_dir(root.join("a")).unwrap();
+        fs::create_dir(root.join("a/b")).unwrap();
+        fs::write(root.join("a/file.txt"), b"x").unwrap();
+
+        let state = walk_dir(
+            &root,
+            VisitState::default,
+            |event, state| match event {
+                WalkEvent::Dir(path) => {
+                    state.dirs.push(path.to_path_buf());
+                    WalkControl::Continue
+                }
+                WalkEvent::File(path) => {
+                    state.files.push(path.to_path_buf());
+                    WalkControl::Continue
+                }
+                WalkEvent::Warning { .. } => WalkControl::Continue,
+            },
+            |mut a, mut b| {
+                a.dirs.append(&mut b.dirs);
+                a.files.append(&mut b.files);
+                a
+            },
+        );
+
+        let mut dirs = relative_paths(&root, state.dirs);
+        dirs.sort();
+        assert_eq!(dirs, vec![".", "a", "a/b"]);
+
+        let mut files = relative_paths(&root, state.files);
+        files.sort();
+        assert_eq!(files, vec!["a/file.txt"]);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn skip_dir_prevents_descending_once() {
+        let root = temp_test_dir();
+        fs::create_dir(root.join("keep")).unwrap();
+        fs::create_dir(root.join("skipme")).unwrap();
+        fs::write(root.join("keep/file.txt"), b"x").unwrap();
+        fs::write(root.join("skipme/hidden.txt"), b"x").unwrap();
+
+        let state = walk_dir(
+            &root,
+            VisitState::default,
+            |event, state| match event {
+                WalkEvent::Dir(path) => {
+                    state.dirs.push(path.to_path_buf());
+                    if path.file_name().is_some_and(|name| name == "skipme") {
+                        WalkControl::SkipDir
+                    } else {
+                        WalkControl::Continue
+                    }
+                }
+                WalkEvent::File(path) => {
+                    state.files.push(path.to_path_buf());
+                    WalkControl::Continue
+                }
+                WalkEvent::Warning { .. } => WalkControl::Continue,
+            },
+            |mut a, mut b| {
+                a.dirs.append(&mut b.dirs);
+                a.files.append(&mut b.files);
+                a
+            },
+        );
+
+        let mut dirs = relative_paths(&root, state.dirs);
+        dirs.sort();
+        assert_eq!(dirs, vec![".", "keep", "skipme"]);
+
+        let mut files = relative_paths(&root, state.files);
+        files.sort();
+        assert_eq!(files, vec!["keep/file.txt"]);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    fn temp_test_dir() -> PathBuf {
+        let mut path = std::env::temp_dir();
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+        path.push(format!("od-indexer-test-{nanos}-{id}"));
+        fs::create_dir(&path).unwrap();
+        path
+    }
+
+    fn relative_paths(root: &Path, paths: Vec<PathBuf>) -> Vec<String> {
+        paths
+            .into_iter()
+            .map(|path| {
+                path.strip_prefix(root)
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_owned()
+            })
+            .map(|path| {
+                if path.is_empty() {
+                    ".".to_owned()
+                } else {
+                    path
+                }
+            })
+            .collect()
+    }
 }

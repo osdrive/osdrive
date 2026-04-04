@@ -1,3 +1,4 @@
+use crate::builder::{DbStats, DbSummary};
 use crate::error::{Error, Result};
 use crate::format::{
     read_i64, read_u16, read_u32, read_u64, DiskNode, FLAG_DIR, FLAG_EXPLICIT, HEADER_LEN, MAGIC,
@@ -6,6 +7,7 @@ use crate::format::{
 use crate::path::{components, hash_path, normalize_path};
 use std::borrow::Cow;
 use std::fs;
+use std::io::Read;
 use std::path::Path;
 
 pub type NodeId = u32;
@@ -47,6 +49,7 @@ pub struct Db {
     names: Vec<u8>,
     hashes: Vec<StoredHash>,
     root_id: NodeId,
+    summary: DbSummary,
 }
 
 impl Db {
@@ -55,34 +58,24 @@ impl Db {
         Self::from_bytes(bytes)
     }
 
-    pub fn from_bytes(bytes: Vec<u8>) -> Result<Self> {
-        if bytes.len() < HEADER_LEN {
-            return Err(Error::InvalidFormat("file too small"));
-        }
-        if bytes[..MAGIC.len()] != MAGIC {
-            return Err(Error::InvalidFormat("invalid magic"));
-        }
-        if read_u32(&bytes, 8) != Some(VERSION) {
-            return Err(Error::InvalidFormat("unsupported version"));
-        }
+    pub fn read_summary(path: impl AsRef<Path>) -> Result<DbSummary> {
+        let mut file = fs::File::open(path)?;
+        let mut header = [0; HEADER_LEN];
+        file.read_exact(&mut header)?;
+        Ok(parse_header(&header)?.summary)
+    }
 
-        let root_id = read_u32(&bytes, 12).ok_or(Error::InvalidFormat("missing root id"))?;
-        let node_count =
-            read_u32(&bytes, 16).ok_or(Error::InvalidFormat("missing node count"))? as usize;
-        let edge_count =
-            read_u32(&bytes, 20).ok_or(Error::InvalidFormat("missing edge count"))? as usize;
-        let nodes_offset =
-            read_u64(&bytes, 24).ok_or(Error::InvalidFormat("missing nodes offset"))? as usize;
-        let edges_offset =
-            read_u64(&bytes, 32).ok_or(Error::InvalidFormat("missing edges offset"))? as usize;
-        let names_offset =
-            read_u64(&bytes, 40).ok_or(Error::InvalidFormat("missing names offset"))? as usize;
-        let names_len =
-            read_u64(&bytes, 48).ok_or(Error::InvalidFormat("missing names len"))? as usize;
-        let hashes_offset =
-            read_u64(&bytes, 56).ok_or(Error::InvalidFormat("missing hashes offset"))? as usize;
-        let hash_count =
-            read_u32(&bytes, 64).ok_or(Error::InvalidFormat("missing hash count"))? as usize;
+    pub fn from_bytes(bytes: Vec<u8>) -> Result<Self> {
+        let header = parse_header(&bytes)?;
+        let root_id = header.root_id;
+        let node_count = header.node_count;
+        let edge_count = header.edge_count;
+        let nodes_offset = header.nodes_offset;
+        let edges_offset = header.edges_offset;
+        let names_offset = header.names_offset;
+        let names_len = header.names_len;
+        let hashes_offset = header.hashes_offset;
+        let hash_count = header.hash_count;
 
         let nodes_end = nodes_offset
             .checked_add(node_count * NODE_LEN)
@@ -135,6 +128,7 @@ impl Db {
             names,
             hashes,
             root_id,
+            summary: header.summary,
         };
         db.validate()?;
         Ok(db)
@@ -146,6 +140,14 @@ impl Db {
 
     pub fn node_count(&self) -> usize {
         self.nodes.len()
+    }
+
+    pub fn summary(&self) -> DbSummary {
+        self.summary
+    }
+
+    pub fn stats(&self) -> DbStats {
+        self.summary.stats
     }
 
     pub fn get(&self, id: NodeId) -> Option<NodeRecord<'_>> {
@@ -294,6 +296,74 @@ impl Db {
         let end = start + node.name_len as usize;
         self.names.get(start..end)
     }
+}
+
+struct ParsedHeader {
+    root_id: u32,
+    node_count: usize,
+    edge_count: usize,
+    nodes_offset: usize,
+    edges_offset: usize,
+    names_offset: usize,
+    names_len: usize,
+    hashes_offset: usize,
+    hash_count: usize,
+    summary: DbSummary,
+}
+
+fn parse_header(bytes: &[u8]) -> Result<ParsedHeader> {
+    if bytes.len() < HEADER_LEN {
+        return Err(Error::InvalidFormat("file too small"));
+    }
+    if bytes[..MAGIC.len()] != MAGIC {
+        return Err(Error::InvalidFormat("invalid magic"));
+    }
+    if read_u32(bytes, 8) != Some(VERSION) {
+        return Err(Error::InvalidFormat("unsupported version"));
+    }
+
+    let root_id = read_u32(bytes, 12).ok_or(Error::InvalidFormat("missing root id"))?;
+    let node_count =
+        read_u32(bytes, 16).ok_or(Error::InvalidFormat("missing node count"))? as usize;
+    let edge_count =
+        read_u32(bytes, 20).ok_or(Error::InvalidFormat("missing edge count"))? as usize;
+    let nodes_offset =
+        read_u64(bytes, 24).ok_or(Error::InvalidFormat("missing nodes offset"))? as usize;
+    let edges_offset =
+        read_u64(bytes, 32).ok_or(Error::InvalidFormat("missing edges offset"))? as usize;
+    let names_offset =
+        read_u64(bytes, 40).ok_or(Error::InvalidFormat("missing names offset"))? as usize;
+    let names_len = read_u64(bytes, 48).ok_or(Error::InvalidFormat("missing names len"))? as usize;
+    let hashes_offset =
+        read_u64(bytes, 56).ok_or(Error::InvalidFormat("missing hashes offset"))? as usize;
+    let hash_count =
+        read_u32(bytes, 64).ok_or(Error::InvalidFormat("missing hash count"))? as usize;
+    let explicit_dirs =
+        read_u64(bytes, 68).ok_or(Error::InvalidFormat("missing explicit dir count"))?;
+    let explicit_files =
+        read_u64(bytes, 76).ok_or(Error::InvalidFormat("missing explicit file count"))?;
+    let explicit_nodes =
+        read_u64(bytes, 84).ok_or(Error::InvalidFormat("missing explicit node count"))?;
+
+    Ok(ParsedHeader {
+        root_id,
+        node_count,
+        edge_count,
+        nodes_offset,
+        edges_offset,
+        names_offset,
+        names_len,
+        hashes_offset,
+        hash_count,
+        summary: DbSummary {
+            node_count,
+            stats: DbStats {
+                explicit_dirs,
+                explicit_files,
+                explicit_nodes,
+            },
+        },
+    })
 }
 
 fn parse_node(bytes: &[u8]) -> Result<StoredNode> {

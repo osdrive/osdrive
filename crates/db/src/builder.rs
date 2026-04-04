@@ -3,10 +3,26 @@ use crate::format::{
     push_i64, push_u16, push_u32, push_u64, DiskNode, DiskPathHash, Header, FLAG_DIR,
     FLAG_EXPLICIT, HEADER_LEN, MAGIC, NODE_LEN, PATH_HASH_LEN, VERSION,
 };
-use crate::path::{components, hash_child_path, hash_path, normalize_path};
+use crate::path::{
+    components, hash_child_path, hash_name, hash_path, normalize_path,
+    validate_normalized_absolute_path,
+};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct DbStats {
+    pub explicit_dirs: u64,
+    pub explicit_files: u64,
+    pub explicit_nodes: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DbSummary {
+    pub node_count: usize,
+    pub stats: DbStats,
+}
 
 #[derive(Clone, Debug)]
 pub struct InputEntry<'a> {
@@ -17,13 +33,13 @@ pub struct InputEntry<'a> {
     pub modified_unix_ns: i64,
 }
 
-#[derive(Clone, Debug)]
-struct OwnedEntry {
-    path: Vec<u8>,
-    is_dir: bool,
-    size: u64,
-    created_unix_ns: i64,
-    modified_unix_ns: i64,
+#[derive(Debug)]
+pub struct OwnedInputEntry {
+    pub path: Box<[u8]>,
+    pub is_dir: bool,
+    pub size: u64,
+    pub created_unix_ns: i64,
+    pub modified_unix_ns: i64,
 }
 
 #[derive(Clone, Debug)]
@@ -36,23 +52,35 @@ struct BuildNode {
     modified_unix_ns: i64,
     explicit: bool,
     path_hash: u64,
-    children: Vec<u32>,
-}
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-struct NodeKey {
-    parent_id: u32,
-    name: Vec<u8>,
+    child_ids: Vec<u32>,
+    children_by_name_hash: HashMap<u64, Vec<u32>>,
 }
 
 pub struct DbBuilder {
-    entries: Vec<OwnedEntry>,
+    nodes: Vec<BuildNode>,
+    stats: DbStats,
 }
 
 impl DbBuilder {
     pub fn new() -> Self {
         Self {
-            entries: Vec::new(),
+            nodes: vec![BuildNode {
+                parent_id: 0,
+                name: Vec::new(),
+                is_dir: true,
+                size: 0,
+                created_unix_ns: 0,
+                modified_unix_ns: 0,
+                explicit: true,
+                path_hash: hash_path(b"/"),
+                child_ids: Vec::new(),
+                children_by_name_hash: HashMap::new(),
+            }],
+            stats: DbStats {
+                explicit_dirs: 1,
+                explicit_files: 0,
+                explicit_nodes: 1,
+            },
         }
     }
 
@@ -72,110 +100,70 @@ impl DbBuilder {
 
     pub fn add_entry(&mut self, entry: InputEntry<'_>) -> Result<()> {
         let path = normalize_path(entry.path)?;
-        self.entries.push(OwnedEntry {
-            path,
-            is_dir: entry.is_dir,
-            size: entry.size,
-            created_unix_ns: entry.created_unix_ns,
-            modified_unix_ns: entry.modified_unix_ns,
-        });
-        Ok(())
+        self.insert_path(
+            &path,
+            entry.is_dir,
+            entry.size,
+            entry.created_unix_ns,
+            entry.modified_unix_ns,
+        )
+    }
+
+    pub fn add_owned_entry(&mut self, entry: OwnedInputEntry) -> Result<()> {
+        let path = normalize_path(&entry.path)?;
+        self.insert_path(
+            &path,
+            entry.is_dir,
+            entry.size,
+            entry.created_unix_ns,
+            entry.modified_unix_ns,
+        )
+    }
+
+    pub fn add_owned_entry_unchecked(&mut self, entry: OwnedInputEntry) -> Result<()> {
+        debug_assert!(validate_normalized_absolute_path(&entry.path).is_ok());
+        self.insert_path(
+            &entry.path,
+            entry.is_dir,
+            entry.size,
+            entry.created_unix_ns,
+            entry.modified_unix_ns,
+        )
     }
 
     pub fn write_to_path(self, path: impl AsRef<Path>) -> Result<()> {
-        let bytes = self.build_bytes()?;
+        self.write_to_path_with_summary(path).map(|_| ())
+    }
+
+    pub fn write_to_path_with_stats(self, path: impl AsRef<Path>) -> Result<DbStats> {
+        self.write_to_path_with_summary(path)
+            .map(|summary| summary.stats)
+    }
+
+    pub fn write_to_path_with_summary(self, path: impl AsRef<Path>) -> Result<DbSummary> {
+        let (bytes, summary) = self.build_bytes_with_summary()?;
         fs::write(path, bytes)?;
-        Ok(())
+        Ok(summary)
     }
 
-    pub fn extend(&mut self, mut other: Self) {
-        self.entries.append(&mut other.entries);
+    pub fn build_bytes(self) -> Result<Vec<u8>> {
+        self.build_bytes_with_summary().map(|(bytes, _)| bytes)
     }
 
-    pub fn build_bytes(mut self) -> Result<Vec<u8>> {
-        self.entries.sort_by(|a, b| a.path.cmp(&b.path));
+    pub fn build_bytes_with_stats(self) -> Result<(Vec<u8>, DbStats)> {
+        self.build_bytes_with_summary()
+            .map(|(bytes, summary)| (bytes, summary.stats))
+    }
 
-        let mut nodes = vec![BuildNode {
-            parent_id: 0,
-            name: Vec::new(),
-            is_dir: true,
-            size: 0,
-            created_unix_ns: 0,
-            modified_unix_ns: 0,
-            explicit: true,
-            path_hash: hash_path(b"/"),
-            children: Vec::new(),
-        }];
-        let mut ids_by_key = HashMap::<NodeKey, u32>::new();
-
-        for entry in self.entries {
-            if entry.path == b"/" {
-                nodes[0].size = entry.size;
-                nodes[0].created_unix_ns = entry.created_unix_ns;
-                nodes[0].modified_unix_ns = entry.modified_unix_ns;
-                nodes[0].explicit = true;
-                continue;
-            }
-
-            let mut current_id = 0u32;
-
-            for component in components(&entry.path) {
-                let is_terminal = component_end_offset(&entry.path, component) == entry.path.len();
-                let key = NodeKey {
-                    parent_id: current_id,
-                    name: component.to_vec(),
-                };
-                let next_id = if let Some(id) = ids_by_key.get(&key).copied() {
-                    id
-                } else {
-                    let id = u32::try_from(nodes.len()).map_err(|_| Error::NodeLimitExceeded)?;
-                    let parent_hash = nodes[current_id as usize].path_hash;
-                    nodes.push(BuildNode {
-                        parent_id: current_id,
-                        name: key.name.clone(),
-                        is_dir: !is_terminal || entry.is_dir,
-                        size: 0,
-                        created_unix_ns: 0,
-                        modified_unix_ns: 0,
-                        explicit: false,
-                        path_hash: hash_child_path(parent_hash, current_id == 0, component),
-                        children: Vec::new(),
-                    });
-                    nodes[current_id as usize].children.push(id);
-                    ids_by_key.insert(key, id);
-                    id
-                };
-
-                if is_terminal {
-                    let node = &mut nodes[next_id as usize];
-                    node.is_dir = entry.is_dir;
-                    node.size = entry.size;
-                    node.created_unix_ns = entry.created_unix_ns;
-                    node.modified_unix_ns = entry.modified_unix_ns;
-                    node.explicit = true;
-                } else {
-                    nodes[next_id as usize].is_dir = true;
-                }
-
-                current_id = next_id;
-            }
-        }
-
-        let node_names: Vec<Vec<u8>> = nodes.iter().map(|node| node.name.clone()).collect();
-        for node in &mut nodes {
-            node.children.sort_unstable_by(|a, b| {
-                let left = &node_names[*a as usize];
-                let right = &node_names[*b as usize];
-                left.cmp(right)
-            });
-        }
+    pub fn build_bytes_with_summary(mut self) -> Result<(Vec<u8>, DbSummary)> {
+        self.sort_children();
 
         let mut names = Vec::new();
-        let mut disk_nodes = Vec::with_capacity(nodes.len());
+        let mut disk_nodes = Vec::with_capacity(self.nodes.len());
         let mut edges = Vec::new();
-        let mut hashes = Vec::with_capacity(nodes.len());
+        let mut hashes = Vec::with_capacity(self.nodes.len());
 
-        for (index, node) in nodes.iter().enumerate() {
+        for (index, node) in self.nodes.iter().enumerate() {
             let name_offset = u32::try_from(names.len())
                 .map_err(|_| Error::InvalidFormat("name blob too large"))?;
             let name_len = u16::try_from(node.name.len())
@@ -184,8 +172,8 @@ impl DbBuilder {
 
             let first_child_edge = u32::try_from(edges.len())
                 .map_err(|_| Error::InvalidFormat("too many child edges"))?;
-            edges.extend_from_slice(&node.children);
-            let child_count = u32::try_from(node.children.len())
+            edges.extend_from_slice(&node.child_ids);
+            let child_count = u32::try_from(node.child_ids.len())
                 .map_err(|_| Error::InvalidFormat("too many children"))?;
 
             disk_nodes.push(DiskNode {
@@ -209,7 +197,121 @@ impl DbBuilder {
 
         hashes.sort_unstable_by(|a, b| a.hash.cmp(&b.hash).then(a.node_id.cmp(&b.node_id)));
 
-        serialize_snapshot(&disk_nodes, &edges, &names, &hashes)
+        let summary = DbSummary {
+            node_count: self.nodes.len(),
+            stats: self.stats,
+        };
+
+        Ok((
+            serialize_snapshot(&disk_nodes, &edges, &names, &hashes, summary)?,
+            summary,
+        ))
+    }
+
+    fn insert_path(
+        &mut self,
+        path: &[u8],
+        is_dir: bool,
+        size: u64,
+        created_unix_ns: i64,
+        modified_unix_ns: i64,
+    ) -> Result<()> {
+        if path == b"/" {
+            let root = &mut self.nodes[0];
+            root.is_dir = true;
+            root.size = size;
+            root.created_unix_ns = created_unix_ns;
+            root.modified_unix_ns = modified_unix_ns;
+            return Ok(());
+        }
+
+        let mut current_id = 0u32;
+        for component in components(path) {
+            let is_terminal = component_end_offset(path, component) == path.len();
+            let next_id = match self.lookup_child(current_id, component) {
+                Some(id) => id,
+                None => self.insert_child(current_id, component, !is_terminal || is_dir)?,
+            };
+
+            if is_terminal {
+                let node = &mut self.nodes[next_id as usize];
+                if !node.explicit {
+                    node.explicit = true;
+                    self.stats.explicit_nodes += 1;
+                    if is_dir {
+                        self.stats.explicit_dirs += 1;
+                    } else {
+                        self.stats.explicit_files += 1;
+                    }
+                } else if node.is_dir != is_dir {
+                    if is_dir {
+                        self.stats.explicit_dirs += 1;
+                        self.stats.explicit_files -= 1;
+                    } else {
+                        self.stats.explicit_files += 1;
+                        self.stats.explicit_dirs -= 1;
+                    }
+                }
+
+                node.is_dir = is_dir;
+                node.size = size;
+                node.created_unix_ns = created_unix_ns;
+                node.modified_unix_ns = modified_unix_ns;
+            } else {
+                self.nodes[next_id as usize].is_dir = true;
+            }
+
+            current_id = next_id;
+        }
+
+        Ok(())
+    }
+
+    fn lookup_child(&self, parent_id: u32, name: &[u8]) -> Option<u32> {
+        let parent = self.nodes.get(parent_id as usize)?;
+        let candidates = parent.children_by_name_hash.get(&hash_name(name))?;
+        candidates
+            .iter()
+            .copied()
+            .find(|child_id| self.nodes[*child_id as usize].name.as_slice() == name)
+    }
+
+    fn insert_child(&mut self, parent_id: u32, name: &[u8], is_dir: bool) -> Result<u32> {
+        let id = u32::try_from(self.nodes.len()).map_err(|_| Error::NodeLimitExceeded)?;
+        let path_hash = hash_child_path(
+            self.nodes[parent_id as usize].path_hash,
+            parent_id == 0,
+            name,
+        );
+        self.nodes.push(BuildNode {
+            parent_id,
+            name: name.to_vec(),
+            is_dir,
+            size: 0,
+            created_unix_ns: 0,
+            modified_unix_ns: 0,
+            explicit: false,
+            path_hash,
+            child_ids: Vec::new(),
+            children_by_name_hash: HashMap::new(),
+        });
+
+        let parent = &mut self.nodes[parent_id as usize];
+        parent.child_ids.push(id);
+        parent
+            .children_by_name_hash
+            .entry(hash_name(name))
+            .or_default()
+            .push(id);
+        Ok(id)
+    }
+
+    fn sort_children(&mut self) {
+        let node_names: Vec<Vec<u8>> = self.nodes.iter().map(|node| node.name.clone()).collect();
+        for node in &mut self.nodes {
+            node.child_ids
+                .sort_unstable_by(|a, b| node_names[*a as usize].cmp(&node_names[*b as usize]));
+        }
     }
 }
 
@@ -229,6 +331,7 @@ fn serialize_snapshot(
     edges: &[u32],
     names: &[u8],
     hashes: &[DiskPathHash],
+    summary: DbSummary,
 ) -> Result<Vec<u8>> {
     let nodes_offset = HEADER_LEN as u64;
     let nodes_len = (nodes.len() * NODE_LEN) as u64;
@@ -250,6 +353,9 @@ fn serialize_snapshot(
         hashes_offset,
         hash_count: u32::try_from(hashes.len())
             .map_err(|_| Error::InvalidFormat("too many hashes"))?,
+        explicit_dirs: summary.stats.explicit_dirs,
+        explicit_files: summary.stats.explicit_files,
+        explicit_nodes: summary.stats.explicit_nodes,
     };
 
     let mut buffer =
@@ -265,6 +371,9 @@ fn serialize_snapshot(
     push_u64(&mut buffer, header.names_len);
     push_u64(&mut buffer, header.hashes_offset);
     push_u32(&mut buffer, header.hash_count);
+    push_u64(&mut buffer, header.explicit_dirs);
+    push_u64(&mut buffer, header.explicit_files);
+    push_u64(&mut buffer, header.explicit_nodes);
     while buffer.len() < HEADER_LEN {
         buffer.push(0);
     }

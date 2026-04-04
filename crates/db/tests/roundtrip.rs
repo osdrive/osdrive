@@ -1,4 +1,4 @@
-use od_db::{Db, DbBuilder, InputEntry};
+use od_db::{Db, DbBuilder, DbStats, InputEntry};
 
 #[test]
 fn roundtrip_preserves_structure_and_metadata() {
@@ -22,7 +22,18 @@ fn roundtrip_preserves_structure_and_metadata() {
         })
         .unwrap();
 
-    let db = Db::from_bytes(builder.build_bytes().unwrap()).unwrap();
+    let (bytes, summary) = builder.build_bytes_with_summary().unwrap();
+    assert_eq!(
+        summary.stats,
+        DbStats {
+            explicit_dirs: 2,
+            explicit_files: 1,
+            explicit_nodes: 3,
+        }
+    );
+
+    let db = Db::from_bytes(bytes).unwrap();
+    assert_eq!(db.summary(), summary);
     let tmp = db.lookup_path(b"/tmp").unwrap();
     let file = db.lookup_path(b"/tmp/example.txt").unwrap();
 
@@ -73,6 +84,8 @@ fn implicit_directories_are_created_and_can_be_upgraded() {
 
     let parent = db.lookup_path(b"/a").unwrap();
     assert!(!db.get(parent).unwrap().is_explicit);
+    assert_eq!(db.stats().explicit_dirs, 2);
+    assert_eq!(db.stats().explicit_files, 1);
 }
 
 #[test]

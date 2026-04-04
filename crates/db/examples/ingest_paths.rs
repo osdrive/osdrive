@@ -1,14 +1,15 @@
-use od_db::{Db, DbBuilder, InputEntry};
+use od_db::{Db, DbBuilder, OwnedInputEntry};
 use od_indexer::{walk_dir, WalkControl, WalkEvent};
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc::{sync_channel, SyncSender};
+use std::thread;
 use std::time::{Instant, UNIX_EPOCH};
 
-#[derive(Default)]
 struct Stats {
     entries: u64,
-    builder: DbBuilder,
+    sender: SyncSender<OwnedInputEntry>,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,12 +21,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .next()
         .ok_or("usage: cargo run -p od-db --example ingest_paths -- <root> <output>")?;
     let root = absolutize(Path::new(&root))?;
-    let output = Path::new(&output);
+    let output = PathBuf::from(output);
+    let builder_output = output.clone();
 
     let start = Instant::now();
+    let (sender, receiver) = sync_channel(16_384);
+    let builder_thread = thread::spawn(move || -> Result<(), od_db::Error> {
+        let mut builder = DbBuilder::new();
+        while let Ok(entry) = receiver.recv() {
+            builder.add_owned_entry_unchecked(entry)?;
+        }
+        builder.write_to_path(&builder_output)
+    });
+
     let stats = walk_dir(
         &root,
-        Stats::default,
+        {
+            let sender = sender.clone();
+            move || Stats {
+                entries: 0,
+                sender: sender.clone(),
+            }
+        },
         |event, stats| match event {
             WalkEvent::Dir(path) => {
                 if should_skip_directory(path) {
@@ -50,13 +67,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
         |mut a, b| {
             a.entries += b.entries;
-            a.builder.extend(b.builder);
             a
         },
     );
 
-    stats.builder.write_to_path(output)?;
-    let db = Db::open(output)?;
+    drop(sender);
+    builder_thread.join().unwrap()?;
+
+    let db = Db::open(&output)?;
     println!(
         "indexed={} nodes={} root_children={} took={:?}",
         stats.entries,
@@ -76,8 +94,8 @@ fn record_path(
     let metadata = path.metadata()?;
     let created = metadata.created().ok().and_then(to_unix_ns).unwrap_or(0);
     let modified = metadata.modified().ok().and_then(to_unix_ns).unwrap_or(0);
-    stats.builder.add_entry(InputEntry {
-        path: path.as_os_str().as_bytes(),
+    stats.sender.send(OwnedInputEntry {
+        path: path.as_os_str().as_bytes().to_vec().into_boxed_slice(),
         is_dir,
         size: metadata.len(),
         created_unix_ns: created,

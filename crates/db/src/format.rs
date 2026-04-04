@@ -1,6 +1,6 @@
 pub const MAGIC: [u8; 8] = *b"ODDBSNAP";
-pub const VERSION: u32 = 1;
-pub const HEADER_LEN: usize = 72;
+pub const VERSION: u32 = 2;
+pub const HEADER_LEN: usize = 96;
 pub const NODE_LEN: usize = 44;
 pub const PATH_HASH_LEN: usize = 12;
 
@@ -15,6 +15,9 @@ pub struct Header {
     pub names_len: u64,
     pub hashes_offset: u64,
     pub hash_count: u32,
+    pub explicit_dirs: u64,
+    pub explicit_files: u64,
+    pub explicit_nodes: u64,
 }
 
 #[derive(Clone, Copy, Debug)]

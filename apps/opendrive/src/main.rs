@@ -1,24 +1,26 @@
-use od_db::{Db, DbBuilder, InputEntry};
+use od_db::{Db, DbBuilder, OwnedInputEntry};
 use od_indexer::{walk_dir, WalkControl, WalkEvent};
 use std::ffi::OsStr;
 use std::io;
 use std::os::unix::ffi::OsStrExt;
-use std::path::Component;
 use std::path::Path;
+use std::sync::mpsc::{sync_channel, SyncSender};
+use std::thread;
 use std::time::Instant;
 
 const ROOT_PATH: &str = "/System/Volumes/Data";
 const OUTPUT_PATH: &str = "./fs.odb";
+const CHANNEL_CAPACITY: usize = 16_384;
 
 struct BuildState {
-    builder: DbBuilder,
+    sender: SyncSender<OwnedInputEntry>,
     first_error: Option<String>,
 }
 
 impl BuildState {
-    fn new() -> Self {
+    fn new(sender: SyncSender<OwnedInputEntry>) -> Self {
         Self {
-            builder: DbBuilder::new(),
+            sender,
             first_error: None,
         }
     }
@@ -28,147 +30,46 @@ impl BuildState {
             return;
         }
 
-        if let Err(error) = self.builder.add_entry(InputEntry {
-            path: path.as_os_str().as_bytes(),
+        let entry = OwnedInputEntry {
+            path: path.as_os_str().as_bytes().to_vec().into_boxed_slice(),
             is_dir,
             size: 0,
             created_unix_ns: 0,
             modified_unix_ns: 0,
-        }) {
-            self.first_error = Some(format!("failed to record {}: {error}", path.display()));
+        };
+
+        if let Err(error) = self.sender.send(entry) {
+            self.first_error = Some(format!("failed to queue {}: {error}", path.display()));
         }
     }
 
-    fn finish(self) -> io::Result<DbBuilder> {
+    fn finish(self) -> io::Result<()> {
         match self.first_error {
             Some(error) => Err(io::Error::other(error)),
-            None => Ok(self.builder),
+            None => Ok(()),
         }
     }
-}
-
-#[derive(Default)]
-struct SnapshotStats {
-    dirs: u64,
-    files: u64,
-    persisted: u64,
-}
-
-fn user_relative_components<'a>(parts: &'a [&'a OsStr]) -> Option<&'a [&'a OsStr]> {
-    if let [system, volumes, data, users, _, rest @ ..] = parts {
-        if *system == OsStr::new("System")
-            && *volumes == OsStr::new("Volumes")
-            && *data == OsStr::new("Data")
-            && *users == OsStr::new("Users")
-        {
-            return Some(rest);
-        }
-    }
-
-    if let [users, _, rest @ ..] = parts {
-        if *users == OsStr::new("Users") {
-            return Some(rest);
-        }
-    }
-
-    None
-}
-
-fn is_system_data_library_caches(parts: &[&OsStr]) -> bool {
-    matches!(
-        parts,
-        [system, volumes, data, library, caches, ..]
-            if *system == OsStr::new("System")
-                && *volumes == OsStr::new("Volumes")
-                && *data == OsStr::new("Data")
-                && *library == OsStr::new("Library")
-                && *caches == OsStr::new("Caches")
-    )
-}
-
-fn is_temp_cache_root(parts: &[&OsStr]) -> bool {
-    matches!(parts, [tmp, ..] if *tmp == OsStr::new("tmp"))
-        || matches!(parts, [var, tmp, ..] if *var == OsStr::new("var") && *tmp == OsStr::new("tmp"))
-        || matches!(parts, [private, tmp, ..] if *private == OsStr::new("private") && *tmp == OsStr::new("tmp"))
-        || matches!(parts, [private, var, tmp, ..]
-            if *private == OsStr::new("private")
-                && *var == OsStr::new("var")
-                && *tmp == OsStr::new("tmp"))
-}
-
-fn should_skip_directory(path: &Path) -> bool {
-    let Some(name) = path.file_name() else {
-        return false;
-    };
-
-    if name == OsStr::new("target") || name == OsStr::new("node_modules") {
-        return true;
-    }
-
-    let parts: Vec<_> = path
-        .components()
-        .filter_map(|component| match component {
-            Component::Normal(part) => Some(part),
-            _ => None,
-        })
-        .collect();
-
-    if is_system_data_library_caches(&parts) || is_temp_cache_root(&parts) {
-        return true;
-    }
-
-    if let Some(user_relative) = user_relative_components(&parts) {
-        if matches!(user_relative, [library, caches, ..]
-            if *library == OsStr::new("Library") && *caches == OsStr::new("Caches"))
-        {
-            return true;
-        }
-
-        if matches!(user_relative, [cache, ..] if *cache == OsStr::new(".cargo"))
-            || matches!(user_relative, [cache, ..] if *cache == OsStr::new(".rustup"))
-            || matches!(user_relative, [cache, ..] if *cache == OsStr::new(".pnpm-store"))
-            || matches!(user_relative, [dot_cache, tool, ..]
-                if *dot_cache == OsStr::new(".cache")
-                    && (*tool == OsStr::new("pnpm") || *tool == OsStr::new("zig")))
-            || matches!(user_relative, [library, pnpm, ..]
-                if *library == OsStr::new("Library") && *pnpm == OsStr::new("pnpm"))
-        {
-            return true;
-        }
-    }
-
-    false
-}
-
-fn reconstruct_stats(db: &Db) -> io::Result<SnapshotStats> {
-    let mut stats = SnapshotStats::default();
-
-    for id in 0..db.node_count() {
-        let node = db
-            .get(id as u32)
-            .ok_or_else(|| io::Error::other(format!("missing node {id}")))?;
-        if !node.is_explicit {
-            continue;
-        }
-
-        stats.persisted += 1;
-        if node.is_dir {
-            stats.dirs += 1;
-        } else {
-            stats.files += 1;
-        }
-    }
-
-    Ok(stats)
 }
 
 fn main() -> io::Result<()> {
     println!("Indexing...");
     let index_start = Instant::now();
+    let (sender, receiver) = sync_channel(CHANNEL_CAPACITY);
+
+    let builder_thread = thread::spawn(move || -> Result<(), od_db::Error> {
+        let mut builder = DbBuilder::new();
+        while let Ok(entry) = receiver.recv() {
+            builder.add_owned_entry_unchecked(entry)?;
+        }
+        builder.write_to_path(OUTPUT_PATH)
+    });
 
     let state = walk_dir(
         Path::new(ROOT_PATH),
-        BuildState::new,
+        {
+            let sender = sender.clone();
+            move || BuildState::new(sender.clone())
+        },
         |event, state| match event {
             WalkEvent::Dir(path) => {
                 if should_skip_directory(path) {
@@ -188,7 +89,6 @@ fn main() -> io::Result<()> {
             }
         },
         |mut a, mut b| {
-            a.builder.extend(b.builder);
             if a.first_error.is_none() {
                 a.first_error = b.first_error.take();
             }
@@ -196,26 +96,80 @@ fn main() -> io::Result<()> {
         },
     );
 
-    state
-        .finish()?
-        .write_to_path(OUTPUT_PATH)
-        .map_err(io::Error::other)?;
+    drop(sender);
+    let walk_result = state.finish();
+    let build_result = builder_thread
+        .join()
+        .map_err(|_| io::Error::other("builder thread panicked"))?;
+
+    walk_result?;
+    build_result.map_err(io::Error::other)?;
     let index_took = index_start.elapsed();
 
     let stats_start = Instant::now();
-    let db = Db::open(OUTPUT_PATH).map_err(io::Error::other)?;
-    let stats = reconstruct_stats(&db)?;
+    let summary = Db::read_summary(OUTPUT_PATH).map_err(io::Error::other)?;
     let stats_took = stats_start.elapsed();
 
     println!(
         "dirs={} files={} persisted={} nodes={} index_took={:?} stats_took={:?}",
-        stats.dirs,
-        stats.files,
-        stats.persisted,
-        db.node_count(),
+        summary.stats.explicit_dirs,
+        summary.stats.explicit_files,
+        summary.stats.explicit_nodes,
+        summary.node_count,
         index_took,
         stats_took,
     );
 
     Ok(())
+}
+
+fn should_skip_directory(path: &Path) -> bool {
+    let Some(name) = path.file_name() else {
+        return false;
+    };
+
+    if name == OsStr::new("target") || name == OsStr::new("node_modules") {
+        return true;
+    }
+
+    let bytes = path.as_os_str().as_bytes();
+    if has_path_prefix(bytes, b"/System/Volumes/Data/Library/Caches")
+        || has_path_prefix(bytes, b"/tmp")
+        || has_path_prefix(bytes, b"/var/tmp")
+        || has_path_prefix(bytes, b"/private/tmp")
+        || has_path_prefix(bytes, b"/private/var/tmp")
+    {
+        return true;
+    }
+
+    let Some(user_tail) = user_relative_tail(bytes) else {
+        return false;
+    };
+
+    has_path_prefix(user_tail, b"Library/Caches")
+        || has_path_prefix(user_tail, b".cargo")
+        || has_path_prefix(user_tail, b".rustup")
+        || has_path_prefix(user_tail, b".pnpm-store")
+        || has_path_prefix(user_tail, b".cache/pnpm")
+        || has_path_prefix(user_tail, b".cache/zig")
+        || has_path_prefix(user_tail, b"Library/pnpm")
+}
+
+fn has_path_prefix(path: &[u8], prefix: &[u8]) -> bool {
+    path == prefix
+        || path
+            .strip_prefix(prefix)
+            .is_some_and(|rest| rest.starts_with(b"/"))
+}
+
+fn user_relative_tail(path: &[u8]) -> Option<&[u8]> {
+    for prefix in [b"/System/Volumes/Data/Users/".as_slice(), b"/Users/"] {
+        let Some(rest) = path.strip_prefix(prefix) else {
+            continue;
+        };
+        let user_len = rest.iter().position(|byte| *byte == b'/')?;
+        return Some(&rest[user_len + 1..]);
+    }
+
+    None
 }
