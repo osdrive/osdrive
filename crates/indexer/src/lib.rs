@@ -7,10 +7,9 @@ use std::ffi::{CString, OsStr};
 use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::RawFd;
-use std::path::Component;
 use std::path::{Path, PathBuf};
 use std::ptr;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 
@@ -56,36 +55,25 @@ unsafe extern "C" {
     ) -> libc::ssize_t;
 }
 
-#[derive(Default)]
-pub struct WalkStats {
-    pub dirs_seen: u64,
-    pub files_seen: u64,
-    pub warnings: u64,
-    pub throttles: u64,
-}
-
-struct SharedStats {
-    dirs_seen: AtomicU64,
-    files_seen: AtomicU64,
-    warnings: AtomicU64,
-    throttles: AtomicU64,
-}
-
-impl SharedStats {
-    fn snapshot(&self) -> WalkStats {
-        WalkStats {
-            dirs_seen: self.dirs_seen.load(Ordering::Relaxed),
-            files_seen: self.files_seen.load(Ordering::Relaxed),
-            warnings: self.warnings.load(Ordering::Relaxed),
-            throttles: self.throttles.load(Ordering::Relaxed),
-        }
-    }
-}
-
 enum EntryKind {
     File,
     Directory,
     Other,
+}
+
+pub enum WalkEvent<'a> {
+    Dir(&'a Path),
+    File(&'a Path),
+    Warning {
+        path: &'a Path,
+        error: &'a dyn std::fmt::Display,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum WalkControl {
+    Continue,
+    SkipDir,
 }
 
 enum BulkReadError {
@@ -110,12 +98,6 @@ struct OpenDirWork {
 struct WorkState {
     stack: Vec<PathBuf>,
     active_workers: usize,
-}
-
-#[derive(Clone, Copy)]
-pub struct WalkFilters {
-    pub skip_dev_tools: bool,
-    pub skip_cache_dirs: bool,
 }
 
 impl Drop for ScopedDir {
@@ -196,25 +178,71 @@ fn refill_buffer(dirfd: RawFd, buffer: &mut [u8]) -> Result<usize, BulkReadError
     }
 }
 
-fn warn_with_path(stats: &SharedStats, path: &Path, error: &impl std::fmt::Display) {
-    stats.warnings.fetch_add(1, Ordering::Relaxed);
-    eprintln!("warning: skipping {}: {}", path.display(), error);
-}
-
 fn worker_count() -> usize {
     thread::available_parallelism()
         .map(|count| count.get().saturating_mul(2).min(MAX_WORKERS))
         .unwrap_or(8)
 }
 
-pub fn walk_dir(root: &Path, filters: WalkFilters) -> WalkStats {
-    let stats = Arc::new(SharedStats {
-        dirs_seen: AtomicU64::new(0),
-        files_seen: AtomicU64::new(0),
-        warnings: AtomicU64::new(0),
-        throttles: AtomicU64::new(0),
-    });
-
+/// Walks a directory tree in parallel with per-worker user state.
+///
+/// Each worker initializes its own state with `init`, receives traversal events
+/// through `visit`, and returns its final state when traversal completes. The
+/// caller merges those worker-local states with `reduce` to produce the final
+/// result.
+///
+/// Returning [`WalkControl::SkipDir`] from a [`WalkEvent::Dir`] visit prevents
+/// traversal into that directory.
+///
+/// # Example
+///
+/// ```no_run
+/// use od_indexer::{WalkControl, WalkEvent, walk_dir};
+/// use std::path::Path;
+///
+/// #[derive(Default)]
+/// struct Stats {
+///     dirs: u64,
+///     files: u64,
+/// }
+///
+/// let stats = walk_dir(
+///     Path::new("/tmp"),
+///     Stats::default,
+///     |event, stats| match event {
+///         WalkEvent::Dir(path) => {
+///             if path.file_name().is_some_and(|name| name == "target") {
+///                 WalkControl::SkipDir
+///             } else {
+///                 stats.dirs += 1;
+///                 WalkControl::Continue
+///             }
+///         }
+///         WalkEvent::File(_) => {
+///             stats.files += 1;
+///             WalkControl::Continue
+///         }
+///         WalkEvent::Warning { path, error } => {
+///             eprintln!("warning: skipping {}: {}", path.display(), error);
+///             WalkControl::Continue
+///         }
+///     },
+///     |mut a, b| {
+///         a.dirs += b.dirs;
+///         a.files += b.files;
+///         a
+///     },
+/// );
+///
+/// println!("dirs={} files={}", stats.dirs, stats.files);
+/// ```
+pub fn walk_dir<S, Init, Visit, Reduce>(root: &Path, init: Init, visit: Visit, reduce: Reduce) -> S
+where
+    S: Send,
+    Init: Fn() -> S + Sync + Send,
+    Visit: Fn(WalkEvent<'_>, &mut S) -> WalkControl + Sync + Send,
+    Reduce: Fn(S, S) -> S,
+{
     let shared = Arc::new((
         Mutex::new(WorkState {
             stack: vec![root.to_path_buf()],
@@ -226,141 +254,58 @@ pub fn walk_dir(root: &Path, filters: WalkFilters) -> WalkStats {
     let worker_count = worker_count();
 
     thread::scope(|scope| {
+        let init = &init;
+        let visit = &visit;
+        let mut workers = Vec::with_capacity(worker_count);
+
         for _ in 0..worker_count {
             let shared = Arc::clone(&shared);
             let done = Arc::clone(&done);
-            let stats = Arc::clone(&stats);
 
-            scope.spawn(move || {
+            workers.push(scope.spawn(move || {
                 let mut buffer = vec![0; DEFAULT_BULK_BUFFER_SIZE];
                 let mut next_child_name = Vec::new();
                 let mut openat_name = Vec::new();
                 let mut sibling_dirs = Vec::new();
-                let mut local_stats = WalkStats::default();
+                let mut state = init();
 
                 loop {
-                    let Some(path) = acquire_work(&shared, &done, &stats, &mut local_stats) else {
-                        return;
+                    let Some(path) = acquire_work(&shared, &done) else {
+                        return state;
                     };
 
                     process_dir_chain(
                         path,
-                        filters,
                         &shared,
                         &done,
-                        &stats,
-                        &mut local_stats,
+                        &visit,
+                        &mut state,
                         &mut buffer,
                         &mut next_child_name,
                         &mut openat_name,
                         &mut sibling_dirs,
                     );
                 }
-            });
-        }
-    });
-
-    stats.snapshot()
-}
-
-fn user_relative_components<'a>(parts: &'a [&'a OsStr]) -> Option<&'a [&'a OsStr]> {
-    if let [system, volumes, data, users, _, rest @ ..] = parts {
-        if *system == OsStr::new("System")
-            && *volumes == OsStr::new("Volumes")
-            && *data == OsStr::new("Data")
-            && *users == OsStr::new("Users")
-        {
-            return Some(rest);
-        }
-    }
-
-    if let [users, _, rest @ ..] = parts {
-        if *users == OsStr::new("Users") {
-            return Some(rest);
-        }
-    }
-
-    None
-}
-
-fn is_system_data_library_caches(parts: &[&OsStr]) -> bool {
-    matches!(
-        parts,
-        [system, volumes, data, library, caches, ..]
-            if *system == OsStr::new("System")
-                && *volumes == OsStr::new("Volumes")
-                && *data == OsStr::new("Data")
-                && *library == OsStr::new("Library")
-                && *caches == OsStr::new("Caches")
-    )
-}
-
-fn is_temp_cache_root(parts: &[&OsStr]) -> bool {
-    matches!(parts, [tmp, ..] if *tmp == OsStr::new("tmp"))
-        || matches!(parts, [var, tmp, ..] if *var == OsStr::new("var") && *tmp == OsStr::new("tmp"))
-        || matches!(parts, [private, tmp, ..] if *private == OsStr::new("private") && *tmp == OsStr::new("tmp"))
-        || matches!(parts, [private, var, tmp, ..]
-            if *private == OsStr::new("private")
-                && *var == OsStr::new("var")
-                && *tmp == OsStr::new("tmp"))
-}
-
-fn should_skip_directory(path: &Path, filters: WalkFilters) -> bool {
-    let Some(name) = path.file_name() else {
-        return false;
-    };
-
-    if filters.skip_dev_tools
-        && (name == OsStr::new("target") || name == OsStr::new("node_modules"))
-    {
-        return true;
-    }
-
-    let parts: Vec<_> = path
-        .components()
-        .filter_map(|component| match component {
-            Component::Normal(part) => Some(part),
-            _ => None,
-        })
-        .collect();
-
-    if filters.skip_cache_dirs {
-        if is_system_data_library_caches(&parts) || is_temp_cache_root(&parts) {
-            return true;
+            }));
         }
 
-        if let Some(user_relative) = user_relative_components(&parts) {
-            if matches!(user_relative, [library, caches, ..]
-                if *library == OsStr::new("Library") && *caches == OsStr::new("Caches"))
-            {
-                return true;
-            }
+        let mut merged = workers
+            .pop()
+            .expect("walk_dir always spawns at least one worker")
+            .join()
+            .unwrap();
+
+        for worker in workers {
+            merged = reduce(merged, worker.join().unwrap());
         }
-    }
 
-    if !filters.skip_dev_tools {
-        return false;
-    }
-
-    let Some(user_relative) = user_relative_components(&parts) else {
-        return false;
-    };
-
-    matches!(user_relative, [cache, ..] if *cache == OsStr::new(".cargo"))
-        || matches!(user_relative, [cache, ..] if *cache == OsStr::new(".rustup"))
-        || matches!(user_relative, [cache, ..] if *cache == OsStr::new(".pnpm-store"))
-        || matches!(user_relative, [dot_cache, tool, ..]
-            if *dot_cache == OsStr::new(".cache")
-                && (*tool == OsStr::new("pnpm") || *tool == OsStr::new("zig")))
-        || matches!(user_relative, [library, pnpm, ..]
-            if *library == OsStr::new("Library") && *pnpm == OsStr::new("pnpm"))
+        merged
+    })
 }
 
 fn acquire_work(
     shared: &Arc<(Mutex<WorkState>, Condvar)>,
     done: &Arc<AtomicBool>,
-    stats: &Arc<SharedStats>,
-    local_stats: &mut WalkStats,
 ) -> Option<PathBuf> {
     let (lock, condvar) = &**shared;
     let mut state = lock.lock().unwrap();
@@ -372,14 +317,12 @@ fn acquire_work(
         }
 
         if done.load(Ordering::Relaxed) {
-            flush_local_stats(stats, local_stats);
             return None;
         }
 
         if state.active_workers == 0 {
             done.store(true, Ordering::Relaxed);
             condvar.notify_all();
-            flush_local_stats(stats, local_stats);
             return None;
         }
 
@@ -387,18 +330,19 @@ fn acquire_work(
     }
 }
 
-fn process_dir_chain(
+fn process_dir_chain<S, Visit>(
     start_path: PathBuf,
-    filters: WalkFilters,
     shared: &Arc<(Mutex<WorkState>, Condvar)>,
     done: &Arc<AtomicBool>,
-    stats: &Arc<SharedStats>,
-    local_stats: &mut WalkStats,
+    visit: &Visit,
+    state: &mut S,
     buffer: &mut [u8],
     next_child_name: &mut Vec<u8>,
     openat_name: &mut Vec<u8>,
     sibling_dirs: &mut Vec<PathBuf>,
-) {
+) where
+    Visit: Fn(WalkEvent<'_>, &mut S) -> WalkControl,
+{
     let mut pending = Some(start_path);
     let mut next_open_dir = None;
 
@@ -409,10 +353,21 @@ fn process_dir_chain(
             let path = pending
                 .take()
                 .expect("path must exist while draining DFS chain");
+
+            if matches!(visit(WalkEvent::Dir(&path), state), WalkControl::SkipDir) {
+                break;
+            }
+
             let dir = match open_directory(&path) {
                 Ok(dir) => dir,
                 Err(error) => {
-                    warn_with_path(stats, &path, &error);
+                    visit(
+                        WalkEvent::Warning {
+                            path: &path,
+                            error: &error,
+                        },
+                        state,
+                    );
                     break;
                 }
             };
@@ -422,10 +377,9 @@ fn process_dir_chain(
 
         next_open_dir = process_open_dir(
             current,
-            filters,
             shared,
-            stats,
-            local_stats,
+            visit,
+            state,
             buffer,
             next_child_name,
             openat_name,
@@ -440,18 +394,19 @@ fn process_dir_chain(
     finish_work(shared, done);
 }
 
-fn process_open_dir(
+fn process_open_dir<S, Visit>(
     current: OpenDirWork,
-    filters: WalkFilters,
     shared: &Arc<(Mutex<WorkState>, Condvar)>,
-    stats: &Arc<SharedStats>,
-    local_stats: &mut WalkStats,
+    visit: &Visit,
+    state: &mut S,
     buffer: &mut [u8],
     next_child_name: &mut Vec<u8>,
     openat_name: &mut Vec<u8>,
     sibling_dirs: &mut Vec<PathBuf>,
-) -> Option<OpenDirWork> {
-    local_stats.dirs_seen += 1;
+) -> Option<OpenDirWork>
+where
+    Visit: Fn(WalkEvent<'_>, &mut S) -> WalkControl,
+{
     sibling_dirs.clear();
     next_child_name.clear();
     let mut next_child_path = None;
@@ -461,11 +416,23 @@ fn process_open_dir(
             Ok(0) => break,
             Ok(entry_count) => entry_count,
             Err(BulkReadError::Io(error)) => {
-                warn_with_path(stats, &current.path, &error);
+                visit(
+                    WalkEvent::Warning {
+                        path: &current.path,
+                        error: &error,
+                    },
+                    state,
+                );
                 break;
             }
             Err(BulkReadError::Parse(error)) => {
-                warn_with_path(stats, &current.path, &error);
+                visit(
+                    WalkEvent::Warning {
+                        path: &current.path,
+                        error: &error,
+                    },
+                    state,
+                );
                 break;
             }
         };
@@ -477,16 +444,23 @@ fn process_open_dir(
             let (entry, entry_end) = match parse_bulk_entry(buffer, entry_start) {
                 Ok(parsed) => parsed,
                 Err(BulkReadError::Parse(error)) => {
-                    stats.warnings.fetch_add(1, Ordering::Relaxed);
-                    eprintln!(
-                        "warning: skipping remainder of directory {} after bulk parse failure: {}",
-                        current.path.display(),
-                        error
+                    visit(
+                        WalkEvent::Warning {
+                            path: &current.path,
+                            error: &error,
+                        },
+                        state,
                     );
                     break 'dir;
                 }
                 Err(BulkReadError::Io(error)) => {
-                    warn_with_path(stats, &current.path, &error);
+                    visit(
+                        WalkEvent::Warning {
+                            path: &current.path,
+                            error: &error,
+                        },
+                        state,
+                    );
                     break 'dir;
                 }
             };
@@ -499,10 +473,12 @@ fn process_open_dir(
                         .name_range
                         .map(|(start, end)| (entry_start + start, entry_start + end))
                     else {
-                        stats.warnings.fetch_add(1, Ordering::Relaxed);
-                        eprintln!(
-                            "warning: skipping directory in {}: missing directory name",
-                            current.path.display()
+                        visit(
+                            WalkEvent::Warning {
+                                path: &current.path,
+                                error: &"missing directory name",
+                            },
+                            state,
                         );
                         continue;
                     };
@@ -510,7 +486,10 @@ fn process_open_dir(
                     let name = &buffer[name_start..name_end];
                     let child_path = current.path.join(Path::new(OsStr::from_bytes(name)));
 
-                    if should_skip_directory(&child_path, filters) {
+                    if matches!(
+                        visit(WalkEvent::Dir(&child_path), state),
+                        WalkControl::SkipDir
+                    ) {
                         continue;
                     }
 
@@ -522,7 +501,16 @@ fn process_open_dir(
                     }
                 }
                 EntryKind::File => {
-                    local_stats.files_seen += 1;
+                    let Some((name_start, name_end)) = entry
+                        .name_range
+                        .map(|(start, end)| (entry_start + start, entry_start + end))
+                    else {
+                        continue;
+                    };
+
+                    let name = &buffer[name_start..name_end];
+                    let child_path = current.path.join(Path::new(OsStr::from_bytes(name)));
+                    visit(WalkEvent::File(&child_path), state);
                 }
                 EntryKind::Other => {}
             }
@@ -538,7 +526,13 @@ fn process_open_dir(
             dir,
         }),
         Err(error) => {
-            warn_with_path(stats, &next_path, &error);
+            visit(
+                WalkEvent::Warning {
+                    path: &next_path,
+                    error: &error,
+                },
+                state,
+            );
             None
         }
     }
@@ -557,36 +551,6 @@ fn share_siblings(sibling_dirs: &mut Vec<PathBuf>, shared: &Arc<(Mutex<WorkState
         condvar.notify_one();
     } else {
         condvar.notify_all();
-    }
-}
-
-fn flush_local_stats(stats: &SharedStats, local_stats: &mut WalkStats) {
-    if local_stats.dirs_seen != 0 {
-        stats
-            .dirs_seen
-            .fetch_add(local_stats.dirs_seen, Ordering::Relaxed);
-        local_stats.dirs_seen = 0;
-    }
-
-    if local_stats.files_seen != 0 {
-        stats
-            .files_seen
-            .fetch_add(local_stats.files_seen, Ordering::Relaxed);
-        local_stats.files_seen = 0;
-    }
-
-    if local_stats.warnings != 0 {
-        stats
-            .warnings
-            .fetch_add(local_stats.warnings, Ordering::Relaxed);
-        local_stats.warnings = 0;
-    }
-
-    if local_stats.throttles != 0 {
-        stats
-            .throttles
-            .fetch_add(local_stats.throttles, Ordering::Relaxed);
-        local_stats.throttles = 0;
     }
 }
 
