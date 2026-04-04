@@ -109,6 +109,12 @@ struct WorkState {
     active_workers: usize,
 }
 
+#[derive(Clone, Copy)]
+struct WalkFilters {
+    skip_dev_tools: bool,
+    skip_cache_dirs: bool,
+}
+
 impl Drop for ScopedDir {
     fn drop(&mut self) {
         unsafe {
@@ -198,7 +204,7 @@ fn worker_count() -> usize {
         .unwrap_or(8)
 }
 
-fn walk_dir(root: &Path, skip_dev_tools: bool) -> WalkStats {
+fn walk_dir(root: &Path, filters: WalkFilters) -> WalkStats {
     let stats = Arc::new(SharedStats {
         dirs_seen: AtomicU64::new(0),
         files_seen: AtomicU64::new(0),
@@ -236,7 +242,7 @@ fn walk_dir(root: &Path, skip_dev_tools: bool) -> WalkStats {
 
                     process_dir_chain(
                         path,
-                        skip_dev_tools,
+                        filters,
                         &shared,
                         &done,
                         &stats,
@@ -254,16 +260,56 @@ fn walk_dir(root: &Path, skip_dev_tools: bool) -> WalkStats {
     stats.snapshot()
 }
 
-fn should_skip_directory(path: &Path, skip_dev_tools: bool) -> bool {
-    if !skip_dev_tools {
-        return false;
+fn user_relative_components<'a>(parts: &'a [&'a OsStr]) -> Option<&'a [&'a OsStr]> {
+    if let [system, volumes, data, users, _, rest @ ..] = parts {
+        if *system == OsStr::new("System")
+            && *volumes == OsStr::new("Volumes")
+            && *data == OsStr::new("Data")
+            && *users == OsStr::new("Users")
+        {
+            return Some(rest);
+        }
     }
 
+    if let [users, _, rest @ ..] = parts {
+        if *users == OsStr::new("Users") {
+            return Some(rest);
+        }
+    }
+
+    None
+}
+
+fn is_system_data_library_caches(parts: &[&OsStr]) -> bool {
+    matches!(
+        parts,
+        [system, volumes, data, library, caches, ..]
+            if *system == OsStr::new("System")
+                && *volumes == OsStr::new("Volumes")
+                && *data == OsStr::new("Data")
+                && *library == OsStr::new("Library")
+                && *caches == OsStr::new("Caches")
+    )
+}
+
+fn is_temp_cache_root(parts: &[&OsStr]) -> bool {
+    matches!(parts, [tmp, ..] if *tmp == OsStr::new("tmp"))
+        || matches!(parts, [var, tmp, ..] if *var == OsStr::new("var") && *tmp == OsStr::new("tmp"))
+        || matches!(parts, [private, tmp, ..] if *private == OsStr::new("private") && *tmp == OsStr::new("tmp"))
+        || matches!(parts, [private, var, tmp, ..]
+            if *private == OsStr::new("private")
+                && *var == OsStr::new("var")
+                && *tmp == OsStr::new("tmp"))
+}
+
+fn should_skip_directory(path: &Path, filters: WalkFilters) -> bool {
     let Some(name) = path.file_name() else {
         return false;
     };
 
-    if name == OsStr::new("target") || name == OsStr::new("node_modules") {
+    if filters.skip_dev_tools
+        && (name == OsStr::new("target") || name == OsStr::new("node_modules"))
+    {
         return true;
     }
 
@@ -275,23 +321,25 @@ fn should_skip_directory(path: &Path, skip_dev_tools: bool) -> bool {
         })
         .collect();
 
-    let user_relative = if let [system, volumes, data, users, _, rest @ ..] = parts.as_slice() {
-        if *system == OsStr::new("System")
-            && *volumes == OsStr::new("Volumes")
-            && *data == OsStr::new("Data")
-            && *users == OsStr::new("Users")
-        {
-            rest
-        } else {
-            return false;
+    if filters.skip_cache_dirs {
+        if is_system_data_library_caches(&parts) || is_temp_cache_root(&parts) {
+            return true;
         }
-    } else if let [users, _, rest @ ..] = parts.as_slice() {
-        if *users == OsStr::new("Users") {
-            rest
-        } else {
-            return false;
+
+        if let Some(user_relative) = user_relative_components(&parts) {
+            if matches!(user_relative, [library, caches, ..]
+                if *library == OsStr::new("Library") && *caches == OsStr::new("Caches"))
+            {
+                return true;
+            }
         }
-    } else {
+    }
+
+    if !filters.skip_dev_tools {
+        return false;
+    }
+
+    let Some(user_relative) = user_relative_components(&parts) else {
         return false;
     };
 
@@ -303,10 +351,6 @@ fn should_skip_directory(path: &Path, skip_dev_tools: bool) -> bool {
                 && (*tool == OsStr::new("pnpm") || *tool == OsStr::new("zig")))
         || matches!(user_relative, [library, pnpm, ..]
             if *library == OsStr::new("Library") && *pnpm == OsStr::new("pnpm"))
-        || matches!(user_relative, [library, caches, tool, ..]
-            if *library == OsStr::new("Library")
-                && *caches == OsStr::new("Caches")
-                && (*tool == OsStr::new("pnpm") || *tool == OsStr::new("zig")))
 }
 
 fn acquire_work(
@@ -342,7 +386,7 @@ fn acquire_work(
 
 fn process_dir_chain(
     start_path: PathBuf,
-    skip_dev_tools: bool,
+    filters: WalkFilters,
     shared: &Arc<(Mutex<WorkState>, Condvar)>,
     done: &Arc<AtomicBool>,
     stats: &Arc<SharedStats>,
@@ -375,7 +419,7 @@ fn process_dir_chain(
 
         next_open_dir = process_open_dir(
             current,
-            skip_dev_tools,
+            filters,
             shared,
             stats,
             local_stats,
@@ -395,7 +439,7 @@ fn process_dir_chain(
 
 fn process_open_dir(
     current: OpenDirWork,
-    skip_dev_tools: bool,
+    filters: WalkFilters,
     shared: &Arc<(Mutex<WorkState>, Condvar)>,
     stats: &Arc<SharedStats>,
     local_stats: &mut WalkStats,
@@ -463,7 +507,7 @@ fn process_open_dir(
                     let name = &buffer[name_start..name_end];
                     let child_path = current.path.join(Path::new(OsStr::from_bytes(name)));
 
-                    if should_skip_directory(&child_path, skip_dev_tools) {
+                    if should_skip_directory(&child_path, filters) {
                         continue;
                     }
 
@@ -672,7 +716,13 @@ fn read_i32(buffer: &[u8], offset: usize) -> Option<i32> {
 
 fn main() {
     let start = Instant::now();
-    let stats = walk_dir(Path::new(ROOT), true);
+    let stats = walk_dir(
+        Path::new(ROOT),
+        WalkFilters {
+            skip_dev_tools: true,
+            skip_cache_dirs: true,
+        },
+    );
 
     println!(
         "dirs={} files={} warnings={} throttles={} took={:?}",
