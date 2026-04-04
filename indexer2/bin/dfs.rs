@@ -2,6 +2,7 @@ use std::ffi::{CString, OsStr};
 use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::RawFd;
+use std::path::Component;
 use std::path::{Path, PathBuf};
 use std::ptr;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -197,7 +198,7 @@ fn worker_count() -> usize {
         .unwrap_or(8)
 }
 
-fn walk_dir(root: &Path) -> WalkStats {
+fn walk_dir(root: &Path, skip_dev_tools: bool) -> WalkStats {
     let stats = Arc::new(SharedStats {
         dirs_seen: AtomicU64::new(0),
         files_seen: AtomicU64::new(0),
@@ -235,6 +236,7 @@ fn walk_dir(root: &Path) -> WalkStats {
 
                     process_dir_chain(
                         path,
+                        skip_dev_tools,
                         &shared,
                         &done,
                         &stats,
@@ -250,6 +252,61 @@ fn walk_dir(root: &Path) -> WalkStats {
     });
 
     stats.snapshot()
+}
+
+fn should_skip_directory(path: &Path, skip_dev_tools: bool) -> bool {
+    if !skip_dev_tools {
+        return false;
+    }
+
+    let Some(name) = path.file_name() else {
+        return false;
+    };
+
+    if name == OsStr::new("target") || name == OsStr::new("node_modules") {
+        return true;
+    }
+
+    let parts: Vec<_> = path
+        .components()
+        .filter_map(|component| match component {
+            Component::Normal(part) => Some(part),
+            _ => None,
+        })
+        .collect();
+
+    let user_relative = if let [system, volumes, data, users, _, rest @ ..] = parts.as_slice() {
+        if *system == OsStr::new("System")
+            && *volumes == OsStr::new("Volumes")
+            && *data == OsStr::new("Data")
+            && *users == OsStr::new("Users")
+        {
+            rest
+        } else {
+            return false;
+        }
+    } else if let [users, _, rest @ ..] = parts.as_slice() {
+        if *users == OsStr::new("Users") {
+            rest
+        } else {
+            return false;
+        }
+    } else {
+        return false;
+    };
+
+    matches!(user_relative, [cache, ..] if *cache == OsStr::new(".cargo"))
+        || matches!(user_relative, [cache, ..] if *cache == OsStr::new(".rustup"))
+        || matches!(user_relative, [cache, ..] if *cache == OsStr::new(".pnpm-store"))
+        || matches!(user_relative, [dot_cache, tool, ..]
+            if *dot_cache == OsStr::new(".cache")
+                && (*tool == OsStr::new("pnpm") || *tool == OsStr::new("zig")))
+        || matches!(user_relative, [library, pnpm, ..]
+            if *library == OsStr::new("Library") && *pnpm == OsStr::new("pnpm"))
+        || matches!(user_relative, [library, caches, tool, ..]
+            if *library == OsStr::new("Library")
+                && *caches == OsStr::new("Caches")
+                && (*tool == OsStr::new("pnpm") || *tool == OsStr::new("zig")))
 }
 
 fn acquire_work(
@@ -285,6 +342,7 @@ fn acquire_work(
 
 fn process_dir_chain(
     start_path: PathBuf,
+    skip_dev_tools: bool,
     shared: &Arc<(Mutex<WorkState>, Condvar)>,
     done: &Arc<AtomicBool>,
     stats: &Arc<SharedStats>,
@@ -317,6 +375,7 @@ fn process_dir_chain(
 
         next_open_dir = process_open_dir(
             current,
+            skip_dev_tools,
             shared,
             stats,
             local_stats,
@@ -336,6 +395,7 @@ fn process_dir_chain(
 
 fn process_open_dir(
     current: OpenDirWork,
+    skip_dev_tools: bool,
     shared: &Arc<(Mutex<WorkState>, Condvar)>,
     stats: &Arc<SharedStats>,
     local_stats: &mut WalkStats,
@@ -402,6 +462,10 @@ fn process_open_dir(
 
                     let name = &buffer[name_start..name_end];
                     let child_path = current.path.join(Path::new(OsStr::from_bytes(name)));
+
+                    if should_skip_directory(&child_path, skip_dev_tools) {
+                        continue;
+                    }
 
                     if next_child_path.is_none() {
                         next_child_name.extend_from_slice(name);
@@ -608,7 +672,7 @@ fn read_i32(buffer: &[u8], offset: usize) -> Option<i32> {
 
 fn main() {
     let start = Instant::now();
-    let stats = walk_dir(Path::new(ROOT));
+    let stats = walk_dir(Path::new(ROOT), true);
 
     println!(
         "dirs={} files={} warnings={} throttles={} took={:?}",
