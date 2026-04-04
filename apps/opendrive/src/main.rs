@@ -1,13 +1,85 @@
-use od_indexer::{WalkControl, WalkEvent, walk_dir};
+use od_indexer::{walk_dir, WalkControl, WalkEvent};
 use std::ffi::OsStr;
+use std::os::unix::ffi::OsStrExt;
 use std::path::Component;
-use std::{path::Path, time::Instant};
+use std::sync::Arc;
+use std::{io, path::Path, time::Instant};
+use walrus_rust::{FsyncSchedule, ReadConsistency, Walrus};
 
-#[derive(Default)]
+const ROOT_PATH: &str = "/System/Volumes/Data";
+const WAL_KEY: &str = "opendrive-paths";
+const WAL_TOPIC: &str = "paths";
+const MAX_PENDING_PATHS: usize = 2_000;
+const MAX_PENDING_BYTES: usize = 1024 * 1024;
+
 struct Stats {
     dirs_seen: u64,
     files_seen: u64,
     warnings: u64,
+    persisted_paths: u64,
+    wal: Arc<Walrus>,
+    pending_paths: Vec<Vec<u8>>,
+    pending_bytes: usize,
+    first_error: Option<String>,
+}
+
+impl Stats {
+    fn new(wal: Arc<Walrus>) -> Self {
+        Self {
+            dirs_seen: 0,
+            files_seen: 0,
+            warnings: 0,
+            persisted_paths: 0,
+            wal,
+            pending_paths: Vec::with_capacity(MAX_PENDING_PATHS),
+            pending_bytes: 0,
+            first_error: None,
+        }
+    }
+
+    fn record_path(&mut self, path: &Path) {
+        if self.first_error.is_some() {
+            return;
+        }
+
+        let bytes = path.as_os_str().as_bytes();
+        self.pending_bytes += bytes.len();
+        self.pending_paths.push(bytes.to_vec());
+
+        if self.pending_paths.len() >= MAX_PENDING_PATHS || self.pending_bytes >= MAX_PENDING_BYTES
+        {
+            self.flush_pending();
+        }
+    }
+
+    fn flush_pending(&mut self) {
+        if self.first_error.is_some() || self.pending_paths.is_empty() {
+            return;
+        }
+
+        let batch: Vec<&[u8]> = self.pending_paths.iter().map(Vec::as_slice).collect();
+        match self.wal.batch_append_for_topic(WAL_TOPIC, &batch) {
+            Ok(()) => {
+                self.persisted_paths += self.pending_paths.len() as u64;
+            }
+            Err(error) => {
+                self.first_error = Some(format!("failed to persist path batch: {error}"));
+            }
+        }
+
+        self.pending_paths.clear();
+        self.pending_bytes = 0;
+    }
+
+    fn finish(&mut self) -> io::Result<()> {
+        self.flush_pending();
+
+        if let Some(error) = self.first_error.take() {
+            return Err(io::Error::other(error));
+        }
+
+        Ok(())
+    }
 }
 
 fn user_relative_components<'a>(parts: &'a [&'a OsStr]) -> Option<&'a [&'a OsStr]> {
@@ -96,23 +168,35 @@ fn should_skip_directory(path: &Path) -> bool {
     false
 }
 
-fn main() {
+fn main() -> io::Result<()> {
     println!("Indexing...");
     let start = Instant::now();
+
+    let wal = Arc::new(Walrus::with_consistency_and_schedule_for_key(
+        WAL_KEY,
+        ReadConsistency::StrictlyAtOnce,
+        FsyncSchedule::NoFsync,
+    )?);
+
     let stats = walk_dir(
-        Path::new("/System/Volumes/Data"),
-        Stats::default,
+        Path::new(ROOT_PATH),
+        {
+            let wal = Arc::clone(&wal);
+            move || Stats::new(Arc::clone(&wal))
+        },
         |event, stats| match event {
             WalkEvent::Dir(path) => {
                 if should_skip_directory(path) {
                     WalkControl::SkipDir
                 } else {
                     stats.dirs_seen += 1;
+                    stats.record_path(path);
                     WalkControl::Continue
                 }
             }
-            WalkEvent::File(_) => {
+            WalkEvent::File(path) => {
                 stats.files_seen += 1;
+                stats.record_path(path);
                 WalkControl::Continue
             }
             WalkEvent::Warning { path, error } => {
@@ -121,19 +205,31 @@ fn main() {
                 WalkControl::Continue
             }
         },
-        |mut a, b| {
+        |mut a, mut b| {
+            a.flush_pending();
+            b.flush_pending();
             a.dirs_seen += b.dirs_seen;
             a.files_seen += b.files_seen;
             a.warnings += b.warnings;
+            a.persisted_paths += b.persisted_paths;
+            if a.first_error.is_none() {
+                a.first_error = b.first_error.take();
+            }
             a
         },
     );
 
+    let mut stats = stats;
+    stats.finish()?;
+
     println!(
-        "dirs={} files={} warnings={} took={:?}",
+        "dirs={} files={} warnings={} persisted={} took={:?}",
         stats.dirs_seen,
         stats.files_seen,
         stats.warnings,
+        stats.persisted_paths,
         start.elapsed()
     );
+
+    Ok(())
 }
