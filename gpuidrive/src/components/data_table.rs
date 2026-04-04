@@ -1,19 +1,16 @@
-use std::{ops::Range, rc::Rc};
+use std::ops::Range;
 
 use gpui::*;
 
 use crate::state::{FocusSelection, State};
 
-use super::{TableRow, open_node, render_titles};
+use super::{open_node, render_titles, TableRow};
 
 const SCROLLBAR_THUMB_WIDTH: Pixels = px(8.);
 const SCROLLBAR_THUMB_HEIGHT: Pixels = px(100.);
 
 pub struct DataTable {
     state: Entity<State>,
-    /// Use `Rc` to share the same quote data across multiple items, avoid cloning.
-    // nodes: Vec<Rc<Node>>,
-    visible_range: Range<usize>,
     scroll: UniformListScrollHandle,
     /// The position in thumb bounds when dragging start mouse down.
     drag_position: Option<Point<Pixels>>,
@@ -23,8 +20,6 @@ impl DataTable {
     pub fn new(state: Entity<State>) -> Self {
         Self {
             state,
-            // nodes: Vec::new(),
-            visible_range: 0..0,
             scroll: UniformListScrollHandle::new(),
             drag_position: None,
         }
@@ -132,7 +127,7 @@ impl DataTable {
 
 impl Render for DataTable {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let entity = cx.entity();
+        let entity_id = cx.entity_id();
 
         // let selected = cx.new(|cx| {
         //     cx.observe(&self.state, |this, state, cx| {}).detach();
@@ -171,43 +166,51 @@ impl Render for DataTable {
                             .size_full()
                             .child(
                                 // TODO: Is length reactive
-                                uniform_list(entity, "items", self.state.read(cx).nodes().len(), {
-                                    move |this, range, _, cx| {
-                                        this.visible_range = range.clone();
-                                        let mut items = Vec::with_capacity(range.end - range.start);
-                                        let nodes = this.state.read(cx).nodes();
-                                        for i in range {
-                                            if let Some(node) = Some(nodes[i].clone()) {
-                                                let s = this.state.clone();
-                                                items.push(
-                                                    TableRow::new(
-                                                        i,
-                                                        node.clone(),
-                                                        s.read(cx)
-                                                            .selected()
-                                                            .map(|s| s == i)
-                                                            .unwrap_or(false),
-                                                    )
-                                                    .on_click(move |event, _, cx| {
-                                                        if event.down.click_count == 1 {
-                                                            s.update(cx, |s, cx| {
-                                                                s.set_selection(cx, i)
-                                                            });
-                                                        } else {
-                                                            let modifier =
-                                                                event.down.modifiers.platform
-                                                                    || event.down.modifiers.shift; // TODO: Make this better
+                                uniform_list(
+                                    ("items", entity_id),
+                                    self.state.read(cx).nodes().len(),
+                                    {
+                                        let state = self.state.clone();
+                                        move |range: Range<usize>, _, cx| {
+                                            let mut items =
+                                                Vec::with_capacity(range.end - range.start);
+                                            let nodes = state.read(cx).nodes().to_vec();
+                                            for i in range {
+                                                if let Some(node) = nodes.get(i).cloned() {
+                                                    let s = state.clone();
+                                                    items.push(
+                                                        TableRow::new(
+                                                            i,
+                                                            node.clone(),
+                                                            s.read(cx)
+                                                                .selected()
+                                                                .map(|s| s == i)
+                                                                .unwrap_or(false),
+                                                        )
+                                                        .on_click(move |event, _, cx| {
+                                                            if event.click_count() == 1 {
+                                                                s.update(
+                                                                    cx,
+                                                                    |s: &mut State, cx| {
+                                                                        s.set_selection(cx, i)
+                                                                    },
+                                                                );
+                                                            } else {
+                                                                let modifiers = event.modifiers();
+                                                                let modifier = modifiers.platform
+                                                                    || modifiers.shift; // TODO: Make this better
 
-                                                            open_node(&s, cx, &node, modifier);
-                                                        }
-                                                    }),
-                                                );
+                                                                open_node(&s, cx, &node, modifier);
+                                                            }
+                                                        }),
+                                                    );
+                                                }
                                             }
-                                        }
 
-                                        items
-                                    }
-                                })
+                                            items
+                                        }
+                                    },
+                                )
                                 .size_full()
                                 .track_scroll(self.scroll.clone()),
                             )

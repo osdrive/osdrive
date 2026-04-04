@@ -1,11 +1,11 @@
 use std::ops::Range;
 
 use gpui::{
-    App, Bounds, ClipboardItem, Context, CursorStyle, ElementId, ElementInputHandler, Entity,
+    actions, div, fill, hsla, point, prelude::*, px, relative, rgba, size, white, App, Bounds,
+    ClipboardItem, Context, CursorStyle, ElementId, ElementInputHandler, Entity,
     EntityInputHandler, EventEmitter, FocusHandle, Focusable, GlobalElementId, LayoutId,
     MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point,
-    ShapedLine, SharedString, Style, TextRun, UTF16Selection, UnderlineStyle, Window, actions, div,
-    fill, hsla, point, prelude::*, px, relative, rgba, size, white,
+    ShapedLine, SharedString, Style, TextRun, UTF16Selection, UnderlineStyle, Window,
 };
 use unicode_segmentation::*;
 
@@ -407,9 +407,14 @@ impl Element for TextElement {
         None
     }
 
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
     fn request_layout(
         &mut self,
         _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         window: &mut Window,
         cx: &mut App,
     ) -> (LayoutId, Self::RequestLayoutState) {
@@ -422,6 +427,7 @@ impl Element for TextElement {
     fn prepaint(
         &mut self,
         _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         bounds: Bounds<Pixels>,
         _request_layout: &mut Self::RequestLayoutState,
         window: &mut Window,
@@ -477,8 +483,7 @@ impl Element for TextElement {
         let font_size = style.font_size.to_pixels(window.rem_size());
         let line = window
             .text_system()
-            .shape_line(display_text, font_size, &runs)
-            .unwrap();
+            .shape_line(display_text, font_size, &runs, None);
 
         let cursor_pos = line.x_for_index(cursor);
         let (selection, cursor) = if selected_range.is_empty() {
@@ -520,6 +525,7 @@ impl Element for TextElement {
     fn paint(
         &mut self,
         _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         bounds: Bounds<Pixels>,
         _request_layout: &mut Self::RequestLayoutState,
         prepaint: &mut Self::PrepaintState,
