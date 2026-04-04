@@ -28,10 +28,12 @@ fn roundtrip_preserves_structure_and_metadata() {
 
     let tmp_record = db.get(tmp).unwrap();
     assert!(tmp_record.is_dir);
+    assert!(tmp_record.is_explicit);
     assert_eq!(tmp_record.created_unix_ns, 10);
 
     let file_record = db.get(file).unwrap();
     assert!(!file_record.is_dir);
+    assert!(file_record.is_explicit);
     assert_eq!(file_record.size, 42);
     assert_eq!(file_record.modified_unix_ns, 13);
     assert_eq!(db.parent(file), Some(tmp));
@@ -65,8 +67,12 @@ fn implicit_directories_are_created_and_can_be_upgraded() {
     let dir_record = db.get(dir).unwrap();
 
     assert!(dir_record.is_dir);
+    assert!(dir_record.is_explicit);
     assert_eq!(dir_record.size, 99);
     assert_eq!(dir_record.created_unix_ns, 3);
+
+    let parent = db.lookup_path(b"/a").unwrap();
+    assert!(!db.get(parent).unwrap().is_explicit);
 }
 
 #[test]

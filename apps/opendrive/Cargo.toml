@@ -5,5 +5,5 @@ edition = "2024"
 publish = false
 
 [dependencies]
+od-db = { path = "../../crates/db" }
 od-indexer = { path = "../../crates/indexer" }
-walrus-rust = "0.2.0"

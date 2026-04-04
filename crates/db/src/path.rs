@@ -54,12 +54,26 @@ pub fn components(path: &[u8]) -> impl Iterator<Item = &[u8]> {
 
 pub fn hash_path(path: &[u8]) -> u64 {
     const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+
+    extend_hash(OFFSET, path)
+}
+
+pub fn hash_child_path(parent_hash: u64, parent_is_root: bool, name: &[u8]) -> u64 {
+    let hash = if parent_is_root {
+        parent_hash
+    } else {
+        extend_hash(parent_hash, b"/")
+    };
+    extend_hash(hash, name)
+}
+
+fn extend_hash(mut hash: u64, bytes: &[u8]) -> u64 {
     const PRIME: u64 = 0x0000_0100_0000_01b3;
 
-    let mut hash = OFFSET;
-    for byte in path {
+    for byte in bytes {
         hash ^= u64::from(*byte);
         hash = hash.wrapping_mul(PRIME);
     }
+
     hash
 }

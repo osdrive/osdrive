@@ -1,7 +1,7 @@
 use crate::error::{Error, Result};
 use crate::format::{
-    read_i64, read_u16, read_u32, read_u64, DiskNode, FLAG_DIR, HEADER_LEN, MAGIC, NODE_LEN,
-    PATH_HASH_LEN, VERSION,
+    read_i64, read_u16, read_u32, read_u64, DiskNode, FLAG_DIR, FLAG_EXPLICIT, HEADER_LEN, MAGIC,
+    NODE_LEN, PATH_HASH_LEN, VERSION,
 };
 use crate::path::{components, hash_path, normalize_path};
 use std::borrow::Cow;
@@ -35,6 +35,7 @@ pub struct NodeRecord<'a> {
     pub parent: Option<NodeId>,
     pub name: &'a [u8],
     pub is_dir: bool,
+    pub is_explicit: bool,
     pub size: u64,
     pub created_unix_ns: i64,
     pub modified_unix_ns: i64,
@@ -159,6 +160,7 @@ impl Db {
             },
             name,
             is_dir: node.flags & FLAG_DIR != 0,
+            is_explicit: node.flags & FLAG_EXPLICIT != 0,
             size: node.size,
             created_unix_ns: node.created_unix_ns,
             modified_unix_ns: node.modified_unix_ns,

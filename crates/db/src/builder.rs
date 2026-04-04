@@ -1,9 +1,9 @@
 use crate::error::{Error, Result};
 use crate::format::{
-    push_i64, push_u16, push_u32, push_u64, DiskNode, DiskPathHash, Header, FLAG_DIR, HEADER_LEN,
-    MAGIC, NODE_LEN, PATH_HASH_LEN, VERSION,
+    push_i64, push_u16, push_u32, push_u64, DiskNode, DiskPathHash, Header, FLAG_DIR,
+    FLAG_EXPLICIT, HEADER_LEN, MAGIC, NODE_LEN, PATH_HASH_LEN, VERSION,
 };
-use crate::path::{components, hash_path, normalize_path};
+use crate::path::{components, hash_child_path, hash_path, normalize_path};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -35,7 +35,14 @@ struct BuildNode {
     created_unix_ns: i64,
     modified_unix_ns: i64,
     explicit: bool,
+    path_hash: u64,
     children: Vec<u32>,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct NodeKey {
+    parent_id: u32,
+    name: Vec<u8>,
 }
 
 pub struct DbBuilder {
@@ -96,10 +103,10 @@ impl DbBuilder {
             created_unix_ns: 0,
             modified_unix_ns: 0,
             explicit: true,
+            path_hash: hash_path(b"/"),
             children: Vec::new(),
         }];
-        let mut ids_by_path = HashMap::<Vec<u8>, u32>::new();
-        ids_by_path.insert(vec![b'/'], 0);
+        let mut ids_by_key = HashMap::<NodeKey, u32>::new();
 
         for entry in self.entries {
             if entry.path == b"/" {
@@ -111,33 +118,31 @@ impl DbBuilder {
             }
 
             let mut current_id = 0u32;
-            let mut current_path = Vec::new();
 
             for component in components(&entry.path) {
-                if current_path.is_empty() {
-                    current_path.push(b'/');
-                } else {
-                    current_path.push(b'/');
-                }
-                current_path.extend_from_slice(component);
-
-                let is_terminal = current_path == entry.path;
-                let next_id = if let Some(id) = ids_by_path.get(&current_path).copied() {
+                let is_terminal = component_end_offset(&entry.path, component) == entry.path.len();
+                let key = NodeKey {
+                    parent_id: current_id,
+                    name: component.to_vec(),
+                };
+                let next_id = if let Some(id) = ids_by_key.get(&key).copied() {
                     id
                 } else {
                     let id = u32::try_from(nodes.len()).map_err(|_| Error::NodeLimitExceeded)?;
+                    let parent_hash = nodes[current_id as usize].path_hash;
                     nodes.push(BuildNode {
                         parent_id: current_id,
-                        name: component.to_vec(),
+                        name: key.name.clone(),
                         is_dir: !is_terminal || entry.is_dir,
                         size: 0,
                         created_unix_ns: 0,
                         modified_unix_ns: 0,
                         explicit: false,
+                        path_hash: hash_child_path(parent_hash, current_id == 0, component),
                         children: Vec::new(),
                     });
                     nodes[current_id as usize].children.push(id);
-                    ids_by_path.insert(current_path.clone(), id);
+                    ids_by_key.insert(key, id);
                     id
                 };
 
@@ -169,25 +174,8 @@ impl DbBuilder {
         let mut disk_nodes = Vec::with_capacity(nodes.len());
         let mut edges = Vec::new();
         let mut hashes = Vec::with_capacity(nodes.len());
-        let mut paths_by_id = vec![Vec::new(); nodes.len()];
-        paths_by_id[0] = vec![b'/'];
 
         for (index, node) in nodes.iter().enumerate() {
-            if index != 0 {
-                let parent_path = &paths_by_id[node.parent_id as usize];
-                let mut full_path = if parent_path.len() == 1 {
-                    Vec::with_capacity(1 + node.name.len())
-                } else {
-                    Vec::with_capacity(parent_path.len() + 1 + node.name.len())
-                };
-                full_path.extend_from_slice(parent_path);
-                if full_path.len() > 1 {
-                    full_path.push(b'/');
-                }
-                full_path.extend_from_slice(&node.name);
-                paths_by_id[index] = full_path;
-            }
-
             let name_offset = u32::try_from(names.len())
                 .map_err(|_| Error::InvalidFormat("name blob too large"))?;
             let name_len = u16::try_from(node.name.len())
@@ -206,14 +194,15 @@ impl DbBuilder {
                 child_count,
                 name_offset,
                 name_len,
-                flags: if node.is_dir { FLAG_DIR } else { 0 },
+                flags: (if node.is_dir { FLAG_DIR } else { 0 })
+                    | (if node.explicit { FLAG_EXPLICIT } else { 0 }),
                 size: node.size,
                 created_unix_ns: node.created_unix_ns,
                 modified_unix_ns: node.modified_unix_ns,
             });
 
             hashes.push(DiskPathHash {
-                hash: hash_path(&paths_by_id[index]),
+                hash: node.path_hash,
                 node_id: index as u32,
             });
         }
@@ -222,6 +211,11 @@ impl DbBuilder {
 
         serialize_snapshot(&disk_nodes, &edges, &names, &hashes)
     }
+}
+
+fn component_end_offset(path: &[u8], component: &[u8]) -> usize {
+    let component_start = component.as_ptr() as usize - path.as_ptr() as usize;
+    component_start + component.len()
 }
 
 impl Default for DbBuilder {

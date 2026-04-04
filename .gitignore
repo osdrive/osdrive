@@ -54,3 +54,4 @@ playground.xcworkspace
 
 # TODO: Remove this
 /wal_files
+*.odb

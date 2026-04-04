@@ -37,6 +37,7 @@ pub struct DiskPathHash {
 }
 
 pub const FLAG_DIR: u16 = 1;
+pub const FLAG_EXPLICIT: u16 = 1 << 1;
 
 pub fn push_u16(buffer: &mut Vec<u8>, value: u16) {
     buffer.extend_from_slice(&value.to_le_bytes());

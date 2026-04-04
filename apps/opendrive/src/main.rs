@@ -1,95 +1,57 @@
+use od_db::{Db, DbBuilder, InputEntry};
 use od_indexer::{walk_dir, WalkControl, WalkEvent};
 use std::ffi::OsStr;
+use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Component;
-use std::sync::{Arc, Mutex};
-use std::{io, path::Path, time::Instant};
-use walrus_rust::{FsyncSchedule, ReadConsistency, Walrus};
+use std::path::Path;
+use std::time::Instant;
 
 const ROOT_PATH: &str = "/System/Volumes/Data";
-const WAL_KEY: &str = "opendrive-paths";
-const WAL_TOPIC: &str = "paths";
-const MAX_PENDING_PATHS: usize = 2_000;
-const MAX_PENDING_BYTES: usize = 1024 * 1024;
+const OUTPUT_PATH: &str = "./fs.odb";
 
-struct Stats {
-    dirs_seen: u64,
-    files_seen: u64,
-    warnings: u64,
-    persisted_paths: u64,
-    wal: Arc<Mutex<Walrus>>,
-    pending_paths: Vec<Vec<u8>>,
-    pending_bytes: usize,
+struct BuildState {
+    builder: DbBuilder,
     first_error: Option<String>,
 }
 
-impl Stats {
-    fn new(wal: Arc<Mutex<Walrus>>) -> Self {
+impl BuildState {
+    fn new() -> Self {
         Self {
-            dirs_seen: 0,
-            files_seen: 0,
-            warnings: 0,
-            persisted_paths: 0,
-            wal,
-            pending_paths: Vec::with_capacity(MAX_PENDING_PATHS),
-            pending_bytes: 0,
+            builder: DbBuilder::new(),
             first_error: None,
         }
     }
 
-    fn record_path(&mut self, path: &Path) {
+    fn record_path(&mut self, path: &Path, is_dir: bool) {
         if self.first_error.is_some() {
             return;
         }
 
-        let bytes = path.as_os_str().as_bytes();
-        self.pending_bytes += bytes.len();
-        self.pending_paths.push(bytes.to_vec());
-
-        if self.pending_paths.len() >= MAX_PENDING_PATHS || self.pending_bytes >= MAX_PENDING_BYTES
-        {
-            self.flush_pending();
+        if let Err(error) = self.builder.add_entry(InputEntry {
+            path: path.as_os_str().as_bytes(),
+            is_dir,
+            size: 0,
+            created_unix_ns: 0,
+            modified_unix_ns: 0,
+        }) {
+            self.first_error = Some(format!("failed to record {}: {error}", path.display()));
         }
     }
 
-    fn flush_pending(&mut self) {
-        if self.first_error.is_some() || self.pending_paths.is_empty() {
-            return;
+    fn finish(self) -> io::Result<DbBuilder> {
+        match self.first_error {
+            Some(error) => Err(io::Error::other(error)),
+            None => Ok(self.builder),
         }
-
-        let batch: Vec<&[u8]> = self.pending_paths.iter().map(Vec::as_slice).collect();
-        let wal = match self.wal.lock() {
-            Ok(wal) => wal,
-            Err(error) => {
-                self.first_error = Some(format!("failed to lock walrus writer: {error}"));
-                self.pending_paths.clear();
-                self.pending_bytes = 0;
-                return;
-            }
-        };
-
-        match wal.batch_append_for_topic(WAL_TOPIC, &batch) {
-            Ok(()) => {
-                self.persisted_paths += self.pending_paths.len() as u64;
-            }
-            Err(error) => {
-                self.first_error = Some(format!("failed to persist path batch: {error}"));
-            }
-        }
-
-        self.pending_paths.clear();
-        self.pending_bytes = 0;
     }
+}
 
-    fn finish(&mut self) -> io::Result<()> {
-        self.flush_pending();
-
-        if let Some(error) = self.first_error.take() {
-            return Err(io::Error::other(error));
-        }
-
-        Ok(())
-    }
+#[derive(Default)]
+struct SnapshotStats {
+    dirs: u64,
+    files: u64,
+    persisted: u64,
 }
 
 fn user_relative_components<'a>(parts: &'a [&'a OsStr]) -> Option<&'a [&'a OsStr]> {
@@ -178,50 +140,55 @@ fn should_skip_directory(path: &Path) -> bool {
     false
 }
 
+fn reconstruct_stats(db: &Db) -> io::Result<SnapshotStats> {
+    let mut stats = SnapshotStats::default();
+
+    for id in 0..db.node_count() {
+        let node = db
+            .get(id as u32)
+            .ok_or_else(|| io::Error::other(format!("missing node {id}")))?;
+        if !node.is_explicit {
+            continue;
+        }
+
+        stats.persisted += 1;
+        if node.is_dir {
+            stats.dirs += 1;
+        } else {
+            stats.files += 1;
+        }
+    }
+
+    Ok(stats)
+}
+
 fn main() -> io::Result<()> {
     println!("Indexing...");
-    let start = Instant::now();
+    let index_start = Instant::now();
 
-    let wal = Arc::new(Mutex::new(Walrus::with_consistency_and_schedule_for_key(
-        WAL_KEY,
-        ReadConsistency::StrictlyAtOnce,
-        FsyncSchedule::NoFsync,
-    )?));
-
-    let stats = walk_dir(
+    let state = walk_dir(
         Path::new(ROOT_PATH),
-        {
-            let wal = Arc::clone(&wal);
-            move || Stats::new(Arc::clone(&wal))
-        },
-        |event, stats| match event {
+        BuildState::new,
+        |event, state| match event {
             WalkEvent::Dir(path) => {
                 if should_skip_directory(path) {
                     WalkControl::SkipDir
                 } else {
-                    stats.dirs_seen += 1;
-                    stats.record_path(path);
+                    state.record_path(path, true);
                     WalkControl::Continue
                 }
             }
             WalkEvent::File(path) => {
-                stats.files_seen += 1;
-                stats.record_path(path);
+                state.record_path(path, false);
                 WalkControl::Continue
             }
             WalkEvent::Warning { path, error } => {
-                stats.warnings += 1;
                 eprintln!("warning: skipping {}: {}", path.display(), error);
                 WalkControl::Continue
             }
         },
         |mut a, mut b| {
-            a.flush_pending();
-            b.flush_pending();
-            a.dirs_seen += b.dirs_seen;
-            a.files_seen += b.files_seen;
-            a.warnings += b.warnings;
-            a.persisted_paths += b.persisted_paths;
+            a.builder.extend(b.builder);
             if a.first_error.is_none() {
                 a.first_error = b.first_error.take();
             }
@@ -229,16 +196,25 @@ fn main() -> io::Result<()> {
         },
     );
 
-    let mut stats = stats;
-    stats.finish()?;
+    state
+        .finish()?
+        .write_to_path(OUTPUT_PATH)
+        .map_err(io::Error::other)?;
+    let index_took = index_start.elapsed();
+
+    let stats_start = Instant::now();
+    let db = Db::open(OUTPUT_PATH).map_err(io::Error::other)?;
+    let stats = reconstruct_stats(&db)?;
+    let stats_took = stats_start.elapsed();
 
     println!(
-        "dirs={} files={} warnings={} persisted={} took={:?}",
-        stats.dirs_seen,
-        stats.files_seen,
-        stats.warnings,
-        stats.persisted_paths,
-        start.elapsed()
+        "dirs={} files={} persisted={} nodes={} index_took={:?} stats_took={:?}",
+        stats.dirs,
+        stats.files,
+        stats.persisted,
+        db.node_count(),
+        index_took,
+        stats_took,
     );
 
     Ok(())
