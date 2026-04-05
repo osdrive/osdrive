@@ -1,7 +1,7 @@
 use crate::error::{Error, Result};
 use crate::format::{
-    push_i64, push_u16, push_u32, push_u64, DiskNode, DiskPathHash, Header, FLAG_DIR,
-    FLAG_EXPLICIT, HEADER_LEN, MAGIC, NODE_LEN, PATH_HASH_LEN, VERSION,
+    DiskNode, DiskPathHash, FLAG_DIR, FLAG_EXPLICIT, HEADER_LEN, Header, MAGIC, NODE_LEN,
+    PATH_HASH_LEN, VERSION, push_i64, push_u16, push_u32, push_u64,
 };
 use crate::path::{
     components, hash_child_path, hash_name, hash_path, normalize_path,

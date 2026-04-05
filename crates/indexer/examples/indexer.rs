@@ -1,4 +1,4 @@
-use od_indexer::{walk_dir, WalkControl, WalkEvent};
+use od_indexer::{WalkControl, WalkEvent, walk_dir};
 use std::ffi::OsStr;
 use std::path::Component;
 use std::{path::Path, time::Instant};

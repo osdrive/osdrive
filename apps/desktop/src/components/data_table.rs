@@ -4,7 +4,7 @@ use gpui::*;
 
 use crate::state::{FocusSelection, State};
 
-use super::{open_node, render_titles, TableRow};
+use super::{TableRow, open_node, render_titles};
 
 const SCROLLBAR_THUMB_WIDTH: Pixels = px(8.);
 const SCROLLBAR_THUMB_HEIGHT: Pixels = px(100.);

@@ -1,8 +1,8 @@
 use crate::builder::{DbStats, DbSummary};
 use crate::error::{Error, Result};
 use crate::format::{
-    read_i64, read_u16, read_u32, read_u64, DiskNode, FLAG_DIR, FLAG_EXPLICIT, HEADER_LEN, MAGIC,
-    NODE_LEN, PATH_HASH_LEN, VERSION,
+    DiskNode, FLAG_DIR, FLAG_EXPLICIT, HEADER_LEN, MAGIC, NODE_LEN, PATH_HASH_LEN, VERSION,
+    read_i64, read_u16, read_u32, read_u64,
 };
 use crate::path::{components, hash_path, normalize_path};
 use std::borrow::Cow;

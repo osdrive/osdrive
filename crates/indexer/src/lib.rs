@@ -705,7 +705,7 @@ fn read_i32(buffer: &[u8], offset: usize) -> Option<i32> {
 
 #[cfg(test)]
 mod tests {
-    use super::{walk_dir, WalkControl, WalkEvent};
+    use super::{WalkControl, WalkEvent, walk_dir};
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicU64, Ordering};

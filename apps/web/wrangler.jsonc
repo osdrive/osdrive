@@ -10,5 +10,16 @@
 	},
 	"observability": {
 		"enabled": true
-	}
+	},
+	"kv_namespaces": [
+		{
+			"binding": "KV"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "DATA",
+			"bucket_name": "opendrive"
+		}
+	]
 }

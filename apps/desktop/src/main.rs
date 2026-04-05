@@ -2,6 +2,8 @@ use gpui::*;
 
 mod assets;
 mod components;
+mod file_provider;
+mod provider_window;
 mod state;
 mod window;
 
@@ -39,23 +41,40 @@ fn main() {
             })
             .detach();
 
-            let window = cx
-                .open_window(
-                    WindowOptions {
-                        focus: true,
-                        window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
-                            None,
-                            size(px(1280.0), px(1000.0)),
-                            cx,
-                        ))),
+            cx.open_window(
+                WindowOptions {
+                    focus: true,
+                    window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+                        None,
+                        size(px(1280.0), px(1000.0)),
+                        cx,
+                    ))),
+                    ..Default::default()
+                },
+                |window, cx| {
+                    cx.activate(false);
+                    cx.new(|cx| window::MainWindow::init(cx, window))
+                },
+            )
+            .unwrap();
+
+            cx.open_window(
+                WindowOptions {
+                    focus: false,
+                    titlebar: Some(TitlebarOptions {
+                        title: Some("File Provider".into()),
                         ..Default::default()
-                    },
-                    |window, cx| {
-                        cx.activate(false);
-                        cx.new(|cx| window::MainWindow::init(cx, window))
-                    },
-                )
-                .unwrap();
+                    }),
+                    window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+                        None,
+                        size(px(420.0), px(220.0)),
+                        cx,
+                    ))),
+                    ..Default::default()
+                },
+                |_, cx| cx.new(|_| provider_window::ProviderWindow::init()),
+            )
+            .unwrap();
 
             // let view = window.update(cx, |_, _, cx| cx.entity()).unwrap();
             // cx.observe_keystrokes(move |ev, _, cx| {

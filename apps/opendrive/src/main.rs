@@ -1,10 +1,10 @@
 use od_db::{Db, DbBuilder, OwnedInputEntry};
-use od_indexer::{walk_dir, WalkControl, WalkEvent};
+use od_indexer::{WalkControl, WalkEvent, walk_dir};
 use std::ffi::OsStr;
 use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
-use std::sync::mpsc::{sync_channel, SyncSender};
+use std::sync::mpsc::{SyncSender, sync_channel};
 use std::thread;
 use std::time::Instant;
 
