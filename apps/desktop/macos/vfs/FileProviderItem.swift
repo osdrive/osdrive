@@ -48,29 +48,6 @@ enum RustFileProviderModel {
         return try? JSONDecoder().decode(Item.self, from: data)
     }
 
-    static func children(of identifier: NSFileProviderItemIdentifier) -> [Item] {
-        guard let result = identifierToken(identifier).withCString({ token in
-            opendrive_vfs_children_json(token)
-        }) else {
-            return []
-        }
-
-        defer {
-            opendrive_json_result_free(result)
-        }
-
-        if result.pointee.error_message != nil {
-            return []
-        }
-
-        guard let payload = result.pointee.payload_json else {
-            return []
-        }
-
-        let data = Data(String(cString: payload).utf8)
-        return (try? JSONDecoder().decode([Item].self, from: data)) ?? []
-    }
-
     static func enumeration(of identifier: NSFileProviderItemIdentifier) -> Enumeration? {
         guard let result = identifierToken(identifier).withCString({ token in
             opendrive_vfs_enumeration_json(token)
@@ -92,73 +69,6 @@ enum RustFileProviderModel {
 
         let data = Data(String(cString: payload).utf8)
         return try? JSONDecoder().decode(Enumeration.self, from: data)
-    }
-
-    static func syncAnchor() -> NSFileProviderSyncAnchor {
-        guard let result = opendrive_vfs_sync_anchor() else {
-            return NSFileProviderSyncAnchor(Data())
-        }
-
-        defer {
-            opendrive_bytes_result_free(result)
-        }
-
-        guard let payload = result.pointee.payload_bytes else {
-            return NSFileProviderSyncAnchor(Data())
-        }
-
-        let data = Data(bytes: payload, count: Int(result.pointee.payload_len))
-        return NSFileProviderSyncAnchor(data)
-    }
-
-    static func contents(for identifier: NSFileProviderItemIdentifier) -> Data? {
-        guard let result = identifierToken(identifier).withCString({ token in
-            opendrive_vfs_file_bytes(token)
-        }) else {
-            return nil
-        }
-
-        defer {
-            opendrive_bytes_result_free(result)
-        }
-
-        if result.pointee.error_message != nil {
-            return nil
-        }
-
-        guard let payload = result.pointee.payload_bytes else {
-            return nil
-        }
-
-        return Data(bytes: payload, count: Int(result.pointee.payload_len))
-    }
-
-    static func writeContents(for identifier: NSFileProviderItemIdentifier, to url: URL) throws {
-        let wroteFile = try identifierToken(identifier).withCString { identifierPointer in
-            try url.path.withCString { pathPointer in
-                guard let result = opendrive_vfs_write_file(identifierPointer, pathPointer) else {
-                    throw CocoaError(.fileWriteUnknown)
-                }
-
-                defer {
-                    opendrive_json_result_free(result)
-                }
-
-                if let errorMessage = result.pointee.error_message {
-                    throw NSError(
-                        domain: NSCocoaErrorDomain,
-                        code: NSFileWriteUnknownError,
-                        userInfo: [NSLocalizedDescriptionKey: String(cString: errorMessage)]
-                    )
-                }
-
-                return true
-            }
-        }
-
-        if !wroteFile {
-            throw CocoaError(.fileWriteUnknown)
-        }
     }
 
     static func materializeItem(for identifier: NSFileProviderItemIdentifier, to url: URL) throws -> Item {
