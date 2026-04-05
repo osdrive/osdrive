@@ -54,6 +54,7 @@ input {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 1rem;
   padding: 0.75rem 0 1.5rem;
 }
@@ -199,6 +200,36 @@ input {
   border-color: var(--border);
   background: rgba(255, 255, 255, 0.03);
   color: var(--text);
+}
+
+.inline-form {
+  display: inline-flex;
+}
+
+.auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.auth-copy {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  color: var(--muted);
+  text-align: right;
+}
+
+.auth-copy strong,
+.account-grid strong {
+  color: var(--text);
+}
+
+.auth-copy span {
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
 }
 
 .hero-grid,
@@ -359,6 +390,17 @@ input {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.account-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.account-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .meta-grid strong {
   display: block;
   overflow-wrap: anywhere;
@@ -404,6 +446,7 @@ input {
 @media (max-width: 900px) {
   .hero-grid,
   .section-grid,
+  .account-grid,
   .panel--upload,
   .viewer-layout {
     grid-template-columns: 1fr;
@@ -414,6 +457,12 @@ input {
   .viewer-card h1,
   .empty-state h1 {
     max-width: none;
+  }
+
+  .auth-actions,
+  .auth-copy {
+    justify-content: flex-start;
+    text-align: left;
   }
 }
 

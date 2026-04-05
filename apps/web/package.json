@@ -11,6 +11,7 @@
     "@solidjs/meta": "^0.29.4",
     "@solidjs/router": "^0.15.0",
     "@solidjs/start": "2.0.0-alpha.2",
+    "@workos-inc/node": "^8.11.1",
     "solid-js": "^1.9.5"
   },
   "engines": {

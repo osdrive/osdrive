@@ -17,6 +17,9 @@ export default function Home() {
           <A href="/share" class="button button--primary">
             Upload a file
           </A>
+          <A href="/dashboard" class="button button--ghost">
+            Open dashboard
+          </A>
           <a href="#workflow" class="button button--ghost">
             See the flow
           </a>
