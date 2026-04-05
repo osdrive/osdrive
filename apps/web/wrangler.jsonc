@@ -3,7 +3,9 @@
 	"name": "drive",
 	"main": "@solidjs/start/server/entry",
 	"compatibility_date": "2025-10-11",
-	"compatibility_flags": ["nodejs_compat"],
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
 	"route": {
 		"pattern": "drive.otbeaumont.me",
 		"custom_domain": true
@@ -13,7 +15,8 @@
 	},
 	"kv_namespaces": [
 		{
-			"binding": "KV"
+			"binding": "KV",
+			"id": "1bad9061a6ec41319b5a82f74004199a"
 		}
 	],
 	"r2_buckets": [
