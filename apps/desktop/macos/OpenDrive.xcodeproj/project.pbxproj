@@ -6,12 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		551E697A2F82655900FC9136 /* share.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 551E696E2F82655900FC9136 /* share.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		55FBB01C2F8189F000514AED /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 55FBB01B2F8189F000514AED /* UniformTypeIdentifiers.framework */; };
-		55FBB0282F8189F000514AED /* vfs.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 55FBB0192F8189F000514AED /* vfs.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-/* End PBXBuildFile section */
-
 /* Begin PBXAggregateTarget section */
 		AA0000032F900000514AED01 /* share-rust */ = {
 			isa = PBXAggregateTarget;
@@ -19,14 +13,18 @@
 			buildPhases = (
 				AA0000022F900000514AED01 /* Build Rust Share Library */,
 			);
-			buildRules = (
-			);
 			dependencies = (
 			);
 			name = "share-rust";
 			productName = "share-rust";
 		};
 /* End PBXAggregateTarget section */
+
+/* Begin PBXBuildFile section */
+		551E697A2F82655900FC9136 /* share.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 551E696E2F82655900FC9136 /* share.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		55FBB01C2F8189F000514AED /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 55FBB01B2F8189F000514AED /* UniformTypeIdentifiers.framework */; };
+		55FBB0282F8189F000514AED /* vfs.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 55FBB0192F8189F000514AED /* vfs.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
 		551E69782F82655900FC9136 /* PBXContainerItemProxy */ = {
@@ -233,6 +231,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				AA0000062F900000514AED01 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				55FBB01D2F8189F000514AED /* vfs */,
@@ -254,9 +253,6 @@
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
-					AA0000032F900000514AED01 = {
-						CreatedOnToolsVersion = 26.4;
-					};
 					551E696D2F82655900FC9136 = {
 						CreatedOnToolsVersion = 26.4;
 					};
@@ -266,9 +262,12 @@
 					55FBB0182F8189F000514AED = {
 						CreatedOnToolsVersion = 26.4;
 					};
+					AA0000032F900000514AED01 = {
+						CreatedOnToolsVersion = 26.4;
+					};
 				};
 			};
-			buildConfigurationList = 55FBAFE62F81888000514AED /* Build configuration list for PBXProject "desktop" */;
+			buildConfigurationList = 55FBAFE62F81888000514AED /* Build configuration list for PBXProject "OpenDrive" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -338,6 +337,7 @@
 		};
 		AA0000022F900000514AED01 /* Build Rust Share Library */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
@@ -433,8 +433,8 @@
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = share/Share-Bridging-Header.h;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "share/Share-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 			};
@@ -471,22 +471,10 @@
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = share/Share-Bridging-Header.h;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "share/Share-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
-		AA0000072F900000514AED01 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-			};
-			name = Debug;
-		};
-		AA0000082F900000514AED01 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
 			};
 			name = Release;
 		};
@@ -699,11 +687,16 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MARKETING_VERSION = 0.0.1;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)/libopendrive_share.a",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = dev.opendrive.desktop.vfs;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = vfs/VFS-Bridging-Header.h;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -729,14 +722,31 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MARKETING_VERSION = 0.0.1;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)/libopendrive_share.a",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = dev.opendrive.desktop.vfs;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = vfs/VFS-Bridging-Header.h;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		AA0000072F900000514AED01 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		AA0000082F900000514AED01 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
 			};
 			name = Release;
 		};
@@ -752,16 +762,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		AA0000042F900000514AED01 /* Build configuration list for PBXAggregateTarget "share-rust" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				AA0000072F900000514AED01 /* Debug */,
-				AA0000082F900000514AED01 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		55FBAFE62F81888000514AED /* Build configuration list for PBXProject "desktop" */ = {
+		55FBAFE62F81888000514AED /* Build configuration list for PBXProject "OpenDrive" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				55FBB00A2F81888300514AED /* Debug */,
@@ -784,6 +785,15 @@
 			buildConfigurations = (
 				55FBB02B2F8189F000514AED /* Debug */,
 				55FBB02C2F8189F000514AED /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA0000042F900000514AED01 /* Build configuration list for PBXAggregateTarget "share-rust" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000072F900000514AED01 /* Debug */,
+				AA0000082F900000514AED01 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

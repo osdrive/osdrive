@@ -7,8 +7,6 @@
 
 import FileProvider
 import Foundation
-import UniformTypeIdentifiers
-
 final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     private let domain: NSFileProviderDomain
 
@@ -27,8 +25,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     }
 
     func fetchContents(for itemIdentifier: NSFileProviderItemIdentifier, version requestedVersion: NSFileProviderItemVersion?, request: NSFileProviderRequest, completionHandler: @escaping (URL?, NSFileProviderItem?, Error?) -> Void) -> Progress {
-        guard itemIdentifier == DemoFileProviderModel.helloFileIdentifier,
-              let item = FileProviderItem(identifier: itemIdentifier),
+        guard let item = FileProviderItem(identifier: itemIdentifier),
               let manager = NSFileProviderManager(for: domain) else {
             completionHandler(nil, nil, NSFileProviderError(.noSuchItem))
             return Progress()
@@ -36,13 +33,18 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 
         do {
             let temporaryDirectoryURL = try manager.temporaryDirectoryURL()
-            let fileURL = temporaryDirectoryURL.appendingPathComponent(item.filename, conformingTo: .plainText)
+            let fileURL = temporaryDirectoryURL.appendingPathComponent(item.filename)
 
             if FileManager.default.fileExists(atPath: fileURL.path()) {
                 try FileManager.default.removeItem(at: fileURL)
             }
 
-            try DemoFileProviderModel.helloFileContents.write(to: fileURL, options: .atomic)
+            guard let data = RustFileProviderModel.contents(for: itemIdentifier) else {
+                completionHandler(nil, nil, NSFileProviderError(.noSuchItem))
+                return Progress()
+            }
+
+            try data.write(to: fileURL, options: .atomic)
             completionHandler(fileURL, item, nil)
         } catch {
             completionHandler(nil, nil, error)

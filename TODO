@@ -1,16 +1,146 @@
-Make filters generic from indexer
-Remove stats and have it be a userspace thing
+wrangler d1 migrations apply opendrive-auth
+npx wrangler d1 migrations apply opendrive-auth --local
 
 
+
+VPS and share implementation in Rust (including upload & sharing flow)
+Login within desktop app
+Restructure desktop app around required functionality (add settings + restyle it all)
+
+
+
+Ensure `apps/desktop/icons` are being bundled in production build
+
+Create cloud-backed locations and sync them with R2
+Define rules which are synced across accounts
+
+Share extension:
+ - Implement it's logic in Rust?
+ - UI for selecting name, etc.
+ - UI in app for watching all uploads
+ - Allow copying the link prior to the upload completing and have it show progress/errors like we did for Cap.
+
+Landing:
+ - Add download button for desktop app
+ - Make it not look like ass
+ - Login and basic account management
+ - See all uploads for your account
+
+GPUI register macOS menubar (About, Quit, etc + common actions like Command A, Command C, etc).
+
+Enable R2 "Local Uploads"
+
+
+Setup Clap CLI with daemon option + automatically configure it as a daemon?
+Swift to Rust interop for the VFS implementation
+
+Stream the index to R2 while it's being created so upload is near instant
+    - Can we show progress in cloud somehow???
+
+
+
+
+Multi-region buckets for faster uploads/download w/ defaulting to current region
+Mulitpart and resumable uploads for share page
+Allow sharing folders, tar's, zip's, etc.
+Can we scan for viruses + require auth + temporary links to make it hard for hosting malware.
+Download stats on share links + add limits and rules for how many times, or how long they stay shared for.
+
+
+Restructure Xcode project so it's easy for someone to codesign with their own identity
+    - https://chatgpt.com/c/69d1e627-dd58-839b-b5c8-60ba02f7c1ee
+
+
+
+
+
+
+iOS shared photo library???
+
+
+
+
+
+
+https://www.youtube.com/watch?v=MYRlG2-n9D0
+https://www.kodeco.com/697468-ios-file-provider-extension-tutorial
+
+cargo run -p od-db --example ingest_paths -- . /tmp/fs-index.odb
+cargo run -p od-db --example print_paths -- /tmp/fs-index.odb
+
+cargo run -p od-db --example print_paths -- ./fs.odb
+
+
+
+
+
+Session   VFS files auto-available in apps/desktop
+Continue  opencode -s ses_2a631f32bffe8JREG2XmFxUuh3
+
+Multi-virtual drives via the FS structure.
+https://claudiocambra.com/posts/build-file-provider-sync/
+
+
+warning: skipping /System/Volumes/Data/Users/oscar/Library/CloudStorage/desktop-HelloWorld/.Trash: Stale NFS file handle (os error 70)
+
+
+
+Compressed WAL file
 Push index to S3
 Website to view it
-Virtual filter
 
 
+Querying the index
 FS watching
+Incremental index updates
 
-opendrive.dev
+
+Auth - https://workos.com/docs/authkit/vanilla/nodejs
+R2 backend for backup/storage using local cache for fast access.
+Provision folders via website.
+WorkOS auth for easy enterprise
+BYOD S3 bucket?
+
+Functionality:
+ - Read-only clone of remote index
+
+ - CURD for files on disk
+ - CRUD for drives (each created in Finder w/ mount/unmount options)
+    - Maybe add optional menubar item for configuring drive mounts
+ - Authentication
+
+Share button in Finder/app which can share to cloud like WeTranfer or to local network
 
 
+You Still Need
+1. Set WorkOS secrets from .dev.vars.example
+2. Configure WorkOS dashboard redirects:
+   - Redirect URI: http://localhost:3000/callback for local dev
+   - Sign-in endpoint: http://localhost:3000/login
+   - Sign-out redirect: http://localhost:3000/
+3. Add equivalent production secrets with Wrangler
+
+
+opendrive.dev - .dev is cringe
+
+openfs.app - crates.io taken
+sharedfs.app
+indexfs.app
+myfiles.dev - expensive
+lumadrive.app
 
 pnpm + ts workspace
+Vite+ formatting + linted w/ GH Actions
+Setup `.env` at repo root
+
+Onboarding flow
+Design desktop icon
+App notirisation
+App updates
+CI workflow for publishing
+favicon.ico
+
+PostHog integration
+
+
+P2P file transfers over the local network working

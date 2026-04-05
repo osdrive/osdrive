@@ -9,7 +9,7 @@ import FileProvider
 
 final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
     private let enumeratedItemIdentifier: NSFileProviderItemIdentifier
-    private let anchor = NSFileProviderSyncAnchor("an anchor".data(using: .utf8)!)
+    private let anchor = RustFileProviderModel.syncAnchor()
 
     init(enumeratedItemIdentifier: NSFileProviderItemIdentifier) {
         self.enumeratedItemIdentifier = enumeratedItemIdentifier
@@ -25,7 +25,7 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
 
         switch enumeratedItemIdentifier {
         case .rootContainer:
-            items = DemoFileProviderModel.children(of: .rootContainer).map(FileProviderItem.init(item:))
+            items = RustFileProviderModel.children(of: .rootContainer).map(FileProviderItem.init(item:))
         case .workingSet:
             items = []
         default:

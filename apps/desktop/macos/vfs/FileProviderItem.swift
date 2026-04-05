@@ -1,83 +1,148 @@
-//
-//  FileProviderItem.swift
-//  vfs
-//
-//  Created by Oscar Beaumont on 5/4/2026.
-//
-
 import FileProvider
 import Foundation
 import UniformTypeIdentifiers
 
-enum DemoFileProviderModel {
-    static let domainIdentifier = NSFileProviderDomainIdentifier("hello-world")
-    static let domainDisplayName = "Hello World"
-    static let helloFileIdentifier = NSFileProviderItemIdentifier("hello.txt")
-    static let helloFileContents = Data("Hello World".utf8)
-    static let contentVersion = Data("1".utf8)
-    static let metadataVersion = Data("1".utf8)
-    static let timestamp = Date(timeIntervalSince1970: 1_704_067_200)
+enum RustFileProviderModel {
+    static let rootIdentifier = "__root__"
+    static let workingSetIdentifier = "__working_set__"
 
-    struct Item {
-        let identifier: NSFileProviderItemIdentifier
-        let parentIdentifier: NSFileProviderItemIdentifier
+    struct Item: Decodable {
+        let itemIdentifier: String
+        let parentItemIdentifier: String
         let filename: String
-        let contentType: UTType
-        let capabilities: NSFileProviderItemCapabilities
-        let childItemCount: NSNumber?
-        let documentSize: NSNumber?
+        let contentType: String
+        let capabilities: UInt
+        let childItemCount: UInt?
+        let documentSize: UInt?
+        let creationTimestamp: TimeInterval
+        let contentModificationTimestamp: TimeInterval
+        let contentVersion: [UInt8]
+        let metadataVersion: [UInt8]
     }
 
-    static let rootItem = Item(
-        identifier: .rootContainer,
-        parentIdentifier: .rootContainer,
-        filename: domainDisplayName,
-        contentType: .folder,
-        capabilities: [.allowsContentEnumerating],
-        childItemCount: 1,
-        documentSize: nil
-    )
-
-    static let helloFile = Item(
-        identifier: helloFileIdentifier,
-        parentIdentifier: .rootContainer,
-        filename: "hello.txt",
-        contentType: .plainText,
-        capabilities: [.allowsReading],
-        childItemCount: nil,
-        documentSize: NSNumber(value: helloFileContents.count)
-    )
-
     static func item(for identifier: NSFileProviderItemIdentifier) -> Item? {
-        switch identifier {
-        case .rootContainer:
-            return rootItem
-        case helloFileIdentifier:
-            return helloFile
-        default:
+        guard let result = identifierToken(identifier).withCString({ token in
+            opendrive_vfs_item_json(token)
+        }) else {
             return nil
         }
+
+        defer {
+            opendrive_json_result_free(result)
+        }
+
+        if result.pointee.error_message != nil {
+            return nil
+        }
+
+        guard let payload = result.pointee.payload_json else {
+            return nil
+        }
+
+        let data = Data(String(cString: payload).utf8)
+        return try? JSONDecoder().decode(Item.self, from: data)
     }
 
     static func children(of identifier: NSFileProviderItemIdentifier) -> [Item] {
-        guard identifier == .rootContainer else {
+        guard let result = identifierToken(identifier).withCString({ token in
+            opendrive_vfs_children_json(token)
+        }) else {
             return []
         }
 
-        return [helloFile]
+        defer {
+            opendrive_json_result_free(result)
+        }
+
+        if result.pointee.error_message != nil {
+            return []
+        }
+
+        guard let payload = result.pointee.payload_json else {
+            return []
+        }
+
+        let data = Data(String(cString: payload).utf8)
+        return (try? JSONDecoder().decode([Item].self, from: data)) ?? []
+    }
+
+    static func syncAnchor() -> NSFileProviderSyncAnchor {
+        guard let result = opendrive_vfs_sync_anchor() else {
+            return NSFileProviderSyncAnchor(Data())
+        }
+
+        defer {
+            opendrive_bytes_result_free(result)
+        }
+
+        guard let payload = result.pointee.payload_bytes else {
+            return NSFileProviderSyncAnchor(Data())
+        }
+
+        let data = Data(bytes: payload, count: Int(result.pointee.payload_len))
+        return NSFileProviderSyncAnchor(data)
+    }
+
+    static func contents(for identifier: NSFileProviderItemIdentifier) -> Data? {
+        guard let result = identifierToken(identifier).withCString({ token in
+            opendrive_vfs_file_bytes(token)
+        }) else {
+            return nil
+        }
+
+        defer {
+            opendrive_bytes_result_free(result)
+        }
+
+        if result.pointee.error_message != nil {
+            return nil
+        }
+
+        guard let payload = result.pointee.payload_bytes else {
+            return nil
+        }
+
+        return Data(bytes: payload, count: Int(result.pointee.payload_len))
+    }
+
+    static func identifier(from token: String) -> NSFileProviderItemIdentifier {
+        switch token {
+        case rootIdentifier:
+            return .rootContainer
+        case workingSetIdentifier:
+            return .workingSet
+        default:
+            return NSFileProviderItemIdentifier(token)
+        }
+    }
+
+    static func identifierToken(_ identifier: NSFileProviderItemIdentifier) -> String {
+        if identifier == .rootContainer {
+            return rootIdentifier
+        }
+
+        if identifier == .workingSet {
+            return workingSetIdentifier
+        }
+
+        return identifier.rawValue
+    }
+
+    static func contentType(_ identifier: String) -> UTType {
+        UTType(identifier) ?? .data
     }
 }
 
 final class FileProviderItem: NSObject, NSFileProviderItem {
-    private let item: DemoFileProviderModel.Item
+    private let item: RustFileProviderModel.Item
 
-    init(item: DemoFileProviderModel.Item) {
+    init(item: RustFileProviderModel.Item) {
         self.item = item
         super.init()
     }
 
     convenience init?(identifier: NSFileProviderItemIdentifier) {
-        guard let item = DemoFileProviderModel.item(for: identifier) else {
+        guard let item = RustFileProviderModel.item(for: identifier) else {
             return nil
         }
 
@@ -85,21 +150,21 @@ final class FileProviderItem: NSObject, NSFileProviderItem {
     }
 
     var itemIdentifier: NSFileProviderItemIdentifier {
-        item.identifier
+        RustFileProviderModel.identifier(from: item.itemIdentifier)
     }
 
     var parentItemIdentifier: NSFileProviderItemIdentifier {
-        item.parentIdentifier
+        RustFileProviderModel.identifier(from: item.parentItemIdentifier)
     }
 
     var capabilities: NSFileProviderItemCapabilities {
-        item.capabilities
+        NSFileProviderItemCapabilities(rawValue: item.capabilities)
     }
 
     var itemVersion: NSFileProviderItemVersion {
         NSFileProviderItemVersion(
-            contentVersion: DemoFileProviderModel.contentVersion,
-            metadataVersion: DemoFileProviderModel.metadataVersion
+            contentVersion: Data(item.contentVersion),
+            metadataVersion: Data(item.metadataVersion)
         )
     }
 
@@ -108,22 +173,22 @@ final class FileProviderItem: NSObject, NSFileProviderItem {
     }
 
     var contentType: UTType {
-        item.contentType
+        RustFileProviderModel.contentType(item.contentType)
     }
 
     var childItemCount: NSNumber? {
-        item.childItemCount
+        item.childItemCount.map(NSNumber.init(value:))
     }
 
     var documentSize: NSNumber? {
-        item.documentSize
+        item.documentSize.map(NSNumber.init(value:))
     }
 
     var creationDate: Date? {
-        DemoFileProviderModel.timestamp
+        Date(timeIntervalSince1970: item.creationTimestamp)
     }
 
     var contentModificationDate: Date? {
-        DemoFileProviderModel.timestamp
+        Date(timeIntervalSince1970: item.contentModificationTimestamp)
     }
 }

@@ -1,14 +1,29 @@
 mod share_upload;
+mod vfs_model;
 
 use std::{
-    ffi::{CStr, CString, c_char},
-    panic,
-    ptr,
+    ffi::{c_char, CStr, CString},
+    panic, ptr,
 };
+
+use serde::Serialize;
 
 #[repr(C)]
 pub struct OpendriveShareUploadResult {
     share_url: *mut c_char,
+    error_message: *mut c_char,
+}
+
+#[repr(C)]
+pub struct OpendriveJsonResult {
+    payload_json: *mut c_char,
+    error_message: *mut c_char,
+}
+
+#[repr(C)]
+pub struct OpendriveBytesResult {
+    payload_bytes: *mut u8,
+    payload_len: usize,
     error_message: *mut c_char,
 }
 
@@ -76,6 +91,79 @@ pub extern "C" fn opendrive_share_result_free(result: *mut OpendriveShareUploadR
     }
 }
 
+#[unsafe(no_mangle)]
+pub extern "C" fn opendrive_vfs_item_json(identifier: *const c_char) -> *mut OpendriveJsonResult {
+    catch_json_result(|| {
+        let identifier = c_string_arg(identifier, "identifier")?;
+        vfs_model::item(&identifier).ok_or_else(|| "No such item.".to_string())
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn opendrive_vfs_children_json(
+    identifier: *const c_char,
+) -> *mut OpendriveJsonResult {
+    catch_json_result(|| {
+        let identifier = c_string_arg(identifier, "identifier")?;
+        Ok(vfs_model::children(&identifier))
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn opendrive_vfs_sync_anchor() -> *mut OpendriveBytesResult {
+    catch_bytes_result(|| Ok(vfs_model::sync_anchor()))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn opendrive_vfs_file_bytes(identifier: *const c_char) -> *mut OpendriveBytesResult {
+    catch_bytes_result(|| {
+        let identifier = c_string_arg(identifier, "identifier")?;
+        vfs_model::file_contents(&identifier).ok_or_else(|| "No such item.".to_string())
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn opendrive_json_result_free(result: *mut OpendriveJsonResult) {
+    if result.is_null() {
+        return;
+    }
+
+    unsafe {
+        let result = Box::from_raw(result);
+
+        if !result.payload_json.is_null() {
+            drop(CString::from_raw(result.payload_json));
+        }
+
+        if !result.error_message.is_null() {
+            drop(CString::from_raw(result.error_message));
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn opendrive_bytes_result_free(result: *mut OpendriveBytesResult) {
+    if result.is_null() {
+        return;
+    }
+
+    unsafe {
+        let result = Box::from_raw(result);
+
+        if !result.payload_bytes.is_null() {
+            drop(Vec::from_raw_parts(
+                result.payload_bytes,
+                result.payload_len,
+                result.payload_len,
+            ));
+        }
+
+        if !result.error_message.is_null() {
+            drop(CString::from_raw(result.error_message));
+        }
+    }
+}
+
 fn c_string_arg(value: *const c_char, name: &str) -> Result<String, String> {
     if value.is_null() {
         return Err(format!("Missing {name}."));
@@ -109,4 +197,65 @@ fn into_raw_c_string(value: String) -> *mut c_char {
     CString::new(bytes)
         .expect("CString::new cannot fail after NUL removal")
         .into_raw()
+}
+
+fn catch_json_result<T, F>(f: F) -> *mut OpendriveJsonResult
+where
+    T: Serialize,
+    F: FnOnce() -> Result<T, String> + panic::UnwindSafe,
+{
+    match panic::catch_unwind(f) {
+        Ok(Ok(value)) => boxed_json_success(value),
+        Ok(Err(error)) => boxed_json_error(error),
+        Err(_) => boxed_json_error("The VFS operation crashed unexpectedly.".to_string()),
+    }
+}
+
+fn catch_bytes_result<F>(f: F) -> *mut OpendriveBytesResult
+where
+    F: FnOnce() -> Result<Vec<u8>, String> + panic::UnwindSafe,
+{
+    match panic::catch_unwind(f) {
+        Ok(Ok(value)) => boxed_bytes_success(value),
+        Ok(Err(error)) => boxed_bytes_error(error),
+        Err(_) => boxed_bytes_error("The VFS operation crashed unexpectedly.".to_string()),
+    }
+}
+
+fn boxed_json_success<T: Serialize>(value: T) -> *mut OpendriveJsonResult {
+    match serde_json::to_string(&value) {
+        Ok(payload_json) => Box::into_raw(Box::new(OpendriveJsonResult {
+            payload_json: into_raw_c_string(payload_json),
+            error_message: ptr::null_mut(),
+        })),
+        Err(error) => boxed_json_error(error.to_string()),
+    }
+}
+
+fn boxed_json_error(error_message: String) -> *mut OpendriveJsonResult {
+    Box::into_raw(Box::new(OpendriveJsonResult {
+        payload_json: ptr::null_mut(),
+        error_message: into_raw_c_string(error_message),
+    }))
+}
+
+fn boxed_bytes_success(payload: Vec<u8>) -> *mut OpendriveBytesResult {
+    let mut payload = payload;
+    let len = payload.len();
+    let ptr = payload.as_mut_ptr();
+    std::mem::forget(payload);
+
+    Box::into_raw(Box::new(OpendriveBytesResult {
+        payload_bytes: ptr,
+        payload_len: len,
+        error_message: ptr::null_mut(),
+    }))
+}
+
+fn boxed_bytes_error(error_message: String) -> *mut OpendriveBytesResult {
+    Box::into_raw(Box::new(OpendriveBytesResult {
+        payload_bytes: ptr::null_mut(),
+        payload_len: 0,
+        error_message: into_raw_c_string(error_message),
+    }))
 }
