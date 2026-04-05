@@ -2384,26 +2384,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gpuidrive"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "block2",
- "chrono",
- "env_logger",
- "futures",
- "gpui",
- "human_bytes",
- "objc2",
- "objc2-file-provider",
- "objc2-foundation",
- "opendrive",
- "opener",
- "rand 0.9.1",
- "unicode-segmentation",
-]
-
-[[package]]
 name = "grid"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3792,8 +3772,23 @@ dependencies = [
 name = "opendrive"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
+ "block2",
+ "chrono",
+ "clap",
+ "env_logger",
+ "futures",
+ "gpui",
+ "human_bytes",
+ "libc",
+ "objc2",
+ "objc2-file-provider",
+ "objc2-foundation",
  "od-db",
  "od-indexer",
+ "opener",
+ "rand 0.9.1",
+ "unicode-segmentation",
 ]
 
 [[package]]

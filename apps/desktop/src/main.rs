@@ -1,15 +1,75 @@
+use std::io;
+
+use anyhow::Context as _;
+use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use gpui::*;
 
 mod assets;
 mod components;
 mod file_provider;
+mod index;
 mod provider_window;
 mod state;
 mod window;
 
 actions!(example, [QuitApp]);
 
-fn main() {
+#[derive(Parser, Debug)]
+#[command(name = "opendrive")]
+#[command(version)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Command>,
+}
+
+#[derive(Subcommand, Debug)]
+enum Command {
+    Gui,
+    Index,
+}
+
+fn main() -> anyhow::Result<()> {
+    let is_gui_launch_mode = std::env::var("OPENDRIVE_LAUNCH_MODE").ok().as_deref() == Some("gui");
+
+    let cli = Cli::from_arg_matches(
+        &Cli::command()
+            .allow_external_subcommands(is_gui_launch_mode)
+            .ignore_errors(is_gui_launch_mode)
+            .try_get_matches()?,
+    )?;
+
+    match cli.command {
+        Some(Command::Gui) => run_gui(),
+        None if is_gui_launch_mode => run_gui(),
+        Some(Command::Index) => run_index().context("failed to build index")?,
+        None => {
+            let mut command = Cli::command();
+            command.print_help()?;
+            println!();
+        }
+    }
+
+    Ok(())
+}
+
+fn run_index() -> io::Result<()> {
+    println!("Indexing...");
+    let summary = index::index_default_volume()?;
+
+    println!(
+        "dirs={} files={} persisted={} nodes={} index_took={:?} stats_took={:?}",
+        summary.dirs,
+        summary.files,
+        summary.persisted,
+        summary.nodes,
+        summary.index_took,
+        summary.stats_took,
+    );
+
+    Ok(())
+}
+
+fn run_gui() {
     Application::new()
         .with_assets(assets::Assets)
         .run(|cx: &mut App| {

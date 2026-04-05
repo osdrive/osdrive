@@ -17,11 +17,11 @@ CRATE_DIR="$REPO_ROOT/apps/desktop"
 TARGET_DIR="${CARGO_TARGET_DIR:-$REPO_ROOT/target}"
 
 if [ "$CONFIGURATION" = "Release" ]; then
-  "$CARGO_BIN" build --manifest-path "$CRATE_DIR/Cargo.toml" --bin gpuidrive --release
-  RUST_BINARY="$TARGET_DIR/release/gpuidrive"
+  "$CARGO_BIN" build --manifest-path "$CRATE_DIR/Cargo.toml" --bin opendrive --release
+  RUST_BINARY="$TARGET_DIR/release/opendrive"
 else
-  "$CARGO_BIN" build --manifest-path "$CRATE_DIR/Cargo.toml" --bin gpuidrive
-  RUST_BINARY="$TARGET_DIR/debug/gpuidrive"
+  "$CARGO_BIN" build --manifest-path "$CRATE_DIR/Cargo.toml" --bin opendrive
+  RUST_BINARY="$TARGET_DIR/debug/opendrive"
 fi
 
 APP_BINARY="$TARGET_BUILD_DIR/$EXECUTABLE_PATH"

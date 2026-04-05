@@ -1,9 +1,9 @@
 use gpui::*;
-use opendrive::IndexStats;
 
 use crate::{
     components::{button, button2},
     file_provider,
+    index::{self, IndexStats},
     window::CloseWindow,
 };
 
@@ -43,7 +43,7 @@ impl ProviderWindow {
             .spawn(cx, async move |cx| {
                 let result = cx
                     .background_executor()
-                    .spawn(async move { opendrive::index_default_volume() })
+                    .spawn(async move { index::index_default_volume() })
                     .await;
 
                 let _ = view.update(cx, |this, cx| {
