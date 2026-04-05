@@ -11,6 +11,7 @@ target/
 
 # System files
 .DS_Store
+Thumbs.db
 
 # Xcode
 #
@@ -36,6 +37,25 @@ apps/desktop/macos/build
 apps/desktop/macos/DerivedData
 *.xcuserdatad/
 *.xcuserstate.
+
+# Solid Start
+dist
+.wrangler
+.output
+.vite
+
+# Environment
+.env
+.env*.local
+
+# dependencies
+node_modules
+
+# IDEs and editors
+.project
+.classpath
+*.launch
+.settings/
 
 # TODO: Remove this
 /wal_files

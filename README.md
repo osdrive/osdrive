@@ -14,7 +14,7 @@ I really enjoyed building [Spacedrive](https://spacedrive.com) with [Tauri](http
 
 ## Usage
 
-```rs
+```bash
 cargo run -p gpuidrive --release
 ```
 
