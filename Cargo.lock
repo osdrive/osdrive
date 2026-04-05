@@ -2397,6 +2397,7 @@ dependencies = [
  "objc2",
  "objc2-file-provider",
  "objc2-foundation",
+ "opendrive",
  "opener",
  "rand 0.9.1",
  "unicode-segmentation",
@@ -3785,6 +3786,14 @@ dependencies = [
  "is-wsl",
  "libc",
  "pathdiff",
+]
+
+[[package]]
+name = "opendrive"
+version = "0.0.0"
+dependencies = [
+ "od-db",
+ "od-indexer",
 ]
 
 [[package]]
