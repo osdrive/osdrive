@@ -18,7 +18,7 @@
                BlueprintIdentifier = "55FBAFEA2F81888000514AED"
                BuildableName = "OpenDrive.app"
                BlueprintName = "desktop"
-               ReferencedContainer = "container:desktop.xcodeproj">
+               ReferencedContainer = "container:OpenDrive.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -48,7 +48,7 @@
             BlueprintIdentifier = "55FBAFEA2F81888000514AED"
             BuildableName = "OpenDrive.app"
             BlueprintName = "desktop"
-            ReferencedContainer = "container:desktop.xcodeproj">
+            ReferencedContainer = "container:OpenDrive.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -65,7 +65,7 @@
             BlueprintIdentifier = "55FBAFEA2F81888000514AED"
             BuildableName = "OpenDrive.app"
             BlueprintName = "desktop"
-            ReferencedContainer = "container:desktop.xcodeproj">
+            ReferencedContainer = "container:OpenDrive.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
