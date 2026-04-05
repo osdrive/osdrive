@@ -1,6 +1,8 @@
 import { A, createAsync, type RouteDefinition, type RouteSectionProps } from "@solidjs/router";
+import { createEffect } from "solid-js";
 import { AuthControls } from "~/components/AuthControls";
 import { getCurrentUserQuery } from "~/lib/auth";
+import { clearUserIdentity, identifyUser } from "~/lib/posthog-client";
 
 export const route = {
   preload: () => getCurrentUserQuery(),
@@ -8,6 +10,21 @@ export const route = {
 
 export default function AppLayout(props: RouteSectionProps) {
   const user = createAsync(() => getCurrentUserQuery());
+
+  createEffect(() => {
+    const currentUser = user();
+
+    if (currentUser) {
+      identifyUser({
+        id: currentUser.id,
+        email: currentUser.email,
+        name: currentUser.name,
+      });
+      return;
+    }
+
+    clearUserIdentity();
+  });
 
   return (
     <div class="w-[min(1180px,calc(100vw-2rem))] mx-auto py-4 pb-16">

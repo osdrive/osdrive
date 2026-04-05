@@ -7,7 +7,7 @@
 		"nodejs_compat"
 	],
 	"route": {
-		"pattern": "drive.otbeaumont.me",
+		"pattern": "osdrive.app",
 		"custom_domain": true
 	},
 	"observability": {
@@ -34,7 +34,7 @@
 		}
 	],
 	"vars": {
-    "BETTER_AUTH_URL": "https://drive.otbeaumont.me"
+    "BETTER_AUTH_URL": "https://osdrive.app"
   },
   "secrets": {
     "required": ["BETTER_AUTH_SECRET"],

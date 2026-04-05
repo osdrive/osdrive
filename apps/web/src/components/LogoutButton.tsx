@@ -1,6 +1,7 @@
 import { useNavigate } from "@solidjs/router";
 import { createSignal, type JSX } from "solid-js";
 import { authClient } from "~/lib/auth-client";
+import { clearUserIdentity } from "~/lib/posthog-client";
 
 export function LogoutButton(props: { children: JSX.Element; class?: string; redirectTo?: string }) {
   const navigate = useNavigate();
@@ -19,6 +20,8 @@ export function LogoutButton(props: { children: JSX.Element; class?: string; red
       setIsPending(false);
       return;
     }
+
+    clearUserIdentity();
 
     if (typeof window !== "undefined") {
       window.location.assign(props.redirectTo ?? "/");
