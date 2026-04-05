@@ -25,21 +25,20 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     }
 
     func fetchContents(for itemIdentifier: NSFileProviderItemIdentifier, version requestedVersion: NSFileProviderItemVersion?, request: NSFileProviderRequest, completionHandler: @escaping (URL?, NSFileProviderItem?, Error?) -> Void) -> Progress {
-        guard let item = FileProviderItem(identifier: itemIdentifier),
-              let manager = NSFileProviderManager(for: domain) else {
+        guard let manager = NSFileProviderManager(for: domain) else {
             completionHandler(nil, nil, NSFileProviderError(.noSuchItem))
             return Progress()
         }
 
         do {
             let temporaryDirectoryURL = try manager.temporaryDirectoryURL()
-            let fileURL = temporaryDirectoryURL.appendingPathComponent(item.filename)
+            let fileURL = temporaryDirectoryURL.appendingPathComponent(RustFileProviderModel.identifierToken(itemIdentifier))
 
             if FileManager.default.fileExists(atPath: fileURL.path()) {
                 try FileManager.default.removeItem(at: fileURL)
             }
 
-            try RustFileProviderModel.writeContents(for: itemIdentifier, to: fileURL)
+            let item = try FileProviderItem(item: RustFileProviderModel.materializeItem(for: itemIdentifier, to: fileURL))
             completionHandler(fileURL, item, nil)
         } catch {
             completionHandler(nil, nil, error)
@@ -64,7 +63,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     }
 
     func enumerator(for containerItemIdentifier: NSFileProviderItemIdentifier, request: NSFileProviderRequest) throws -> NSFileProviderEnumerator {
-        guard containerItemIdentifier == .rootContainer || containerItemIdentifier == .workingSet else {
+        guard RustFileProviderModel.enumeration(of: containerItemIdentifier) != nil else {
             throw NSFileProviderError(.noSuchItem)
         }
 

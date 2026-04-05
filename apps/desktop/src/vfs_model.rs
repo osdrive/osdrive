@@ -38,6 +38,13 @@ pub struct Item {
     pub metadata_version: Vec<u8>,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct Enumeration {
+    pub items: Vec<Item>,
+    #[serde(rename = "syncAnchor")]
+    pub sync_anchor: Vec<u8>,
+}
+
 pub fn item(identifier: &str) -> Option<Item> {
     match identifier {
         ROOT_IDENTIFIER => Some(root_item()),
@@ -51,6 +58,20 @@ pub fn children(identifier: &str) -> Vec<Item> {
         vec![hello_file()]
     } else {
         Vec::new()
+    }
+}
+
+pub fn enumerate(identifier: &str) -> Option<Enumeration> {
+    match identifier {
+        ROOT_IDENTIFIER => Some(Enumeration {
+            items: children(ROOT_IDENTIFIER),
+            sync_anchor: sync_anchor(),
+        }),
+        WORKING_SET_IDENTIFIER => Some(Enumeration {
+            items: Vec::new(),
+            sync_anchor: sync_anchor(),
+        }),
+        _ => None,
     }
 }
 
@@ -74,6 +95,11 @@ pub fn materialize_file(identifier: &str, destination_path: &str) -> Result<(), 
     }
 
     fs::write(path, contents).map_err(|error| error.to_string())
+}
+
+pub fn materialize_item(identifier: &str, destination_path: &str) -> Result<Item, String> {
+    materialize_file(identifier, destination_path)?;
+    item(identifier).ok_or_else(|| "No such item.".to_string())
 }
 
 fn root_item() -> Item {

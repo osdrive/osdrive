@@ -20,6 +20,11 @@ enum RustFileProviderModel {
         let metadataVersion: [UInt8]
     }
 
+    struct Enumeration: Decodable {
+        let items: [Item]
+        let syncAnchor: [UInt8]
+    }
+
     static func item(for identifier: NSFileProviderItemIdentifier) -> Item? {
         guard let result = identifierToken(identifier).withCString({ token in
             opendrive_vfs_item_json(token)
@@ -64,6 +69,29 @@ enum RustFileProviderModel {
 
         let data = Data(String(cString: payload).utf8)
         return (try? JSONDecoder().decode([Item].self, from: data)) ?? []
+    }
+
+    static func enumeration(of identifier: NSFileProviderItemIdentifier) -> Enumeration? {
+        guard let result = identifierToken(identifier).withCString({ token in
+            opendrive_vfs_enumeration_json(token)
+        }) else {
+            return nil
+        }
+
+        defer {
+            opendrive_json_result_free(result)
+        }
+
+        if result.pointee.error_message != nil {
+            return nil
+        }
+
+        guard let payload = result.pointee.payload_json else {
+            return nil
+        }
+
+        let data = Data(String(cString: payload).utf8)
+        return try? JSONDecoder().decode(Enumeration.self, from: data)
     }
 
     static func syncAnchor() -> NSFileProviderSyncAnchor {
@@ -130,6 +158,35 @@ enum RustFileProviderModel {
 
         if !wroteFile {
             throw CocoaError(.fileWriteUnknown)
+        }
+    }
+
+    static func materializeItem(for identifier: NSFileProviderItemIdentifier, to url: URL) throws -> Item {
+        try identifierToken(identifier).withCString { identifierPointer in
+            try url.path.withCString { pathPointer in
+                guard let result = opendrive_vfs_materialize_item_json(identifierPointer, pathPointer) else {
+                    throw CocoaError(.fileWriteUnknown)
+                }
+
+                defer {
+                    opendrive_json_result_free(result)
+                }
+
+                if let errorMessage = result.pointee.error_message {
+                    throw NSError(
+                        domain: NSCocoaErrorDomain,
+                        code: NSFileWriteUnknownError,
+                        userInfo: [NSLocalizedDescriptionKey: String(cString: errorMessage)]
+                    )
+                }
+
+                guard let payload = result.pointee.payload_json else {
+                    throw CocoaError(.fileWriteUnknown)
+                }
+
+                let data = Data(String(cString: payload).utf8)
+                return try JSONDecoder().decode(Item.self, from: data)
+            }
         }
     }
 

@@ -32,10 +32,13 @@ void opendrive_share_result_free(OpendriveShareUploadResult *result);
 
 OpendriveJsonResult *opendrive_vfs_item_json(const char *identifier);
 OpendriveJsonResult *opendrive_vfs_children_json(const char *identifier);
+OpendriveJsonResult *opendrive_vfs_enumeration_json(const char *identifier);
 OpendriveBytesResult *opendrive_vfs_sync_anchor(void);
 OpendriveBytesResult *opendrive_vfs_file_bytes(const char *identifier);
 OpendriveJsonResult *opendrive_vfs_write_file(const char *identifier,
                                               const char *destination_path);
+OpendriveJsonResult *opendrive_vfs_materialize_item_json(const char *identifier,
+                                                         const char *destination_path);
 
 void opendrive_json_result_free(OpendriveJsonResult *result);
 void opendrive_bytes_result_free(OpendriveBytesResult *result);

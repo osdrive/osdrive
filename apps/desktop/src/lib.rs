@@ -136,6 +136,16 @@ pub extern "C" fn opendrive_vfs_children_json(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn opendrive_vfs_enumeration_json(
+    identifier: *const c_char,
+) -> *mut OpendriveJsonResult {
+    catch_json_result(|| {
+        let identifier = c_string_arg(identifier, "identifier")?;
+        vfs_model::enumerate(&identifier).ok_or_else(|| "No such item.".to_string())
+    })
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn opendrive_vfs_sync_anchor() -> *mut OpendriveBytesResult {
     catch_bytes_result(|| Ok(vfs_model::sync_anchor()))
 }
@@ -158,6 +168,18 @@ pub extern "C" fn opendrive_vfs_write_file(
         let destination_path = c_string_arg(destination_path, "destination_path")?;
         vfs_model::materialize_file(&identifier, &destination_path)?;
         Ok(())
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn opendrive_vfs_materialize_item_json(
+    identifier: *const c_char,
+    destination_path: *const c_char,
+) -> *mut OpendriveJsonResult {
+    catch_json_result(|| {
+        let identifier = c_string_arg(identifier, "identifier")?;
+        let destination_path = c_string_arg(destination_path, "destination_path")?;
+        vfs_model::materialize_item(&identifier, &destination_path)
     })
 }
 
