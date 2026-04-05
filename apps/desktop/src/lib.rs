@@ -123,6 +123,19 @@ pub extern "C" fn opendrive_vfs_file_bytes(identifier: *const c_char) -> *mut Op
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn opendrive_vfs_write_file(
+    identifier: *const c_char,
+    destination_path: *const c_char,
+) -> *mut OpendriveJsonResult {
+    catch_json_result(|| {
+        let identifier = c_string_arg(identifier, "identifier")?;
+        let destination_path = c_string_arg(destination_path, "destination_path")?;
+        vfs_model::materialize_file(&identifier, &destination_path)?;
+        Ok(())
+    })
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn opendrive_json_result_free(result: *mut OpendriveJsonResult) {
     if result.is_null() {
         return;

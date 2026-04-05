@@ -39,12 +39,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 try FileManager.default.removeItem(at: fileURL)
             }
 
-            guard let data = RustFileProviderModel.contents(for: itemIdentifier) else {
-                completionHandler(nil, nil, NSFileProviderError(.noSuchItem))
-                return Progress()
-            }
-
-            try data.write(to: fileURL, options: .atomic)
+            try RustFileProviderModel.writeContents(for: itemIdentifier, to: fileURL)
             completionHandler(fileURL, item, nil)
         } catch {
             completionHandler(nil, nil, error)

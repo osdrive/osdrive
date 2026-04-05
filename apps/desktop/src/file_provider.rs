@@ -2,14 +2,13 @@
 mod platform {
     use std::{ptr::NonNull, sync::mpsc, time::Duration};
 
+    use crate::vfs_model;
     use block2::RcBlock;
     use objc2::AnyThread;
     use objc2_file_provider::{NSFileProviderDomain, NSFileProviderManager};
-    use objc2_foundation::{ns_string, NSArray, NSError};
+    use objc2_foundation::{NSArray, NSError, NSString};
     use opener::open;
 
-    const DOMAIN_IDENTIFIER: &str = "hello-world";
-    const DOMAIN_DISPLAY_NAME: &str = "Hello World";
     const WAIT_TIMEOUT: Duration = Duration::from_secs(5);
     const EXTENSIONS_SETTINGS_URL: &str =
         "x-apple.systempreferences:com.apple.ExtensionsPreferences";
@@ -18,7 +17,8 @@ mod platform {
         match domain_registered() {
             Ok(true) => {
                 format!(
-                    "Registered. Open Finder and look for '{DOMAIN_DISPLAY_NAME}' in the sidebar."
+                    "Registered. Open Finder and look for '{}' in the sidebar.",
+                    vfs_model::DOMAIN_DISPLAY_NAME
                 )
             }
             Ok(false) => {
@@ -55,7 +55,7 @@ mod platform {
     fn domain_registered() -> Result<bool, String> {
         Ok(list_domains()?
             .iter()
-            .any(|identifier| identifier == DOMAIN_IDENTIFIER))
+            .any(|identifier| identifier == vfs_model::DOMAIN_IDENTIFIER))
     }
 
     fn register_domain() -> Result<(), String> {
@@ -124,11 +124,14 @@ mod platform {
     }
 
     fn make_domain() -> objc2::rc::Retained<NSFileProviderDomain> {
+        let identifier = NSString::from_str(vfs_model::DOMAIN_IDENTIFIER);
+        let display_name = NSString::from_str(vfs_model::DOMAIN_DISPLAY_NAME);
+
         unsafe {
             NSFileProviderDomain::initWithIdentifier_displayName(
                 NSFileProviderDomain::alloc(),
-                ns_string!(DOMAIN_IDENTIFIER),
-                ns_string!(DOMAIN_DISPLAY_NAME),
+                &identifier,
+                &display_name,
             )
         }
     }

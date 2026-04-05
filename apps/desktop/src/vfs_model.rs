@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::{fs, path::Path};
 
 pub const ROOT_IDENTIFIER: &str = "__root__";
 pub const WORKING_SET_IDENTIFIER: &str = "__working_set__";
@@ -62,6 +63,17 @@ pub fn file_contents(identifier: &str) -> Option<Vec<u8>> {
         HELLO_FILE_IDENTIFIER => Some(b"Hello World".to_vec()),
         _ => None,
     }
+}
+
+pub fn materialize_file(identifier: &str, destination_path: &str) -> Result<(), String> {
+    let contents = file_contents(identifier).ok_or_else(|| "No such item.".to_string())?;
+    let path = Path::new(destination_path);
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+
+    fs::write(path, contents).map_err(|error| error.to_string())
 }
 
 fn root_item() -> Item {

@@ -105,6 +105,34 @@ enum RustFileProviderModel {
         return Data(bytes: payload, count: Int(result.pointee.payload_len))
     }
 
+    static func writeContents(for identifier: NSFileProviderItemIdentifier, to url: URL) throws {
+        let wroteFile = try identifierToken(identifier).withCString { identifierPointer in
+            try url.path.withCString { pathPointer in
+                guard let result = opendrive_vfs_write_file(identifierPointer, pathPointer) else {
+                    throw CocoaError(.fileWriteUnknown)
+                }
+
+                defer {
+                    opendrive_json_result_free(result)
+                }
+
+                if let errorMessage = result.pointee.error_message {
+                    throw NSError(
+                        domain: NSCocoaErrorDomain,
+                        code: NSFileWriteUnknownError,
+                        userInfo: [NSLocalizedDescriptionKey: String(cString: errorMessage)]
+                    )
+                }
+
+                return true
+            }
+        }
+
+        if !wroteFile {
+            throw CocoaError(.fileWriteUnknown)
+        }
+    }
+
     static func identifier(from token: String) -> NSFileProviderItemIdentifier {
         switch token {
         case rootIdentifier:
