@@ -1,11 +1,9 @@
-import { action, query, redirect } from "@solidjs/router";
+import { query, redirect } from "@solidjs/router";
 import {
-  beginLogin,
-  completeLogin,
+  getCurrentPath,
   getCurrentUser,
   getLoginPath,
-  getLogoutUrl,
-  updateCurrentUserProfile,
+  getSafeReturnTo,
 } from "~/lib/auth-server";
 
 export async function getCurrentUserServer() {
@@ -26,49 +24,20 @@ export const requireCurrentUserQuery = query(async (returnTo?: string | null) =>
   const user = await getCurrentUser();
 
   if (!user) {
-    throw redirect(getLoginPath(returnTo));
+    throw redirect(getLoginPath(returnTo ?? getCurrentPath()));
   }
 
   return user;
 }, "auth.requireCurrentUser");
 
-export const startLoginQuery = query(async (returnTo?: string | null) => {
+export const redirectAuthenticatedQuery = query(async (returnTo?: string | null) => {
   "use server";
 
-  throw redirect(beginLogin(returnTo));
-}, "auth.startLogin");
+  const user = await getCurrentUser();
 
-export const completeLoginQuery = query(async (code?: string | null, state?: string | null) => {
-  "use server";
-
-  throw redirect(await completeLogin(code, state));
-}, "auth.completeLogin");
-
-export const logoutAction = action(async () => {
-  "use server";
-
-  throw redirect(await getLogoutUrl(), {
-    revalidate: [getCurrentUserQuery.key],
-  });
-}, "auth.logout");
-
-export const updateAccountAction = action(async (formData: FormData) => {
-  "use server";
-
-  const firstName = formData.get("firstName");
-  const lastName = formData.get("lastName");
-
-  if (typeof firstName !== "string" || typeof lastName !== "string") {
-    throw new Error("Invalid profile form submission.");
+  if (user) {
+    throw redirect(getSafeReturnTo(returnTo));
   }
 
-  const updated = await updateCurrentUserProfile(firstName, lastName);
-
-  if (!updated) {
-    throw redirect(getLoginPath("/account"));
-  }
-
-  throw redirect("/dashboard", {
-    revalidate: [getCurrentUserQuery.key, requireCurrentUserQuery.key],
-  });
-}, "auth.updateAccount");
+  return null;
+}, "auth.redirectAuthenticated");

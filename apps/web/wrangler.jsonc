@@ -10,6 +10,14 @@
 		"pattern": "drive.otbeaumont.me",
 		"custom_domain": true
 	},
+	"d1_databases": [
+		{
+			"binding": "AUTH_DB",
+			"database_name": "opendrive-auth",
+			"database_id": "00000000-0000-0000-0000-000000000000",
+			"migrations_dir": "drizzle"
+		}
+	],
 	"observability": {
 		"enabled": true
 	},

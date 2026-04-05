@@ -1,7 +1,7 @@
 declare namespace Cloudflare {
   interface Env {
-    WORKOS_API_KEY: string;
-    WORKOS_CLIENT_ID: string;
-    WORKOS_COOKIE_PASSWORD: string;
+    AUTH_DB: D1Database;
+    BETTER_AUTH_SECRET: string;
+    BETTER_AUTH_URL: string;
   }
 }

@@ -310,6 +310,13 @@ input {
   gap: 1.5rem;
 }
 
+.panel-copy,
+.auth-panel__copy {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
 .upload-form {
   display: grid;
   gap: 1rem;
@@ -338,6 +345,67 @@ input {
   background: rgba(255, 255, 255, 0.04);
   color: var(--text);
 }
+
+.field input:disabled {
+  opacity: 0.72;
+}
+
+.auth-page {
+  padding: 1rem 0;
+}
+
+.auth-panel {
+  width: min(68rem, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(22rem, 28rem);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.auth-form {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-radius: 1.35rem;
+  background: var(--panel-strong);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.auth-switcher {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding: 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.auth-switcher__button {
+  min-height: 2.75rem;
+  border: 0;
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.auth-switcher__button--active {
+  color: #08111f;
+  background: linear-gradient(135deg, var(--primary), #83f0da);
+  font-weight: 700;
+}
+
+.auth-note {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.auth-note a {
+  color: var(--primary-strong);
+}
+
 
 .panel--result {
   display: grid;
@@ -447,6 +515,7 @@ input {
   .hero-grid,
   .section-grid,
   .account-grid,
+  .auth-panel,
   .panel--upload,
   .viewer-layout {
     grid-template-columns: 1fr;

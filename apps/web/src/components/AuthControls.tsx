@@ -1,12 +1,16 @@
 import { A, useLocation } from "@solidjs/router";
-import { logoutAction } from "~/lib/auth";
+import { LogoutButton } from "~/components/LogoutButton";
 
 type AuthenticatedUser = {
   name: string;
   email: string;
 };
 
-export function SignedOutActions() {
+export function AuthControls(props: { initialUser: AuthenticatedUser | null }) {
+  return props.initialUser ? <SignedInActions user={props.initialUser} /> : <SignedOutActions />;
+}
+
+function SignedOutActions() {
   const location = useLocation();
 
   return (
@@ -19,7 +23,7 @@ export function SignedOutActions() {
   );
 }
 
-export function SignedInActions(props: { user: AuthenticatedUser }) {
+function SignedInActions(props: { user: AuthenticatedUser }) {
   return (
     <div class="auth-actions">
       <div class="auth-copy">
@@ -29,11 +33,7 @@ export function SignedInActions(props: { user: AuthenticatedUser }) {
       <A href="/dashboard" class="button button--ghost">
         Dashboard
       </A>
-      <form action={logoutAction} method="post" class="inline-form">
-        <button type="submit" class="button button--primary">
-          Logout
-        </button>
-      </form>
+      <LogoutButton class="button button--primary">Logout</LogoutButton>
     </div>
   );
 }
