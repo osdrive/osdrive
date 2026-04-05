@@ -24,7 +24,6 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    Gui,
     Index,
 }
 
@@ -39,7 +38,6 @@ fn main() -> anyhow::Result<()> {
     )?;
 
     match cli.command {
-        Some(Command::Gui) => run_gui(),
         None if is_gui_launch_mode => run_gui(),
         Some(Command::Index) => run_index().context("failed to build index")?,
         None => Cli::command().print_help()?,
