@@ -7,11 +7,19 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		551E697A2F82655900FC9136 /* share.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 551E696E2F82655900FC9136 /* share.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		55FBB01C2F8189F000514AED /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 55FBB01B2F8189F000514AED /* UniformTypeIdentifiers.framework */; };
 		55FBB0282F8189F000514AED /* vfs.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 55FBB0192F8189F000514AED /* vfs.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		551E69782F82655900FC9136 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 55FBAFE32F81888000514AED /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 551E696D2F82655900FC9136;
+			remoteInfo = share;
+		};
 		55FBB0262F8189F000514AED /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 55FBAFE32F81888000514AED /* Project object */;
@@ -28,6 +36,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
+				551E697A2F82655900FC9136 /* share.appex in Embed Foundation Extensions */,
 				55FBB0282F8189F000514AED /* vfs.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
@@ -36,12 +45,20 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		55FBAFEB2F81888100514AED /* desktop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = desktop.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		551E696E2F82655900FC9136 /* share.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = share.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		55FBAFEB2F81888100514AED /* OpenDrive.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenDrive.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		55FBB0192F8189F000514AED /* vfs.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = vfs.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		55FBB01B2F8189F000514AED /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		551E697D2F82655900FC9136 /* Exceptions for "share" folder in "share" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 551E696D2F82655900FC9136 /* share */;
+		};
 		55FBB0292F8189F000514AED /* Exceptions for "vfs" folder in "vfs" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -52,6 +69,14 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		551E696F2F82655900FC9136 /* share */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				551E697D2F82655900FC9136 /* Exceptions for "share" folder in "share" target */,
+			);
+			path = share;
+			sourceTree = "<group>";
+		};
 		55FBAFED2F81888100514AED /* desktop */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = desktop;
@@ -68,6 +93,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		551E696B2F82655900FC9136 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		55FBAFE82F81888000514AED /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -91,6 +123,7 @@
 			children = (
 				55FBAFED2F81888100514AED /* desktop */,
 				55FBB01D2F8189F000514AED /* vfs */,
+				551E696F2F82655900FC9136 /* share */,
 				55FBB01A2F8189F000514AED /* Frameworks */,
 				55FBAFEC2F81888100514AED /* Products */,
 			);
@@ -99,8 +132,9 @@
 		55FBAFEC2F81888100514AED /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				55FBAFEB2F81888100514AED /* desktop.app */,
+				55FBAFEB2F81888100514AED /* OpenDrive.app */,
 				55FBB0192F8189F000514AED /* vfs.appex */,
+				551E696E2F82655900FC9136 /* share.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -116,6 +150,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		551E696D2F82655900FC9136 /* share */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 551E697E2F82655900FC9136 /* Build configuration list for PBXNativeTarget "share" */;
+			buildPhases = (
+				551E696A2F82655900FC9136 /* Sources */,
+				551E696B2F82655900FC9136 /* Frameworks */,
+				551E696C2F82655900FC9136 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				551E696F2F82655900FC9136 /* share */,
+			);
+			name = share;
+			packageProductDependencies = (
+			);
+			productName = share;
+			productReference = 551E696E2F82655900FC9136 /* share.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		55FBAFEA2F81888000514AED /* desktop */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 55FBB00C2F81888300514AED /* Build configuration list for PBXNativeTarget "desktop" */;
@@ -130,6 +186,7 @@
 			);
 			dependencies = (
 				55FBB0272F8189F000514AED /* PBXTargetDependency */,
+				551E69792F82655900FC9136 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				55FBAFED2F81888100514AED /* desktop */,
@@ -138,7 +195,7 @@
 			packageProductDependencies = (
 			);
 			productName = desktop;
-			productReference = 55FBAFEB2F81888100514AED /* desktop.app */;
+			productReference = 55FBAFEB2F81888100514AED /* OpenDrive.app */;
 			productType = "com.apple.product-type.application";
 		};
 		55FBB0182F8189F000514AED /* vfs */ = {
@@ -173,12 +230,15 @@
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
+					551E696D2F82655900FC9136 = {
+						CreatedOnToolsVersion = 26.4;
+					};
 					55FBAFEA2F81888000514AED = {
 						CreatedOnToolsVersion = 26.4;
 					};
-				55FBB0182F8189F000514AED = {
-					CreatedOnToolsVersion = 26.4;
-				};
+					55FBB0182F8189F000514AED = {
+						CreatedOnToolsVersion = 26.4;
+					};
 				};
 			};
 			buildConfigurationList = 55FBAFE62F81888000514AED /* Build configuration list for PBXProject "desktop" */;
@@ -197,11 +257,19 @@
 			targets = (
 				55FBAFEA2F81888000514AED /* desktop */,
 				55FBB0182F8189F000514AED /* vfs */,
+				551E696D2F82655900FC9136 /* share */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		551E696C2F82655900FC9136 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		55FBAFE92F81888000514AED /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -243,6 +311,13 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		551E696A2F82655900FC9136 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		55FBAFE72F81888000514AED /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -260,6 +335,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		551E69792F82655900FC9136 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 551E696D2F82655900FC9136 /* share */;
+			targetProxy = 551E69782F82655900FC9136 /* PBXContainerItemProxy */;
+		};
 		55FBB0272F8189F000514AED /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 55FBB0182F8189F000514AED /* vfs */;
@@ -268,6 +348,72 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		551E697B2F82655900FC9136 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = share/share.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 68994Z5PT3;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = share/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Share with OpenDrive";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 0.0.1;
+				OPEN_DRIVE_SERVER_URL = "http://localhost:5173";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.opendrive.desktop.share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		551E697C2F82655900FC9136 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = share/share.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 68994Z5PT3;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = share/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Share with OpenDrive";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 0.0.1;
+				OPEN_DRIVE_SERVER_URL = "https://drive.otbeaumont.me";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.opendrive.desktop.share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 		55FBB00A2F81888300514AED /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -521,6 +667,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		551E697E2F82655900FC9136 /* Build configuration list for PBXNativeTarget "share" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				551E697B2F82655900FC9136 /* Debug */,
+				551E697C2F82655900FC9136 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		55FBAFE62F81888000514AED /* Build configuration list for PBXProject "desktop" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

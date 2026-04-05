@@ -106,7 +106,8 @@ export function formatSharedDate(value: string) {
 }
 
 export function getShareFileName(object: Pick<R2Object, "customMetadata" | "key">) {
-  return sanitizeDisplayName(object.customMetadata?.fileName || object.key);
+  const fallbackName = object.key.split("/").pop() || object.key;
+  return sanitizeDisplayName(object.customMetadata?.fileName || fallbackName);
 }
 
 export function getOriginalUploadName(object: Pick<R2Object, "customMetadata" | "key">) {
@@ -129,4 +130,8 @@ export function toShareMetadata(shareId: string, object: R2Object): ShareMetadat
 
 export function createShareId() {
   return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+}
+
+export function getShareObjectKey(shareId: string) {
+  return `share/${shareId}`;
 }

@@ -42,11 +42,7 @@ fn main() -> anyhow::Result<()> {
         Some(Command::Gui) => run_gui(),
         None if is_gui_launch_mode => run_gui(),
         Some(Command::Index) => run_index().context("failed to build index")?,
-        None => {
-            let mut command = Cli::command();
-            command.print_help()?;
-            println!();
-        }
+        None => Cli::command().print_help()?,
     }
 
     Ok(())

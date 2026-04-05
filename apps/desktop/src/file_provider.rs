@@ -5,11 +5,14 @@ mod platform {
     use block2::RcBlock;
     use objc2::AnyThread;
     use objc2_file_provider::{NSFileProviderDomain, NSFileProviderManager};
-    use objc2_foundation::{NSArray, NSError, ns_string};
+    use objc2_foundation::{ns_string, NSArray, NSError};
+    use opener::open;
 
     const DOMAIN_IDENTIFIER: &str = "hello-world";
     const DOMAIN_DISPLAY_NAME: &str = "Hello World";
     const WAIT_TIMEOUT: Duration = Duration::from_secs(5);
+    const EXTENSIONS_SETTINGS_URL: &str =
+        "x-apple.systempreferences:com.apple.ExtensionsPreferences";
 
     pub(crate) fn refresh_status_message() -> String {
         match domain_registered() {
@@ -37,6 +40,15 @@ mod platform {
         match unregister_domain() {
             Ok(()) => refresh_status_message(),
             Err(error) => format!("Removal failed: {error}"),
+        }
+    }
+
+    pub(crate) fn open_share_extension_settings_message() -> String {
+        match open(EXTENSIONS_SETTINGS_URL) {
+            Ok(()) => {
+                "Opened System Settings so you can enable 'Share with OpenDrive'.".to_string()
+            }
+            Err(error) => format!("Couldn't open System Settings: {error}"),
         }
     }
 
@@ -140,8 +152,13 @@ mod platform {
     pub(crate) fn unregister_status_message() -> String {
         refresh_status_message()
     }
+
+    pub(crate) fn open_share_extension_settings_message() -> String {
+        "Share extensions are only available on macOS.".to_string()
+    }
 }
 
 pub(crate) use platform::{
-    refresh_status_message, register_status_message, unregister_status_message,
+    open_share_extension_settings_message, refresh_status_message, register_status_message,
+    unregister_status_message,
 };

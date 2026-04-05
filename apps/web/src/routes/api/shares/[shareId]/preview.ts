@@ -1,12 +1,12 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { env } from "cloudflare:workers";
-import { buildContentDisposition, getShareFileName, isPreviewable } from "~/lib/shares";
+import { buildContentDisposition, getShareFileName, getShareObjectKey, isPreviewable } from "~/lib/shares";
 
 export async function GET({ params, request }: APIEvent) {
   const rangeHeader = request.headers.get("range");
   const object = rangeHeader
-    ? await env.DATA.get(params.shareId, { range: request.headers })
-    : await env.DATA.get(params.shareId);
+    ? await env.DATA.get(getShareObjectKey(params.shareId), { range: request.headers })
+    : await env.DATA.get(getShareObjectKey(params.shareId));
 
   if (!object) {
     return new Response("Share not found.", { status: 404 });

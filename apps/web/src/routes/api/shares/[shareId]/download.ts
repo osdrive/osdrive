@@ -1,9 +1,9 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { env } from "cloudflare:workers";
-import { buildContentDisposition, getOriginalUploadName } from "~/lib/shares";
+import { buildContentDisposition, getOriginalUploadName, getShareObjectKey } from "~/lib/shares";
 
 export async function GET({ params }: APIEvent) {
-  const object = await env.DATA.get(params.shareId);
+  const object = await env.DATA.get(getShareObjectKey(params.shareId));
 
   if (!object) {
     return new Response("Share not found.", { status: 404 });

@@ -130,6 +130,15 @@ impl Render for ProviderWindow {
                             });
                         }
                     }))
+                    .child(button("Enable Share Extension", {
+                        let view = view.clone();
+                        move |_, cx| {
+                            view.update(cx, |this, cx| {
+                                this.set_status(file_provider::open_share_extension_settings_message());
+                                cx.notify();
+                            });
+                        }
+                    }))
                     .child(button2(
                         match self.index_state {
                             IndexState::Running => "Indexing...",

@@ -1,8 +1,8 @@
 import { env } from "cloudflare:workers";
-import { toShareMetadata } from "~/lib/shares";
+import { getShareObjectKey, toShareMetadata } from "~/lib/shares";
 
 export async function getShareMetadata(shareId: string) {
-  const object = await env.DATA.head(shareId);
+  const object = await env.DATA.head(getShareObjectKey(shareId));
 
   if (!object) {
     return null;
