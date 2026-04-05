@@ -1,9 +1,21 @@
 import Cocoa
 import UniformTypeIdentifiers
 
-private struct UploadResponse: Decodable {
-    let shareUrl: String
+private struct OpendriveShareUploadResult {
+    let share_url: UnsafeMutablePointer<CChar>?
+    let error_message: UnsafeMutablePointer<CChar>?
 }
+
+@_silgen_name("opendrive_share_upload")
+private func opendrive_share_upload(
+    _ serverBaseURL: UnsafePointer<CChar>,
+    _ filePath: UnsafePointer<CChar>,
+    _ displayName: UnsafePointer<CChar>,
+    _ contentType: UnsafePointer<CChar>
+) -> UnsafeMutablePointer<OpendriveShareUploadResult>?
+
+@_silgen_name("opendrive_share_result_free")
+private func opendrive_share_result_free(_ result: UnsafeMutablePointer<OpendriveShareUploadResult>?)
 
 private struct SharedFile {
     let url: URL
@@ -368,29 +380,39 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
     }
 
     nonisolated private func upload(sharedFile: SharedFile, displayName: String) async throws -> String {
-        let endpointURL = try desktopSharesEndpointURL()
-        let boundary = "Boundary-\(UUID().uuidString)"
-        let bodyURL = try createMultipartBodyFile(sharedFile: sharedFile, displayName: displayName, boundary: boundary)
-        defer { try? FileManager.default.removeItem(at: bodyURL) }
+        let serverBaseURL = try serverBaseURL().absoluteString
 
-        var request = URLRequest(url: endpointURL)
-        request.httpMethod = "POST"
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 60 * 10
+        return try serverBaseURL.withCString { serverBaseURLPointer in
+            try sharedFile.url.path.withCString { filePathPointer in
+                try displayName.withCString { displayNamePointer in
+                    try sharedFile.contentType.withCString { contentTypePointer in
+                        guard let resultPointer = opendrive_share_upload(
+                            serverBaseURLPointer,
+                            filePathPointer,
+                            displayNamePointer,
+                            contentTypePointer
+                        ) else {
+                            throw ShareError("Upload failed before the server returned a response.")
+                        }
 
-        let (data, response) = try await URLSession.shared.upload(for: request, fromFile: bodyURL)
+                        defer {
+                            opendrive_share_result_free(resultPointer)
+                        }
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw ShareError("Upload failed before the server returned a response.")
+                        let result = resultPointer.pointee
+                        if let errorPointer = result.error_message {
+                            throw ShareError(String(cString: errorPointer))
+                        }
+
+                        guard let shareURLPointer = result.share_url else {
+                            throw ShareError("Upload failed before the server returned a response.")
+                        }
+
+                        return String(cString: shareURLPointer)
+                    }
+                }
+            }
         }
-
-        if httpResponse.statusCode < 200 || httpResponse.statusCode >= 300 {
-            let message = (try? JSONDecoder().decode(ServerErrorResponse.self, from: data).error) ?? "Upload failed. Try again in a moment."
-            throw ShareError(message)
-        }
-
-        let payload = try JSONDecoder().decode(UploadResponse.self, from: data)
-        return payload.shareUrl
     }
 
     nonisolated private func serverBaseURL() throws -> URL {
@@ -412,56 +434,6 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
         throw ShareError("Missing OpenDriveServerURL in the share extension configuration.")
     }
 
-    nonisolated private func desktopSharesEndpointURL() throws -> URL {
-        guard let url = URL(string: "/api/v1/desktop/shares", relativeTo: try serverBaseURL())?.absoluteURL else {
-            throw ShareError("Could not construct the desktop share upload URL.")
-        }
-
-        return url
-    }
-
-    nonisolated private func createMultipartBodyFile(sharedFile: SharedFile, displayName: String, boundary: String) throws -> URL {
-        let bodyURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).multipart")
-        FileManager.default.createFile(atPath: bodyURL.path, contents: nil)
-
-        guard let handle = try? FileHandle(forWritingTo: bodyURL) else {
-            throw ShareError("Could not prepare the upload body.")
-        }
-
-        defer { try? handle.close() }
-
-        try handle.write(contentsOf: Data("--\(boundary)\r\n".utf8))
-        try handle.write(contentsOf: Data("Content-Disposition: form-data; name=\"name\"\r\n\r\n".utf8))
-        try handle.write(contentsOf: Data(displayName.utf8))
-        try handle.write(contentsOf: Data("\r\n".utf8))
-
-        let escapedFileName = sharedFile.url.lastPathComponent
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-
-        try handle.write(contentsOf: Data("--\(boundary)\r\n".utf8))
-        try handle.write(contentsOf: Data("Content-Disposition: form-data; name=\"file\"; filename=\"\(escapedFileName)\"\r\n".utf8))
-        try handle.write(contentsOf: Data("Content-Type: \(sharedFile.contentType)\r\n\r\n".utf8))
-
-        let sourceHandle = try FileHandle(forReadingFrom: sharedFile.url)
-        defer { try? sourceHandle.close() }
-
-        while true {
-            let chunk = try sourceHandle.read(upToCount: 64 * 1024) ?? Data()
-            if chunk.isEmpty {
-                break
-            }
-
-            try handle.write(contentsOf: chunk)
-        }
-
-        try handle.write(contentsOf: Data("\r\n--\(boundary)--\r\n".utf8))
-        return bodyURL
-    }
-}
-
-private struct ServerErrorResponse: Decodable {
-    let error: String
 }
 
 private struct ShareError: LocalizedError {

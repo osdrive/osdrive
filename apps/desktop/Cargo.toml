@@ -5,6 +5,10 @@ version = "0.0.0"
 edition = "2024"
 publish = false
 
+[lib]
+name = "opendrive_share"
+crate-type = ["staticlib"]
+
 [package.metadata.packager]
 before-packaging-command = "cargo build --release"
 
@@ -22,6 +26,9 @@ clap = { version = "4.5.37", features = ["derive"] }
 od-db = { path = "../../crates/db" }
 od-indexer = { path = "../../crates/indexer" }
 libc = "0.2.184"
+reqwest = { version = "0.12.15", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6.2"
