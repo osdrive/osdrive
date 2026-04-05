@@ -25,6 +25,11 @@ enum RustFileProviderModel {
         let syncAnchor: [UInt8]
     }
 
+    struct MaterializedItem: Decodable {
+        let filePath: String
+        let item: Item
+    }
+
     static func item(for identifier: NSFileProviderItemIdentifier) -> Item? {
         guard let result = identifierToken(identifier).withCString({ token in
             opendrive_vfs_item_json(token)
@@ -71,10 +76,10 @@ enum RustFileProviderModel {
         return try? JSONDecoder().decode(Enumeration.self, from: data)
     }
 
-    static func materializeItem(for identifier: NSFileProviderItemIdentifier, to url: URL) throws -> Item {
+    static func fetchContents(for identifier: NSFileProviderItemIdentifier, in directory: URL) throws -> MaterializedItem {
         try identifierToken(identifier).withCString { identifierPointer in
-            try url.path.withCString { pathPointer in
-                guard let result = opendrive_vfs_materialize_item_json(identifierPointer, pathPointer) else {
+            try directory.path.withCString { pathPointer in
+                guard let result = opendrive_vfs_fetch_contents_json(identifierPointer, pathPointer) else {
                     throw CocoaError(.fileWriteUnknown)
                 }
 
@@ -95,7 +100,7 @@ enum RustFileProviderModel {
                 }
 
                 let data = Data(String(cString: payload).utf8)
-                return try JSONDecoder().decode(Item.self, from: data)
+                return try JSONDecoder().decode(MaterializedItem.self, from: data)
             }
         }
     }

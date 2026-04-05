@@ -42,6 +42,18 @@ pub fn sanitize_display_name(name: &str) -> String {
     normalized.chars().take(DISPLAY_NAME_LIMIT).collect()
 }
 
+pub fn normalize_display_name(name: &str) -> Result<String, ShareUploadError> {
+    let normalized = name.split_whitespace().collect::<Vec<_>>().join(" ");
+
+    if normalized.is_empty() {
+        return Err(ShareUploadError::Message(
+            "Enter the file name you want people to see.".to_string(),
+        ));
+    }
+
+    Ok(normalized.chars().take(DISPLAY_NAME_LIMIT).collect())
+}
+
 pub fn upload_shared_file(
     server_base_url: &str,
     file_path: &str,

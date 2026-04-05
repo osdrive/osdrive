@@ -32,13 +32,9 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 
         do {
             let temporaryDirectoryURL = try manager.temporaryDirectoryURL()
-            let fileURL = temporaryDirectoryURL.appendingPathComponent(RustFileProviderModel.identifierToken(itemIdentifier))
-
-            if FileManager.default.fileExists(atPath: fileURL.path()) {
-                try FileManager.default.removeItem(at: fileURL)
-            }
-
-            let item = try FileProviderItem(item: RustFileProviderModel.materializeItem(for: itemIdentifier, to: fileURL))
+            let materialized = try RustFileProviderModel.fetchContents(for: itemIdentifier, in: temporaryDirectoryURL)
+            let fileURL = URL(fileURLWithPath: materialized.filePath)
+            let item = FileProviderItem(item: materialized.item)
             completionHandler(fileURL, item, nil)
         } catch {
             completionHandler(nil, nil, error)

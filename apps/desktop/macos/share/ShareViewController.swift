@@ -43,6 +43,11 @@ private func opendrive_share_describe_file(
     _ sourceFilePath: UnsafePointer<CChar>
 ) -> UnsafeMutablePointer<OpendriveJsonResult>?
 
+@_silgen_name("opendrive_share_normalize_display_name")
+private func opendrive_share_normalize_display_name(
+    _ displayName: UnsafePointer<CChar>
+) -> UnsafeMutablePointer<OpendriveJsonResult>?
+
 private struct SharedFile {
     let url: URL
     let suggestedName: String
@@ -235,9 +240,12 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
             return
         }
 
-        let displayName = displayNameField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !displayName.isEmpty else {
-            renderError("Enter the file name you want people to see.")
+        let displayName: String
+
+        do {
+            displayName = try normalizeDisplayName(displayNameField.stringValue)
+        } catch {
+            renderError(error.localizedDescription)
             return
         }
 
@@ -430,6 +438,29 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
             suggestedName: payload.suggestedName,
             contentType: payload.contentType
         )
+    }
+
+    nonisolated private func normalizeDisplayName(_ displayName: String) throws -> String {
+        try displayName.withCString { displayNamePointer in
+            guard let result = opendrive_share_normalize_display_name(displayNamePointer) else {
+                throw ShareError("Could not prepare the file name.")
+            }
+
+            defer {
+                opendrive_json_result_free(result)
+            }
+
+            if let errorPointer = result.pointee.error_message {
+                throw ShareError(String(cString: errorPointer))
+            }
+
+            guard let payloadPointer = result.pointee.payload_json else {
+                throw ShareError("Could not prepare the file name.")
+            }
+
+            let payloadData = Data(String(cString: payloadPointer).utf8)
+            return try JSONDecoder().decode(String.self, from: payloadData)
+        }
     }
 
     nonisolated private func upload(sharedFile: SharedFile, displayName: String) async throws -> String {

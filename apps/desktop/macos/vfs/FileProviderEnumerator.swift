@@ -1,10 +1,3 @@
-//
-//  FileProviderEnumerator.swift
-//  vfs
-//
-//  Created by Oscar Beaumont on 5/4/2026.
-//
-
 import FileProvider
 
 final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
@@ -16,7 +9,6 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
     }
 
     func invalidate() {
-        // TODO: perform invalidation of server connection if necessary
     }
 
     func enumerateItems(for observer: NSFileProviderEnumerationObserver, startingAt page: NSFileProviderPage) {

@@ -1,5 +1,8 @@
 use serde::Serialize;
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 pub const ROOT_IDENTIFIER: &str = "__root__";
 pub const WORKING_SET_IDENTIFIER: &str = "__working_set__";
@@ -42,6 +45,13 @@ pub struct Enumeration {
     pub items: Vec<Item>,
     #[serde(rename = "syncAnchor")]
     pub sync_anchor: Vec<u8>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct MaterializedItem {
+    #[serde(rename = "filePath")]
+    pub file_path: String,
+    pub item: Item,
 }
 
 pub fn item(identifier: &str) -> Option<Item> {
@@ -99,6 +109,43 @@ pub fn materialize_file(identifier: &str, destination_path: &str) -> Result<(), 
 pub fn materialize_item(identifier: &str, destination_path: &str) -> Result<Item, String> {
     materialize_file(identifier, destination_path)?;
     item(identifier).ok_or_else(|| "No such item.".to_string())
+}
+
+pub fn materialize_into_directory(
+    identifier: &str,
+    destination_directory: &str,
+) -> Result<MaterializedItem, String> {
+    let item = item(identifier).ok_or_else(|| "No such item.".to_string())?;
+    let directory = Path::new(destination_directory);
+    fs::create_dir_all(directory).map_err(|error| error.to_string())?;
+
+    let destination_path = directory.join(safe_filename(&item.filename));
+    if destination_path.exists() {
+        fs::remove_file(&destination_path).map_err(|error| error.to_string())?;
+    }
+
+    let materialized_item = materialize_item(identifier, &destination_path.to_string_lossy())?;
+    Ok(MaterializedItem {
+        file_path: destination_path.to_string_lossy().into_owned(),
+        item: materialized_item,
+    })
+}
+
+fn safe_filename(filename: &str) -> PathBuf {
+    let trimmed = filename.trim();
+    if trimmed.is_empty() {
+        return PathBuf::from("item");
+    }
+
+    let sanitized = trimmed
+        .chars()
+        .map(|character| match character {
+            '/' | ':' => '_',
+            _ => character,
+        })
+        .collect::<String>();
+
+    PathBuf::from(sanitized)
 }
 
 fn root_item() -> Item {

@@ -19,13 +19,14 @@ OpendriveJsonResult *opendrive_share_prepare_file(const char *source_file_path,
                                                    const char *suggested_name,
                                                    const char *temporary_directory);
 OpendriveJsonResult *opendrive_share_describe_file(const char *source_file_path);
+OpendriveJsonResult *opendrive_share_normalize_display_name(const char *display_name);
 
 void opendrive_share_result_free(OpendriveShareUploadResult *result);
 
 OpendriveJsonResult *opendrive_vfs_item_json(const char *identifier);
 OpendriveJsonResult *opendrive_vfs_enumeration_json(const char *identifier);
-OpendriveJsonResult *opendrive_vfs_materialize_item_json(const char *identifier,
-                                                         const char *destination_path);
+OpendriveJsonResult *opendrive_vfs_fetch_contents_json(const char *identifier,
+                                                       const char *destination_directory);
 
 void opendrive_json_result_free(OpendriveJsonResult *result);
 

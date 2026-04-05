@@ -92,6 +92,16 @@ pub extern "C" fn opendrive_share_describe_file(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn opendrive_share_normalize_display_name(
+    display_name: *const c_char,
+) -> *mut OpendriveJsonResult {
+    catch_json_result(|| {
+        let display_name = c_string_arg(display_name, "display_name")?;
+        share_upload::normalize_display_name(&display_name).map_err(|error| error.to_string())
+    })
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn opendrive_share_result_free(result: *mut OpendriveShareUploadResult) {
     if result.is_null() {
         return;
@@ -129,14 +139,14 @@ pub extern "C" fn opendrive_vfs_enumeration_json(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn opendrive_vfs_materialize_item_json(
+pub extern "C" fn opendrive_vfs_fetch_contents_json(
     identifier: *const c_char,
-    destination_path: *const c_char,
+    destination_directory: *const c_char,
 ) -> *mut OpendriveJsonResult {
     catch_json_result(|| {
         let identifier = c_string_arg(identifier, "identifier")?;
-        let destination_path = c_string_arg(destination_path, "destination_path")?;
-        vfs_model::materialize_item(&identifier, &destination_path)
+        let destination_directory = c_string_arg(destination_directory, "destination_directory")?;
+        vfs_model::materialize_into_directory(&identifier, &destination_directory)
     })
 }
 
