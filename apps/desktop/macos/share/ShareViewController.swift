@@ -6,6 +6,17 @@ private struct OpendriveShareUploadResult {
     let error_message: UnsafeMutablePointer<CChar>?
 }
 
+private struct OpendriveJsonResult {
+    let payload_json: UnsafeMutablePointer<CChar>?
+    let error_message: UnsafeMutablePointer<CChar>?
+}
+
+private struct PreparedSharedFilePayload: Decodable {
+    let filePath: String
+    let suggestedName: String
+    let contentType: String
+}
+
 @_silgen_name("opendrive_share_upload")
 private func opendrive_share_upload(
     _ serverBaseURL: UnsafePointer<CChar>,
@@ -16,6 +27,21 @@ private func opendrive_share_upload(
 
 @_silgen_name("opendrive_share_result_free")
 private func opendrive_share_result_free(_ result: UnsafeMutablePointer<OpendriveShareUploadResult>?)
+
+@_silgen_name("opendrive_share_prepare_file")
+private func opendrive_share_prepare_file(
+    _ sourceFilePath: UnsafePointer<CChar>,
+    _ suggestedName: UnsafePointer<CChar>,
+    _ temporaryDirectory: UnsafePointer<CChar>
+) -> UnsafeMutablePointer<OpendriveJsonResult>?
+
+@_silgen_name("opendrive_json_result_free")
+private func opendrive_json_result_free(_ result: UnsafeMutablePointer<OpendriveJsonResult>?)
+
+@_silgen_name("opendrive_share_describe_file")
+private func opendrive_share_describe_file(
+    _ sourceFilePath: UnsafePointer<CChar>
+) -> UnsafeMutablePointer<OpendriveJsonResult>?
 
 private struct SharedFile {
     let url: URL
@@ -294,20 +320,20 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
 
                 do {
                     if let url = item as? URL {
-                        continuation.resume(returning: try self.makeSharedFile(from: url))
+                        continuation.resume(returning: try self.describeSharedFile(at: url))
                         return
                     }
 
                     if let data = item as? Data,
                        let url = NSURL(absoluteURLWithDataRepresentation: data, relativeTo: nil) as URL? {
-                        continuation.resume(returning: try self.makeSharedFile(from: url))
+                        continuation.resume(returning: try self.describeSharedFile(at: url))
                         return
                     }
 
                     if let string = item as? String,
                        let url = URL(string: string),
                        url.isFileURL {
-                        continuation.resume(returning: try self.makeSharedFile(from: url))
+                        continuation.resume(returning: try self.describeSharedFile(at: url))
                         return
                     }
 
@@ -342,41 +368,68 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
         }
     }
 
-    nonisolated private func makeSharedFile(from url: URL) throws -> SharedFile {
-        let fileName = url.lastPathComponent.isEmpty ? "Untitled file" : url.lastPathComponent
-        let contentType = contentTypeForFile(at: url)
-        return SharedFile(url: url, suggestedName: fileName, contentType: contentType)
-    }
-
     nonisolated private func makePersistentSharedFile(fromTemporaryURL temporaryURL: URL) throws -> SharedFile {
         let tempDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("share-extension", isDirectory: true)
-        try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true, attributes: nil)
+        let payload = try temporaryURL.path.withCString { sourcePathPointer in
+            try temporaryURL.lastPathComponent.withCString { suggestedNamePointer in
+                try tempDirectory.path.withCString { temporaryDirectoryPointer in
+                    guard let result = opendrive_share_prepare_file(
+                        sourcePathPointer,
+                        suggestedNamePointer,
+                        temporaryDirectoryPointer
+                    ) else {
+                        throw ShareError("Could not prepare the shared file.")
+                    }
 
-        let destinationURL = uniqueTemporaryURL(in: tempDirectory, suggestedName: temporaryURL.lastPathComponent)
-        if FileManager.default.fileExists(atPath: destinationURL.path) {
-            try FileManager.default.removeItem(at: destinationURL)
+                    defer {
+                        opendrive_json_result_free(result)
+                    }
+
+                    if let errorPointer = result.pointee.error_message {
+                        throw ShareError(String(cString: errorPointer))
+                    }
+
+                    guard let payloadPointer = result.pointee.payload_json else {
+                        throw ShareError("Could not prepare the shared file.")
+                    }
+
+                    let payloadData = Data(String(cString: payloadPointer).utf8)
+                    return try JSONDecoder().decode(PreparedSharedFilePayload.self, from: payloadData)
+                }
+            }
         }
 
-        try FileManager.default.copyItem(at: temporaryURL, to: destinationURL)
-        return try makeSharedFile(from: destinationURL)
+        let destinationURL = URL(fileURLWithPath: payload.filePath)
+        return SharedFile(url: destinationURL, suggestedName: payload.suggestedName, contentType: payload.contentType)
     }
 
-    nonisolated private func uniqueTemporaryURL(in directory: URL, suggestedName: String) -> URL {
-        let cleanName = suggestedName.isEmpty ? "shared-file" : suggestedName
-        return directory.appendingPathComponent("\(UUID().uuidString)-\(cleanName)")
-    }
+    nonisolated private func describeSharedFile(at url: URL) throws -> SharedFile {
+        let payload = try url.path.withCString { sourcePathPointer in
+            guard let result = opendrive_share_describe_file(sourcePathPointer) else {
+                throw ShareError("Could not inspect the shared file.")
+            }
 
-    nonisolated private func contentTypeForFile(at url: URL) -> String {
-        if let values = try? url.resourceValues(forKeys: [.contentTypeKey]),
-           let type = values.contentType {
-            return type.preferredMIMEType ?? "application/octet-stream"
+            defer {
+                opendrive_json_result_free(result)
+            }
+
+            if let errorPointer = result.pointee.error_message {
+                throw ShareError(String(cString: errorPointer))
+            }
+
+            guard let payloadPointer = result.pointee.payload_json else {
+                throw ShareError("Could not inspect the shared file.")
+            }
+
+            let payloadData = Data(String(cString: payloadPointer).utf8)
+            return try JSONDecoder().decode(PreparedSharedFilePayload.self, from: payloadData)
         }
 
-        if let type = UTType(filenameExtension: url.pathExtension) {
-            return type.preferredMIMEType ?? "application/octet-stream"
-        }
-
-        return "application/octet-stream"
+        return SharedFile(
+            url: URL(fileURLWithPath: payload.filePath),
+            suggestedName: payload.suggestedName,
+            contentType: payload.contentType
+        )
     }
 
     nonisolated private func upload(sharedFile: SharedFile, displayName: String) async throws -> String {

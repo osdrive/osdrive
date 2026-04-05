@@ -73,6 +73,32 @@ pub extern "C" fn opendrive_share_upload(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn opendrive_share_prepare_file(
+    source_file_path: *const c_char,
+    suggested_name: *const c_char,
+    temporary_directory: *const c_char,
+) -> *mut OpendriveJsonResult {
+    catch_json_result(|| {
+        let source_file_path = c_string_arg(source_file_path, "source_file_path")?;
+        let suggested_name = c_string_arg(suggested_name, "suggested_name")?;
+        let temporary_directory = c_string_arg(temporary_directory, "temporary_directory")?;
+
+        share_upload::prepare_shared_file(&source_file_path, &suggested_name, &temporary_directory)
+            .map_err(|error| error.to_string())
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn opendrive_share_describe_file(
+    source_file_path: *const c_char,
+) -> *mut OpendriveJsonResult {
+    catch_json_result(|| {
+        let source_file_path = c_string_arg(source_file_path, "source_file_path")?;
+        share_upload::describe_shared_file(&source_file_path).map_err(|error| error.to_string())
+    })
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn opendrive_share_result_free(result: *mut OpendriveShareUploadResult) {
     if result.is_null() {
         return;

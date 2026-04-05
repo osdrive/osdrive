@@ -6,10 +6,20 @@ use std::{
 };
 
 use reqwest::{blocking::Client, StatusCode, Url};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 const DISPLAY_NAME_LIMIT: usize = 180;
 const DEFAULT_CONTENT_TYPE: &str = "application/octet-stream";
+
+#[derive(Debug, Serialize)]
+pub struct PreparedSharedFile {
+    #[serde(rename = "filePath")]
+    pub file_path: String,
+    #[serde(rename = "suggestedName")]
+    pub suggested_name: String,
+    #[serde(rename = "contentType")]
+    pub content_type: String,
+}
 
 #[derive(Debug, Deserialize)]
 struct UploadResponse {
@@ -64,6 +74,68 @@ pub fn upload_shared_file(
     result
 }
 
+pub fn prepare_shared_file(
+    source_file_path: &str,
+    suggested_name: &str,
+    temporary_directory: &str,
+) -> Result<PreparedSharedFile, ShareUploadError> {
+    let source_path = Path::new(source_file_path);
+
+    if !source_path.is_file() {
+        return Err(ShareUploadError::Message(
+            "The shared file could not be found on disk.".to_string(),
+        ));
+    }
+
+    let temp_directory = Path::new(temporary_directory);
+    fs::create_dir_all(temp_directory)?;
+
+    let destination_path = unique_temporary_path(temp_directory, suggested_name);
+    if destination_path.exists() {
+        fs::remove_file(&destination_path)?;
+    }
+
+    fs::copy(source_path, &destination_path)?;
+
+    let suggested_name = source_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .unwrap_or("Untitled file")
+        .to_string();
+
+    Ok(PreparedSharedFile {
+        file_path: destination_path.to_string_lossy().into_owned(),
+        suggested_name,
+        content_type: detect_content_type(&destination_path),
+    })
+}
+
+pub fn describe_shared_file(
+    source_file_path: &str,
+) -> Result<PreparedSharedFile, ShareUploadError> {
+    let source_path = Path::new(source_file_path);
+
+    if !source_path.is_file() {
+        return Err(ShareUploadError::Message(
+            "The shared file could not be found on disk.".to_string(),
+        ));
+    }
+
+    let suggested_name = source_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .unwrap_or("Untitled file")
+        .to_string();
+
+    Ok(PreparedSharedFile {
+        file_path: source_path.to_string_lossy().into_owned(),
+        suggested_name,
+        content_type: detect_content_type(source_path),
+    })
+}
+
 fn desktop_shares_endpoint_url(server_base_url: &str) -> Result<Url, ShareUploadError> {
     let base = Url::parse(server_base_url).map_err(|_| {
         ShareUploadError::Message(
@@ -83,6 +155,33 @@ fn normalized_content_type(content_type: &str) -> &str {
     } else {
         trimmed
     }
+}
+
+fn detect_content_type(path: &Path) -> String {
+    mime_guess::from_path(path)
+        .first_raw()
+        .unwrap_or(DEFAULT_CONTENT_TYPE)
+        .to_string()
+}
+
+fn unique_temporary_path(directory: &Path, suggested_name: &str) -> PathBuf {
+    let clean_name = if suggested_name.trim().is_empty() {
+        "shared-file"
+    } else {
+        suggested_name
+    };
+
+    directory.join(format!("{}-{}", uuid_fragment(), clean_name))
+}
+
+fn uuid_fragment() -> String {
+    format!(
+        "{:08x}{:08x}{:08x}{:08x}",
+        rand::random::<u32>(),
+        rand::random::<u32>(),
+        rand::random::<u32>(),
+        rand::random::<u32>()
+    )
 }
 
 fn create_multipart_body_file(
