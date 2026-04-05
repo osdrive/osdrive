@@ -99,31 +99,33 @@ export default function LoginPage() {
   };
 
   return (
-    <main class="page page--centered auth-page">
+    <main class="grid min-h-[calc(100vh-8rem)] place-items-center py-4">
       <Title>Login | OpenDrive</Title>
 
-      <section class="panel auth-panel">
-        <div class="auth-panel__copy">
-          <div class="eyebrow">Better Auth</div>
-          <h1>{mode() === "signin" ? "Sign in and open your dashboard." : "Create an account in one step."}</h1>
-          <p>
+      <section class="bg-panel border border-border rounded-[1.75rem] backdrop-blur-[18px] shadow-[0_28px_60px_rgba(0,0,0,0.28)] p-6 w-[min(68rem,100%)] grid grid-cols-[minmax(0,1.1fr)_minmax(22rem,28rem)] gap-6 items-start max-lg:grid-cols-1">
+        <div class="grid gap-4 content-start">
+          <div class="text-primary-strong uppercase tracking-[0.18em] text-[0.72rem] font-bold">Better Auth</div>
+          <h1 class="m-0 max-w-[14ch] text-[clamp(2.8rem,7vw,5.6rem)] leading-[0.96] tracking-[-0.05em] max-lg:max-w-none">
+            {mode() === "signin" ? "Sign in and open your dashboard." : "Create an account in one step."}
+          </h1>
+          <p class="m-0 max-w-[64ch] text-muted leading-relaxed">
             Email and password authentication is now handled directly in OpenDrive. New accounts land
             in the protected dashboard immediately.
           </p>
         </div>
 
-        <form class="auth-form" onSubmit={handleSubmit}>
-          <div class="auth-switcher" role="tablist" aria-label="Authentication mode">
+        <form class="grid gap-4 p-5 rounded-[1.35rem] bg-panel-strong border border-white/[0.07]" onSubmit={handleSubmit}>
+          <div class="grid grid-cols-2 gap-2 p-1.5 rounded-full bg-white/[0.04] border border-white/[0.06]" role="tablist" aria-label="Authentication mode">
             <button
               type="button"
-              class={`auth-switcher__button ${mode() === "signin" ? "auth-switcher__button--active" : ""}`}
+              class={`min-h-11 border-0 rounded-full cursor-pointer ${mode() === "signin" ? "text-[#08111f] bg-[linear-gradient(135deg,var(--color-primary),#83f0da)] font-bold" : "text-muted bg-transparent"}`}
               onClick={() => setMode("signin")}
             >
               Sign in
             </button>
             <button
               type="button"
-              class={`auth-switcher__button ${mode() === "signup" ? "auth-switcher__button--active" : ""}`}
+              class={`min-h-11 border-0 rounded-full cursor-pointer ${mode() === "signup" ? "text-[#08111f] bg-[linear-gradient(135deg,var(--color-primary),#83f0da)] font-bold" : "text-muted bg-transparent"}`}
               onClick={() => setMode("signup")}
             >
               Create account
@@ -131,19 +133,33 @@ export default function LoginPage() {
           </div>
 
           {mode() === "signup" ? (
-            <label class="field">
-              <span>Name</span>
-              <input name="name" type="text" maxLength={120} autocomplete="name" disabled={isPending()} />
+            <label class="grid gap-2">
+              <span class="text-sm text-muted">Name</span>
+              <input
+                name="name"
+                type="text"
+                maxLength={120}
+                autocomplete="name"
+                disabled={isPending()}
+                class="w-full px-4 py-3.5 rounded-2xl border border-border bg-white/[0.04] text-text disabled:opacity-70"
+              />
             </label>
           ) : null}
 
-          <label class="field">
-            <span>Email</span>
-            <input name="email" type="email" autocomplete="email" required disabled={isPending()} />
+          <label class="grid gap-2">
+            <span class="text-sm text-muted">Email</span>
+            <input
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+              disabled={isPending()}
+              class="w-full px-4 py-3.5 rounded-2xl border border-border bg-white/[0.04] text-text disabled:opacity-70"
+            />
           </label>
 
-          <label class="field">
-            <span>Password</span>
+          <label class="grid gap-2">
+            <span class="text-sm text-muted">Password</span>
             <input
               name="password"
               type="password"
@@ -151,12 +167,17 @@ export default function LoginPage() {
               minLength={8}
               required
               disabled={isPending()}
+              class="w-full px-4 py-3.5 rounded-2xl border border-border bg-white/[0.04] text-text disabled:opacity-70"
             />
           </label>
 
-          {errorMessage() ? <p class="message message--error">{errorMessage()}</p> : null}
+          {errorMessage() ? <p class="m-0 text-sm text-danger">{errorMessage()}</p> : null}
 
-          <button type="submit" class="button button--primary" disabled={isPending()}>
+          <button
+            type="submit"
+            class="inline-flex items-center justify-center min-h-[2.9rem] px-4.5 py-3 rounded-full border border-transparent cursor-pointer transition-all duration-150 hover:-translate-y-px bg-[linear-gradient(135deg,var(--color-primary),#83f0da)] text-[#08111f] font-bold disabled:cursor-wait disabled:opacity-70 disabled:transform-none"
+            disabled={isPending()}
+          >
             {isPending()
               ? mode() === "signin"
                 ? "Signing in..."
@@ -166,8 +187,8 @@ export default function LoginPage() {
                 : "Create account"}
           </button>
 
-          <p class="auth-note">
-            Return to <A href="/">home</A> or head straight to <A href="/dashboard">dashboard</A> once
+          <p class="m-0 text-muted leading-relaxed">
+            Return to <A href="/" class="text-primary-strong">home</A> or head straight to <A href="/dashboard" class="text-primary-strong">dashboard</A> once
             your session is active.
           </p>
         </form>

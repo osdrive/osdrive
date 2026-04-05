@@ -16,7 +16,7 @@ function SignedOutActions() {
   return (
     <A
       href={`/login?returnTo=${encodeURIComponent(`${location.pathname}${location.search}${location.hash}` || "/dashboard")}`}
-      class="button button--ghost"
+      class="inline-flex items-center justify-center min-h-[2.9rem] px-4.5 py-3 rounded-full border border-border bg-white/[0.03] text-text cursor-pointer transition-all duration-150 hover:-translate-y-px"
     >
       Sign in
     </A>
@@ -25,15 +25,20 @@ function SignedOutActions() {
 
 function SignedInActions(props: { user: AuthenticatedUser }) {
   return (
-    <div class="auth-actions">
-      <div class="auth-copy">
-        <strong>{props.user.name}</strong>
-        <span>{props.user.email}</span>
+    <div class="flex flex-wrap items-center justify-end gap-3 max-sm:justify-start">
+      <div class="grid gap-0.5 min-w-0 text-muted text-right max-sm:text-left">
+        <strong class="text-text">{props.user.name}</strong>
+        <span class="text-sm break-words">{props.user.email}</span>
       </div>
-      <A href="/dashboard" class="button button--ghost">
+      <A
+        href="/dashboard"
+        class="inline-flex items-center justify-center min-h-[2.9rem] px-4.5 py-3 rounded-full border border-border bg-white/[0.03] text-text cursor-pointer transition-all duration-150 hover:-translate-y-px"
+      >
         Dashboard
       </A>
-      <LogoutButton class="button button--primary">Logout</LogoutButton>
+      <LogoutButton class="inline-flex items-center justify-center min-h-[2.9rem] px-4.5 py-3 rounded-full border border-transparent cursor-pointer transition-all duration-150 hover:-translate-y-px bg-[linear-gradient(135deg,var(--color-primary),#83f0da)] text-[#08111f] font-bold disabled:cursor-wait disabled:opacity-70 disabled:transform-none">
+        Logout
+      </LogoutButton>
     </div>
   );
 }
