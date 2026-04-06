@@ -1,6 +1,6 @@
 {
 	"$schema": "./node_modules/wrangler/config-schema.json",
-	"name": "drive",
+	"name": "osdrive",
 	"main": "@solidjs/start/server/entry",
 	"compatibility_date": "2026-04-01",
 	"compatibility_flags": [
@@ -27,9 +27,9 @@
 	],
 	"d1_databases": [
 		{
-			"binding": "AUTH_DB",
-			"database_name": "osdrive-auth",
-			"database_id": "84c7004d-913e-4f08-84c9-7139caf4211e",
+			"binding": "DB",
+			"database_name": "osdrive",
+			"database_id": "81820c79-fe8c-40ee-9cf5-5bad0323b13a",
 			"migrations_dir": "drizzle"
 		}
 	],
