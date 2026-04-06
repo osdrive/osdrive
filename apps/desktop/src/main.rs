@@ -10,6 +10,7 @@ mod file_provider;
 mod index;
 mod provider_window;
 mod state;
+mod vfs_model;
 mod window;
 
 actions!(example, [QuitApp]);

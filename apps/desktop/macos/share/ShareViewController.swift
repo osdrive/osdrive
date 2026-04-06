@@ -17,6 +17,18 @@ private struct PreparedSharedFilePayload: Decodable {
     let contentType: String
 }
 
+private struct MaybePreparedSharedFilePayload: Decodable {
+    let matched: Bool
+    let filePath: String?
+    let suggestedName: String?
+    let contentType: String?
+}
+
+private struct ShareLoadAttemptPayload: Decodable {
+    let kind: String
+    let typeIdentifier: String
+}
+
 @_silgen_name("opendrive_share_upload")
 private func opendrive_share_upload(
     _ serverBaseURL: UnsafePointer<CChar>,
@@ -43,9 +55,21 @@ private func opendrive_share_describe_file(
     _ sourceFilePath: UnsafePointer<CChar>
 ) -> UnsafeMutablePointer<OpendriveJsonResult>?
 
+@_silgen_name("opendrive_share_describe_file_url_string")
+private func opendrive_share_describe_file_url_string(
+    _ fileURLString: UnsafePointer<CChar>
+) -> UnsafeMutablePointer<OpendriveJsonResult>?
+
 @_silgen_name("opendrive_share_normalize_display_name")
 private func opendrive_share_normalize_display_name(
     _ displayName: UnsafePointer<CChar>
+) -> UnsafeMutablePointer<OpendriveJsonResult>?
+
+@_silgen_name("opendrive_share_load_attempts")
+private func opendrive_share_load_attempts(
+    _ registeredTypeIdentifiersJSON: UnsafePointer<CChar>,
+    _ hasGenericItem: Bool,
+    _ hasFileURL: Bool
 ) -> UnsafeMutablePointer<OpendriveJsonResult>?
 
 private struct SharedFile {
@@ -280,30 +304,19 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
         var lastError: Error?
 
         for provider in attachments {
-            for identifier in provider.registeredTypeIdentifiers {
+            for attempt in try loadAttempts(for: provider) {
                 do {
-                    if let file = try await loadFileRepresentation(from: provider, typeIdentifier: identifier) {
-                        return file
-                    }
-                } catch {
-                    lastError = error
-                }
-            }
-
-            if provider.hasItemConformingToTypeIdentifier(UTType.item.identifier) {
-                do {
-                    if let file = try await loadFileRepresentation(from: provider, typeIdentifier: UTType.item.identifier) {
-                        return file
-                    }
-                } catch {
-                    lastError = error
-                }
-            }
-
-            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-                do {
-                    if let file = try await loadFileURL(from: provider) {
-                        return file
+                    switch attempt.kind {
+                    case "file_representation":
+                        if let file = try await loadFileRepresentation(from: provider, typeIdentifier: attempt.typeIdentifier) {
+                            return file
+                        }
+                    case "file_url":
+                        if let file = try await loadFileURL(from: provider) {
+                            return file
+                        }
+                    default:
+                        continue
                     }
                 } catch {
                     lastError = error
@@ -318,6 +331,36 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
         throw ShareError("This share extension currently supports files from disk.")
     }
 
+    private func loadAttempts(for provider: NSItemProvider) throws -> [ShareLoadAttemptPayload] {
+        let payload = try JSONEncoder().encode(provider.registeredTypeIdentifiers)
+        let payloadString = String(decoding: payload, as: UTF8.self)
+
+        return try payloadString.withCString { payloadPointer in
+            guard let result = opendrive_share_load_attempts(
+                payloadPointer,
+                provider.hasItemConformingToTypeIdentifier(UTType.item.identifier),
+                provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)
+            ) else {
+                throw ShareError("Could not prepare the shared file loading plan.")
+            }
+
+            defer {
+                opendrive_json_result_free(result)
+            }
+
+            if let errorPointer = result.pointee.error_message {
+                throw ShareError(String(cString: errorPointer))
+            }
+
+            guard let payloadPointer = result.pointee.payload_json else {
+                throw ShareError("Could not prepare the shared file loading plan.")
+            }
+
+            let payloadData = Data(String(cString: payloadPointer).utf8)
+            return try JSONDecoder().decode([ShareLoadAttemptPayload].self, from: payloadData)
+        }
+    }
+
     private func loadFileURL(from provider: NSItemProvider) async throws -> SharedFile? {
         try await withCheckedThrowingContinuation { continuation in
             provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, error in
@@ -328,20 +371,19 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
 
                 do {
                     if let url = item as? URL {
-                        continuation.resume(returning: try self.describeSharedFile(at: url))
+                        continuation.resume(returning: try self.describeSharedFileURLString(url.absoluteString))
                         return
                     }
 
                     if let data = item as? Data,
                        let url = NSURL(absoluteURLWithDataRepresentation: data, relativeTo: nil) as URL? {
-                        continuation.resume(returning: try self.describeSharedFile(at: url))
+                        continuation.resume(returning: try self.describeSharedFileURLString(url.absoluteString))
                         return
                     }
 
                     if let string = item as? String,
-                       let url = URL(string: string),
-                       url.isFileURL {
-                        continuation.resume(returning: try self.describeSharedFile(at: url))
+                       let file = try self.describeSharedFileURLString(string) {
+                        continuation.resume(returning: file)
                         return
                     }
 
@@ -438,6 +480,41 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
             suggestedName: payload.suggestedName,
             contentType: payload.contentType
         )
+    }
+
+    nonisolated private func describeSharedFileURLString(_ fileURLString: String) throws -> SharedFile? {
+        try fileURLString.withCString { fileURLStringPointer in
+            guard let result = opendrive_share_describe_file_url_string(fileURLStringPointer) else {
+                throw ShareError("Could not inspect the shared file URL.")
+            }
+
+            defer {
+                opendrive_json_result_free(result)
+            }
+
+            if let errorPointer = result.pointee.error_message {
+                throw ShareError(String(cString: errorPointer))
+            }
+
+            guard let payloadPointer = result.pointee.payload_json else {
+                throw ShareError("Could not inspect the shared file URL.")
+            }
+
+            let payloadData = Data(String(cString: payloadPointer).utf8)
+            let payload = try JSONDecoder().decode(MaybePreparedSharedFilePayload.self, from: payloadData)
+            guard payload.matched,
+                  let filePath = payload.filePath,
+                  let suggestedName = payload.suggestedName,
+                  let contentType = payload.contentType else {
+                return nil
+            }
+
+            return SharedFile(
+                url: URL(fileURLWithPath: filePath),
+                suggestedName: suggestedName,
+                contentType: contentType
+            )
+        }
     }
 
     nonisolated private func normalizeDisplayName(_ displayName: String) throws -> String {

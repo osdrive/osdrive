@@ -6,8 +6,6 @@
 	<string>Share with OpenDrive</string>
 	<key>CFBundleName</key>
 	<string>Share with OpenDrive</string>
-	<key>CFBundleIconFile</key>
-	<string>icon</string>
 	<key>OpenDriveServerURL</key>
 	<string>$(OPEN_DRIVE_SERVER_URL)</string>
 	<key>NSExtension</key>

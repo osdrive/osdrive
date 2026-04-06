@@ -21,6 +21,24 @@ pub struct PreparedSharedFile {
     pub content_type: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct ShareLoadAttempt {
+    pub kind: &'static str,
+    #[serde(rename = "typeIdentifier")]
+    pub type_identifier: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MaybePreparedSharedFile {
+    pub matched: bool,
+    #[serde(rename = "filePath")]
+    pub file_path: Option<String>,
+    #[serde(rename = "suggestedName")]
+    pub suggested_name: Option<String>,
+    #[serde(rename = "contentType")]
+    pub content_type: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 struct UploadResponse {
     #[serde(rename = "shareUrl")]
@@ -52,6 +70,46 @@ pub fn normalize_display_name(name: &str) -> Result<String, ShareUploadError> {
     }
 
     Ok(normalized.chars().take(DISPLAY_NAME_LIMIT).collect())
+}
+
+pub fn load_attempts(
+    registered_type_identifiers: Vec<String>,
+    has_generic_item: bool,
+    has_file_url: bool,
+) -> Vec<ShareLoadAttempt> {
+    let mut attempts = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    for identifier in registered_type_identifiers {
+        if seen.insert(("file_representation", identifier.clone())) {
+            attempts.push(ShareLoadAttempt {
+                kind: "file_representation",
+                type_identifier: identifier,
+            });
+        }
+    }
+
+    if has_generic_item {
+        let identifier = "public.item".to_string();
+        if seen.insert(("file_representation", identifier.clone())) {
+            attempts.push(ShareLoadAttempt {
+                kind: "file_representation",
+                type_identifier: identifier,
+            });
+        }
+    }
+
+    if has_file_url {
+        let identifier = "public.file-url".to_string();
+        if seen.insert(("file_url", identifier.clone())) {
+            attempts.push(ShareLoadAttempt {
+                kind: "file_url",
+                type_identifier: identifier,
+            });
+        }
+    }
+
+    attempts
 }
 
 pub fn upload_shared_file(
@@ -146,6 +204,47 @@ pub fn describe_shared_file(
         suggested_name,
         content_type: detect_content_type(source_path),
     })
+}
+
+pub fn describe_shared_file_url_string(
+    file_url_string: &str,
+) -> Result<PreparedSharedFile, ShareUploadError> {
+    let url = Url::parse(file_url_string)
+        .map_err(|_| ShareUploadError::Message("The shared file URL was invalid.".to_string()))?;
+
+    if url.scheme() != "file" {
+        return Err(ShareUploadError::Message(
+            "The shared item was not a file URL.".to_string(),
+        ));
+    }
+
+    let path = url.to_file_path().map_err(|_| {
+        ShareUploadError::Message("The shared file URL could not be resolved.".to_string())
+    })?;
+
+    describe_shared_file(&path.to_string_lossy())
+}
+
+pub fn maybe_describe_shared_file_url_string(
+    file_url_string: &str,
+) -> Result<MaybePreparedSharedFile, ShareUploadError> {
+    match Url::parse(file_url_string) {
+        Ok(url) if url.scheme() == "file" => {
+            let prepared = describe_shared_file_url_string(file_url_string)?;
+            Ok(MaybePreparedSharedFile {
+                matched: true,
+                file_path: Some(prepared.file_path),
+                suggested_name: Some(prepared.suggested_name),
+                content_type: Some(prepared.content_type),
+            })
+        }
+        Ok(_) | Err(_) => Ok(MaybePreparedSharedFile {
+            matched: false,
+            file_path: None,
+            suggested_name: None,
+            content_type: None,
+        }),
+    }
 }
 
 fn desktop_shares_endpoint_url(server_base_url: &str) -> Result<Url, ShareUploadError> {

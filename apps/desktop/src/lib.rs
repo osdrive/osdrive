@@ -102,6 +102,40 @@ pub extern "C" fn opendrive_share_normalize_display_name(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn opendrive_share_load_attempts(
+    registered_type_identifiers_json: *const c_char,
+    has_generic_item: bool,
+    has_file_url: bool,
+) -> *mut OpendriveJsonResult {
+    catch_json_result(|| {
+        let registered_type_identifiers_json = c_string_arg(
+            registered_type_identifiers_json,
+            "registered_type_identifiers_json",
+        )?;
+        let registered_type_identifiers =
+            serde_json::from_str::<Vec<String>>(&registered_type_identifiers_json)
+                .map_err(|error| error.to_string())?;
+
+        Ok(share_upload::load_attempts(
+            registered_type_identifiers,
+            has_generic_item,
+            has_file_url,
+        ))
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn opendrive_share_describe_file_url_string(
+    file_url_string: *const c_char,
+) -> *mut OpendriveJsonResult {
+    catch_json_result(|| {
+        let file_url_string = c_string_arg(file_url_string, "file_url_string")?;
+        share_upload::maybe_describe_shared_file_url_string(&file_url_string)
+            .map_err(|error| error.to_string())
+    })
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn opendrive_share_result_free(result: *mut OpendriveShareUploadResult) {
     if result.is_null() {
         return;
