@@ -21,6 +21,7 @@
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.7.0",
+    "lucide-solid": "^1.7.0",
     "posthog-js": "^1.364.7",
     "shadcn": "^4.1.2",
     "solid-js": "^1.9.5",
