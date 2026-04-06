@@ -1,15 +1,140 @@
-wrangler d1 migrations apply opendrive-auth
-npx wrangler d1 migrations apply opendrive-auth --local
+Remove `TODO` and migrate it to GitHub issues
+Reserve https://docs.rs/osdrive w/ link to website for docs
+VFS icon in Finder is a bit weird
+
+claude --resume a73c20b6-012f-4619-b7b2-141d13b1d4fb
+
+Rewrite Web API to Effect + Effect OpenAPI + integrate it with `better-auth` properly
+Use Effect server actions primitives or something else???
+
+Setup Amazon SES for email sending
+
+https://better-auth.com/docs/plugins/organization
+ - RBAC???
+
+https://better-auth.com/docs/concepts/dynamic-base-url
+https://better-auth.com/docs/plugins/email-otp
+https://better-auth.com/docs/plugins/passkey
+https://better-auth.com/docs/plugins/2fa
+https://better-auth.com/docs/plugins/last-login-method
+https://better-auth.com/docs/plugins/oauth-proxy
+Build API keys on top of better-auth primitives
+https://better-auth.com/docs/plugins/stripe
+
+Dark Mode - https://zaidan.carere.dev/dark-mode?primitive=kobalte&style=vega&baseColor=neutral&theme=neutral&font=inter&radius=default&menuAccent=subtle
+    + semantic design so it works everywhere automatically
+
+
+
+Can you implement 5 different landing page designs for OSDrive using the frontend design skill. OSDrive allows for sharing files, syncing files between devices and allows for creating cloud drives. I want to target it
+  as enterprise and prosumer. We maintain an index of your filesystems to make operations really quick and allow natively mounting the shares into Finder or your native file explorer. We
+  also have a file explorer UI coming. Can you ensure we have a download button and have a way of accessing the dashboard and your account. The dashboard handles creating and managing
+  network shares + shared files. Do it in @apps/web/src/routes/ as we are using Solid Start. I am using zaidan components with ShadCN so refer to https://zaidan.carere.dev for the avaiable
+  components and use the commands provided for installing it instead of using the React ShadCN components.
+
+
+
+
+Legacy:
+`/s/{shardId}`
+`/share`
+`/login`
+`/dashboard`
+`/account`
+
+404 page
+
+preload user data + auth redirect
+
+Landing page
+ - Fix "Edit account" flow
+ - Remove auth from layout
+
+ - Allow dropping a file to share it anywhere on landing + call it out somewhere
+ - Embed Rust uploader bundle for shared logic???
+ - OpenGraph tags + good SEO
+ - Brand assets page
+
+ - Track shared links by account. Require auth for upload.
+ - Per-account limits + show in account settings
+
+ - Organisations
+ - Configure S3 credentials and shared drives
+ - Permissions on files/folders/etc
+ - Upload and sharing links
+ - Analytics
+
+ - Add download button for desktop app
+ - Make it not look like ass
+ - Login and basic account management
+ - See all uploads for your account
+
+ - Billing with Stripe via better-auth?
+ - Cleanup crud in `app.css`
+ - Decide on a font???
+
+ - File conversion tools
+ - Tagging system
+ - Search by transcript???
+ - Show camera metadata
+ - Search by metadata (location, camera type, etc.)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Login within desktop app
+Restructure desktop app around required functionality (add settings + restyle it all)
+GPUI register macOS menubar (About, Quit, etc + common actions like Command A, Command C, etc).
+
+
 
 
 
 VPS and share implementation in Rust (including upload & sharing flow)
-Login within desktop app
-Restructure desktop app around required functionality (add settings + restyle it all)
+If iOS can compile can we switch the bundle identifier and `apps` subdirectory so it's clearer that it's not just desktop
+Can we use IPC with a daemon instead of `repr(C)` FFI system so we only bundle the Rust code once???
+Rename the `share-rust` scheme in XCode project + break up shared lib in Rust side of things
+
+Session   Plan Rust migration for share implementation
+Continue  opencode -s ses_2a214e253ffep4ArUfFJTw44xC
 
 
 
-Ensure `apps/desktop/icons` are being bundled in production build
+
+
+
+Cleanup AI slop
+
+https://better-auth.com/docs/guides/optimizing-for-performance
+Enable R2 "Local Uploads"
+
+
+(I think this one is for file permissions which is pretty important right now)
+  Session   Merging gpuidrive with desktop app bundle
+  Continue  opencode -s ses_2a61cc1c2ffehqduMDQIgXVnU9
+
+Session   iOS support feasibility for macOS app extensions
+Continue  opencode -s ses_2a29ca54affe5TCUfbRvqGD1nZa
+
+
+
+
+
+https://github.com/chinedufn/swift-bridge
 
 Create cloud-backed locations and sync them with R2
 Define rules which are synced across accounts
@@ -20,15 +145,6 @@ Share extension:
  - UI in app for watching all uploads
  - Allow copying the link prior to the upload completing and have it show progress/errors like we did for Cap.
 
-Landing:
- - Add download button for desktop app
- - Make it not look like ass
- - Login and basic account management
- - See all uploads for your account
-
-GPUI register macOS menubar (About, Quit, etc + common actions like Command A, Command C, etc).
-
-Enable R2 "Local Uploads"
 
 
 Setup Clap CLI with daemon option + automatically configure it as a daemon?
@@ -55,7 +171,7 @@ Restructure Xcode project so it's easy for someone to codesign with their own id
 
 
 
-iOS shared photo library???
+
 
 
 
@@ -95,10 +211,9 @@ FS watching
 Incremental index updates
 
 
-Auth - https://workos.com/docs/authkit/vanilla/nodejs
 R2 backend for backup/storage using local cache for fast access.
 Provision folders via website.
-WorkOS auth for easy enterprise
+
 BYOD S3 bucket?
 
 Functionality:
@@ -112,22 +227,17 @@ Functionality:
 Share button in Finder/app which can share to cloud like WeTranfer or to local network
 
 
-You Still Need
-1. Set WorkOS secrets from .dev.vars.example
-2. Configure WorkOS dashboard redirects:
-   - Redirect URI: http://localhost:3000/callback for local dev
-   - Sign-in endpoint: http://localhost:3000/login
-   - Sign-out redirect: http://localhost:3000/
-3. Add equivalent production secrets with Wrangler
 
 
-opendrive.dev - .dev is cringe
+osdrive.dev - .dev is cringe?
 
 openfs.app - crates.io taken
 sharedfs.app
 indexfs.app
 myfiles.dev - expensive
 lumadrive.app
+
+Rename repo
 
 pnpm + ts workspace
 Vite+ formatting + linted w/ GH Actions
@@ -144,3 +254,61 @@ PostHog integration
 
 
 P2P file transfers over the local network working
+
+Can we optimise the upload speed of media files using compression or other magic????
+
+Talk with Al and Josh about it
+Setup email inbox
+PostHog proxy
+
+Cloud drive support (Like Google Drive?)
+
+Add `robots.txt` + `sitemap.txt` + security file
+Add privacy policy
+
+iOS-style working
+Shared photo/video library system
+
+
+
+
+https://github.com/tobi/qmd
+https://x.com/zachmeyer/status/2040891640101966102 -> look through comments for ideas
+https://locker.dev/w/oscar
+https://github.com/zmeyer44/Locker
+
+Future:
+ - File share permissions
+ - Tagging files (sync to Finder tags???)
+ - Cloud file viewer w/ DND for uploads and moving files around
+
+ - Custom S3 buckets
+ - Share upload links
+ - View tracking
+ - Mobile app
+ - SCIM
+ - Block-level file sync?
+
+ - Agent to run on existing server to "bridge it into the cloud"
+
+https://t3.chat/terms-of-service
+https://t3.chat/privacy-policy
+https://chatgpt.com/c/69d3c8a9-0d10-8398-907a-bd92e069a77c
+
+
+Make `.app` bundle smaller by deduplicating icon
+
+
+Remove `lucide-solid` in favor of phosphor icons like my website
+
+
+SSO (SAML, OIDC) & SCIM
+Role-based access control
+Audit logs & compliance exports
+
+
+
+
+
+wrangler d1 migrations apply osdrive
+npx wrangler d1 migrations apply osdrive --local
