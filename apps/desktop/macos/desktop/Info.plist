@@ -4,7 +4,7 @@
 <dict>
 	<key>LSEnvironment</key>
 	<dict>
-		<key>OPENDRIVE_LAUNCH_MODE</key>
+		<key>OSDRIVE_LAUNCH_MODE</key>
 		<string>gui</string>
 	</dict>
 </dict>

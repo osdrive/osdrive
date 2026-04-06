@@ -8,7 +8,7 @@ import { A } from "@solidjs/router";
 export default function LandingBento() {
   return (
     <main class="min-h-screen">
-      <Title>OpenDrive | The file system for modern teams</Title>
+      <Title>OSDrive | The file system for modern teams</Title>
 
       {/* Hero */}
       <section class="max-w-6xl mx-auto px-6 pt-24 pb-16 text-center">

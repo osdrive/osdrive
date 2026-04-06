@@ -8,7 +8,7 @@ import { A } from "@solidjs/router";
 export default function LandingMinimal() {
   return (
     <main class="min-h-screen">
-      <Title>OpenDrive | Your files, everywhere</Title>
+      <Title>OSDrive | Your files, everywhere</Title>
 
       {/* Hero */}
       <section class="max-w-4xl mx-auto px-6 pt-32 pb-24 text-center">
@@ -55,7 +55,7 @@ export default function LandingMinimal() {
             </div>
             <div class="flex-1 flex justify-center">
               <div class="px-4 py-1 rounded-md bg-white/5 text-sm text-muted">
-                OpenDrive
+                OSDrive
               </div>
             </div>
           </div>

@@ -17,11 +17,11 @@ CRATE_DIR="$REPO_ROOT/apps/desktop"
 TARGET_DIR="${CARGO_TARGET_DIR:-$REPO_ROOT/target}"
 
 if [ "$CONFIGURATION" = "Release" ]; then
-  "$CARGO_BIN" build --manifest-path "$CRATE_DIR/Cargo.toml" --bin opendrive --release
-  RUST_BINARY="$TARGET_DIR/release/opendrive"
+  "$CARGO_BIN" build --manifest-path "$CRATE_DIR/Cargo.toml" --bin osdrive --release
+  RUST_BINARY="$TARGET_DIR/release/osdrive"
 else
-  "$CARGO_BIN" build --manifest-path "$CRATE_DIR/Cargo.toml" --bin opendrive
-  RUST_BINARY="$TARGET_DIR/debug/opendrive"
+  "$CARGO_BIN" build --manifest-path "$CRATE_DIR/Cargo.toml" --bin osdrive
+  RUST_BINARY="$TARGET_DIR/debug/osdrive"
 fi
 
 APP_BINARY="$TARGET_BUILD_DIR/$EXECUTABLE_PATH"

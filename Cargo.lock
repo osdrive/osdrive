@@ -3774,33 +3774,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opendrive"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "block2",
- "chrono",
- "clap",
- "env_logger",
- "futures",
- "gpui",
- "human_bytes",
- "libc",
- "mime_guess",
- "objc2",
- "objc2-file-provider",
- "objc2-foundation",
- "od-db",
- "od-indexer",
- "opener",
- "rand 0.9.1",
- "reqwest",
- "serde",
- "serde_json",
- "unicode-segmentation",
-]
-
-[[package]]
 name = "opener"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3832,6 +3805,33 @@ checksum = "9aa2b01e1d916879f73a53d01d1d6cee68adbb31d6d9177a8cfce093cced1d50"
 dependencies = [
  "futures-core",
  "pin-project-lite",
+]
+
+[[package]]
+name = "osdrive"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "block2",
+ "chrono",
+ "clap",
+ "env_logger",
+ "futures",
+ "gpui",
+ "human_bytes",
+ "libc",
+ "mime_guess",
+ "objc2",
+ "objc2-file-provider",
+ "objc2-foundation",
+ "od-db",
+ "od-indexer",
+ "opener",
+ "rand 0.9.1",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "unicode-segmentation",
 ]
 
 [[package]]

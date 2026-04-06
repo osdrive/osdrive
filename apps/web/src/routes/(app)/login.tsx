@@ -100,7 +100,7 @@ export default function LoginPage() {
 
   return (
     <main class="grid min-h-[calc(100vh-8rem)] place-items-center py-4">
-      <Title>Login | OpenDrive</Title>
+      <Title>Login | OSDrive</Title>
 
       <section class="bg-panel border border-border rounded-[1.75rem] backdrop-blur-[18px] shadow-[0_28px_60px_rgba(0,0,0,0.28)] p-6 w-[min(68rem,100%)] grid grid-cols-[minmax(0,1.1fr)_minmax(22rem,28rem)] gap-6 items-start max-lg:grid-cols-1">
         <div class="grid gap-4 content-start">
@@ -109,7 +109,7 @@ export default function LoginPage() {
             {mode() === "signin" ? "Sign in and open your dashboard." : "Create an account in one step."}
           </h1>
           <p class="m-0 max-w-[64ch] text-muted leading-relaxed">
-            Email and password authentication is now handled directly in OpenDrive. New accounts land
+            Email and password authentication is now handled directly in OSDrive. New accounts land
             in the protected dashboard immediately.
           </p>
         </div>

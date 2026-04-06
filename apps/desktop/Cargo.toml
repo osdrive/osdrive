@@ -1,16 +1,13 @@
 [package]
-name = "opendrive"
+name = "osdrive"
 authors = ["Oscar Beaumont <oscar@otbeaumont.me>"]
 version = "0.0.0"
 edition = "2024"
 publish = false
 
 [lib]
-name = "opendrive_share"
+name = "osdrive_share"
 crate-type = ["staticlib"]
-
-[package.metadata.packager]
-before-packaging-command = "cargo build --release"
 
 [dependencies]
 gpui = "0.2.2"

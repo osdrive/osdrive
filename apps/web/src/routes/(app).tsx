@@ -33,7 +33,7 @@ export default function AppLayout(props: RouteSectionProps) {
           <span class="inline-grid place-items-center w-10 h-10 rounded-xl bg-[linear-gradient(135deg,var(--color-primary-strong),#5eead4)] text-[#08111f] shadow-[0_16px_42px_rgba(92,128,255,0.28)]">
             OD
           </span>
-          <span>OpenDrive</span>
+          <span>OSDrive</span>
         </A>
         <nav class="flex items-center gap-4 text-muted">
           <A href="/" class="hover:text-text [&[aria-current='page']]:text-text">Home</A>

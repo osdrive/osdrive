@@ -4,7 +4,7 @@ import { A } from "@solidjs/router";
 export default function Home() {
   return (
     <main class="grid gap-8">
-      <Title>OpenDrive | Index and share files</Title>
+      <Title>OSDrive | Index and share files</Title>
 
       <section class="bg-panel border border-border rounded-[1.75rem] backdrop-blur-[18px] shadow-[0_28px_60px_rgba(0,0,0,0.28)] p-6 grid gap-6 min-h-[32rem] content-start">
         <div class="text-primary-strong uppercase tracking-[0.18em] text-[0.72rem] font-bold">
@@ -14,7 +14,7 @@ export default function Home() {
           Upload once, share instantly, and keep every file addressable.
         </h1>
         <p class="m-0 max-w-[64ch] text-muted leading-relaxed">
-          OpenDrive gives your files a stable share ID, durable Cloudflare R2 storage, and a
+          OSDrive gives your files a stable share ID, durable Cloudflare R2 storage, and a
           clean viewer experience with metadata, previews, and direct downloads.
         </p>
         <div class="flex flex-wrap gap-3.5">

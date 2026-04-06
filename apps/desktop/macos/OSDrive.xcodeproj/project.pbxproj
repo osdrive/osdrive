@@ -67,7 +67,7 @@
 
 /* Begin PBXFileReference section */
 		551E696E2F82655900FC9136 /* share.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = share.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		55FBAFEB2F81888100514AED /* OpenDrive.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenDrive.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		55FBAFEB2F81888100514AED /* OSDrive.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OSDrive.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		55FBB0192F8189F000514AED /* vfs.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = vfs.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		55FBB01B2F8189F000514AED /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
@@ -153,7 +153,7 @@
 		55FBAFEC2F81888100514AED /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				55FBAFEB2F81888100514AED /* OpenDrive.app */,
+				55FBAFEB2F81888100514AED /* OSDrive.app */,
 				55FBB0192F8189F000514AED /* vfs.appex */,
 				551E696E2F82655900FC9136 /* share.appex */,
 			);
@@ -217,7 +217,7 @@
 			packageProductDependencies = (
 			);
 			productName = desktop;
-			productReference = 55FBAFEB2F81888100514AED /* OpenDrive.app */;
+			productReference = 55FBAFEB2F81888100514AED /* OSDrive.app */;
 			productType = "com.apple.product-type.application";
 		};
 		55FBB0182F8189F000514AED /* vfs */ = {
@@ -267,7 +267,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 55FBAFE62F81888000514AED /* Build configuration list for PBXProject "OpenDrive" */;
+			buildConfigurationList = 55FBAFE62F81888000514AED /* Build configuration list for PBXProject "OSDrive" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -351,7 +351,7 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(BUILT_PRODUCTS_DIR)/libopendrive_share.a",
+				"$(BUILT_PRODUCTS_DIR)/libosdrive_share.a",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -417,7 +417,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = share/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Share with OpenDrive";
+				INFOPLIST_KEY_CFBundleDisplayName = "Share with OSDrive";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -425,12 +425,12 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MARKETING_VERSION = 0.0.1;
-				OPEN_DRIVE_SERVER_URL = "http://localhost:5173";
+				OSDRIVE_SERVER_URL = "http://localhost:5173";
 				OTHER_LDFLAGS = (
 					"$(inherited)",
-					"$(BUILT_PRODUCTS_DIR)/libopendrive_share.a",
+					"$(BUILT_PRODUCTS_DIR)/libosdrive_share.a",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.opendrive.desktop.share;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.osdrive.desktop.share;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -457,7 +457,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = share/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Share with OpenDrive";
+				INFOPLIST_KEY_CFBundleDisplayName = "Share with OSDrive";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -465,12 +465,12 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MARKETING_VERSION = 0.0.1;
-				OPEN_DRIVE_SERVER_URL = "https://drive.otbeaumont.me";
+				OSDRIVE_SERVER_URL = "https://drive.otbeaumont.me";
 				OTHER_LDFLAGS = (
 					"$(inherited)",
-					"$(BUILT_PRODUCTS_DIR)/libopendrive_share.a",
+					"$(BUILT_PRODUCTS_DIR)/libosdrive_share.a",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.opendrive.desktop.share;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.osdrive.desktop.share;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -620,15 +620,15 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = desktop/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = OpenDrive;
+				INFOPLIST_KEY_CFBundleDisplayName = OSDrive;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 0.0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.opendrive.desktop;
-				PRODUCT_NAME = OpenDrive;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.osdrive.desktop;
+				PRODUCT_NAME = OSDrive;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -655,15 +655,15 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = desktop/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = OpenDrive;
+				INFOPLIST_KEY_CFBundleDisplayName = OSDrive;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 0.0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.opendrive.desktop;
-				PRODUCT_NAME = OpenDrive;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.osdrive.desktop;
+				PRODUCT_NAME = OSDrive;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -696,9 +696,9 @@
 				MARKETING_VERSION = 0.0.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
-					"$(BUILT_PRODUCTS_DIR)/libopendrive_share.a",
+					"$(BUILT_PRODUCTS_DIR)/libosdrive_share.a",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.opendrive.desktop.vfs;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.osdrive.desktop.vfs;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -732,9 +732,9 @@
 				MARKETING_VERSION = 0.0.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
-					"$(BUILT_PRODUCTS_DIR)/libopendrive_share.a",
+					"$(BUILT_PRODUCTS_DIR)/libosdrive_share.a",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.opendrive.desktop.vfs;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.osdrive.desktop.vfs;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -770,7 +770,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		55FBAFE62F81888000514AED /* Build configuration list for PBXProject "OpenDrive" */ = {
+		55FBAFE62F81888000514AED /* Build configuration list for PBXProject "OSDrive" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				55FBB00A2F81888300514AED /* Debug */,

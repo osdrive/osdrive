@@ -1,12 +1,12 @@
 import Cocoa
 import UniformTypeIdentifiers
 
-private struct OpendriveShareUploadResult {
+private struct OsdriveShareUploadResult {
     let share_url: UnsafeMutablePointer<CChar>?
     let error_message: UnsafeMutablePointer<CChar>?
 }
 
-private struct OpendriveJsonResult {
+private struct OsdriveJsonResult {
     let payload_json: UnsafeMutablePointer<CChar>?
     let error_message: UnsafeMutablePointer<CChar>?
 }
@@ -29,48 +29,48 @@ private struct ShareLoadAttemptPayload: Decodable {
     let typeIdentifier: String
 }
 
-@_silgen_name("opendrive_share_upload")
-private func opendrive_share_upload(
+@_silgen_name("osdrive_share_upload")
+private func osdrive_share_upload(
     _ serverBaseURL: UnsafePointer<CChar>,
     _ filePath: UnsafePointer<CChar>,
     _ displayName: UnsafePointer<CChar>,
     _ contentType: UnsafePointer<CChar>
-) -> UnsafeMutablePointer<OpendriveShareUploadResult>?
+) -> UnsafeMutablePointer<OsdriveShareUploadResult>?
 
-@_silgen_name("opendrive_share_result_free")
-private func opendrive_share_result_free(_ result: UnsafeMutablePointer<OpendriveShareUploadResult>?)
+@_silgen_name("osdrive_share_result_free")
+private func osdrive_share_result_free(_ result: UnsafeMutablePointer<OsdriveShareUploadResult>?)
 
-@_silgen_name("opendrive_share_prepare_file")
-private func opendrive_share_prepare_file(
+@_silgen_name("osdrive_share_prepare_file")
+private func osdrive_share_prepare_file(
     _ sourceFilePath: UnsafePointer<CChar>,
     _ suggestedName: UnsafePointer<CChar>,
     _ temporaryDirectory: UnsafePointer<CChar>
-) -> UnsafeMutablePointer<OpendriveJsonResult>?
+) -> UnsafeMutablePointer<OsdriveJsonResult>?
 
-@_silgen_name("opendrive_json_result_free")
-private func opendrive_json_result_free(_ result: UnsafeMutablePointer<OpendriveJsonResult>?)
+@_silgen_name("osdrive_json_result_free")
+private func osdrive_json_result_free(_ result: UnsafeMutablePointer<OsdriveJsonResult>?)
 
-@_silgen_name("opendrive_share_describe_file")
-private func opendrive_share_describe_file(
+@_silgen_name("osdrive_share_describe_file")
+private func osdrive_share_describe_file(
     _ sourceFilePath: UnsafePointer<CChar>
-) -> UnsafeMutablePointer<OpendriveJsonResult>?
+) -> UnsafeMutablePointer<OsdriveJsonResult>?
 
-@_silgen_name("opendrive_share_describe_file_url_string")
-private func opendrive_share_describe_file_url_string(
+@_silgen_name("osdrive_share_describe_file_url_string")
+private func osdrive_share_describe_file_url_string(
     _ fileURLString: UnsafePointer<CChar>
-) -> UnsafeMutablePointer<OpendriveJsonResult>?
+) -> UnsafeMutablePointer<OsdriveJsonResult>?
 
-@_silgen_name("opendrive_share_normalize_display_name")
-private func opendrive_share_normalize_display_name(
+@_silgen_name("osdrive_share_normalize_display_name")
+private func osdrive_share_normalize_display_name(
     _ displayName: UnsafePointer<CChar>
-) -> UnsafeMutablePointer<OpendriveJsonResult>?
+) -> UnsafeMutablePointer<OsdriveJsonResult>?
 
-@_silgen_name("opendrive_share_load_attempts")
-private func opendrive_share_load_attempts(
+@_silgen_name("osdrive_share_load_attempts")
+private func osdrive_share_load_attempts(
     _ registeredTypeIdentifiersJSON: UnsafePointer<CChar>,
     _ hasGenericItem: Bool,
     _ hasFileURL: Bool
-) -> UnsafeMutablePointer<OpendriveJsonResult>?
+) -> UnsafeMutablePointer<OsdriveJsonResult>?
 
 private struct SharedFile {
     let url: URL
@@ -336,7 +336,7 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
         let payloadString = String(decoding: payload, as: UTF8.self)
 
         return try payloadString.withCString { payloadPointer in
-            guard let result = opendrive_share_load_attempts(
+            guard let result = osdrive_share_load_attempts(
                 payloadPointer,
                 provider.hasItemConformingToTypeIdentifier(UTType.item.identifier),
                 provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)
@@ -345,7 +345,7 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
             }
 
             defer {
-                opendrive_json_result_free(result)
+                osdrive_json_result_free(result)
             }
 
             if let errorPointer = result.pointee.error_message {
@@ -423,7 +423,7 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
         let payload = try temporaryURL.path.withCString { sourcePathPointer in
             try temporaryURL.lastPathComponent.withCString { suggestedNamePointer in
                 try tempDirectory.path.withCString { temporaryDirectoryPointer in
-                    guard let result = opendrive_share_prepare_file(
+                    guard let result = osdrive_share_prepare_file(
                         sourcePathPointer,
                         suggestedNamePointer,
                         temporaryDirectoryPointer
@@ -432,7 +432,7 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
                     }
 
                     defer {
-                        opendrive_json_result_free(result)
+                        osdrive_json_result_free(result)
                     }
 
                     if let errorPointer = result.pointee.error_message {
@@ -455,12 +455,12 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
 
     nonisolated private func describeSharedFile(at url: URL) throws -> SharedFile {
         let payload = try url.path.withCString { sourcePathPointer in
-            guard let result = opendrive_share_describe_file(sourcePathPointer) else {
+            guard let result = osdrive_share_describe_file(sourcePathPointer) else {
                 throw ShareError("Could not inspect the shared file.")
             }
 
             defer {
-                opendrive_json_result_free(result)
+                osdrive_json_result_free(result)
             }
 
             if let errorPointer = result.pointee.error_message {
@@ -484,12 +484,12 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
 
     nonisolated private func describeSharedFileURLString(_ fileURLString: String) throws -> SharedFile? {
         try fileURLString.withCString { fileURLStringPointer in
-            guard let result = opendrive_share_describe_file_url_string(fileURLStringPointer) else {
+            guard let result = osdrive_share_describe_file_url_string(fileURLStringPointer) else {
                 throw ShareError("Could not inspect the shared file URL.")
             }
 
             defer {
-                opendrive_json_result_free(result)
+                osdrive_json_result_free(result)
             }
 
             if let errorPointer = result.pointee.error_message {
@@ -519,12 +519,12 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
 
     nonisolated private func normalizeDisplayName(_ displayName: String) throws -> String {
         try displayName.withCString { displayNamePointer in
-            guard let result = opendrive_share_normalize_display_name(displayNamePointer) else {
+            guard let result = osdrive_share_normalize_display_name(displayNamePointer) else {
                 throw ShareError("Could not prepare the file name.")
             }
 
             defer {
-                opendrive_json_result_free(result)
+                osdrive_json_result_free(result)
             }
 
             if let errorPointer = result.pointee.error_message {
@@ -547,7 +547,7 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
             try sharedFile.url.path.withCString { filePathPointer in
                 try displayName.withCString { displayNamePointer in
                     try sharedFile.contentType.withCString { contentTypePointer in
-                        guard let resultPointer = opendrive_share_upload(
+                        guard let resultPointer = osdrive_share_upload(
                             serverBaseURLPointer,
                             filePathPointer,
                             displayNamePointer,
@@ -557,7 +557,7 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
                         }
 
                         defer {
-                            opendrive_share_result_free(resultPointer)
+                            osdrive_share_result_free(resultPointer)
                         }
 
                         let result = resultPointer.pointee
@@ -577,7 +577,7 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
     }
 
     nonisolated private func serverBaseURL() throws -> URL {
-        if let override = ProcessInfo.processInfo.environment["OPENDRIVE_SERVER_URL"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+        if let override = ProcessInfo.processInfo.environment["OSDRIVE_SERVER_URL"]?.trimmingCharacters(in: .whitespacesAndNewlines),
            !override.isEmpty,
            let url = URL(string: override),
            url.scheme != nil,
@@ -585,14 +585,14 @@ final class ShareViewController: NSViewController, NSTextFieldDelegate {
             return url
         }
 
-        if let configured = Bundle.main.object(forInfoDictionaryKey: "OpenDriveServerURL") as? String,
+        if let configured = Bundle.main.object(forInfoDictionaryKey: "OSDriveServerURL") as? String,
            let url = URL(string: configured),
            url.scheme != nil,
            url.host != nil {
             return url
         }
 
-        throw ShareError("Missing OpenDriveServerURL in the share extension configuration.")
+        throw ShareError("Missing OSDriveServerURL in the share extension configuration.")
     }
 
 }

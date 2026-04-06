@@ -5,7 +5,7 @@ import { HttpStatusCode } from "@solidjs/start";
 export default function NotFound() {
   return (
     <main class="grid min-h-[calc(100vh-8rem)] place-items-center">
-      <Title>Not Found | OpenDrive</Title>
+      <Title>Not Found | OSDrive</Title>
       <HttpStatusCode code={404} />
       <section class="bg-panel border border-border rounded-[1.75rem] backdrop-blur-[18px] shadow-[0_28px_60px_rgba(0,0,0,0.28)] p-6 text-center grid place-items-center gap-4">
         <div class="text-primary-strong uppercase tracking-[0.18em] text-[0.72rem] font-bold">404</div>

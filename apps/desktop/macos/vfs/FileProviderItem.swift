@@ -32,13 +32,13 @@ enum RustFileProviderModel {
 
     static func item(for identifier: NSFileProviderItemIdentifier) -> Item? {
         guard let result = identifierToken(identifier).withCString({ token in
-            opendrive_vfs_item_json(token)
+            osdrive_vfs_item_json(token)
         }) else {
             return nil
         }
 
         defer {
-            opendrive_json_result_free(result)
+            osdrive_json_result_free(result)
         }
 
         if result.pointee.error_message != nil {
@@ -55,13 +55,13 @@ enum RustFileProviderModel {
 
     static func enumeration(of identifier: NSFileProviderItemIdentifier) -> Enumeration? {
         guard let result = identifierToken(identifier).withCString({ token in
-            opendrive_vfs_enumeration_json(token)
+            osdrive_vfs_enumeration_json(token)
         }) else {
             return nil
         }
 
         defer {
-            opendrive_json_result_free(result)
+            osdrive_json_result_free(result)
         }
 
         if result.pointee.error_message != nil {
@@ -79,12 +79,12 @@ enum RustFileProviderModel {
     static func fetchContents(for identifier: NSFileProviderItemIdentifier, in directory: URL) throws -> MaterializedItem {
         try identifierToken(identifier).withCString { identifierPointer in
             try directory.path.withCString { pathPointer in
-                guard let result = opendrive_vfs_fetch_contents_json(identifierPointer, pathPointer) else {
+                guard let result = osdrive_vfs_fetch_contents_json(identifierPointer, pathPointer) else {
                     throw CocoaError(.fileWriteUnknown)
                 }
 
                 defer {
-                    opendrive_json_result_free(result)
+                    osdrive_json_result_free(result)
                 }
 
                 if let errorMessage = result.pointee.error_message {

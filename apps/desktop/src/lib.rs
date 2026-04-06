@@ -9,24 +9,24 @@ use std::{
 use serde::Serialize;
 
 #[repr(C)]
-pub struct OpendriveShareUploadResult {
+pub struct OsdriveShareUploadResult {
     share_url: *mut c_char,
     error_message: *mut c_char,
 }
 
 #[repr(C)]
-pub struct OpendriveJsonResult {
+pub struct OsdriveJsonResult {
     payload_json: *mut c_char,
     error_message: *mut c_char,
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn opendrive_share_upload(
+pub extern "C" fn osdrive_share_upload(
     server_base_url: *const c_char,
     file_path: *const c_char,
     display_name: *const c_char,
     content_type: *const c_char,
-) -> *mut OpendriveShareUploadResult {
+) -> *mut OsdriveShareUploadResult {
     let result = panic::catch_unwind(|| {
         let server_base_url = match c_string_arg(server_base_url, "server_base_url") {
             Ok(value) => value,
@@ -66,11 +66,11 @@ pub extern "C" fn opendrive_share_upload(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn opendrive_share_prepare_file(
+pub extern "C" fn osdrive_share_prepare_file(
     source_file_path: *const c_char,
     suggested_name: *const c_char,
     temporary_directory: *const c_char,
-) -> *mut OpendriveJsonResult {
+) -> *mut OsdriveJsonResult {
     catch_json_result(|| {
         let source_file_path = c_string_arg(source_file_path, "source_file_path")?;
         let suggested_name = c_string_arg(suggested_name, "suggested_name")?;
@@ -82,9 +82,9 @@ pub extern "C" fn opendrive_share_prepare_file(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn opendrive_share_describe_file(
+pub extern "C" fn osdrive_share_describe_file(
     source_file_path: *const c_char,
-) -> *mut OpendriveJsonResult {
+) -> *mut OsdriveJsonResult {
     catch_json_result(|| {
         let source_file_path = c_string_arg(source_file_path, "source_file_path")?;
         share_upload::describe_shared_file(&source_file_path).map_err(|error| error.to_string())
@@ -92,9 +92,9 @@ pub extern "C" fn opendrive_share_describe_file(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn opendrive_share_normalize_display_name(
+pub extern "C" fn osdrive_share_normalize_display_name(
     display_name: *const c_char,
-) -> *mut OpendriveJsonResult {
+) -> *mut OsdriveJsonResult {
     catch_json_result(|| {
         let display_name = c_string_arg(display_name, "display_name")?;
         share_upload::normalize_display_name(&display_name).map_err(|error| error.to_string())
@@ -102,11 +102,11 @@ pub extern "C" fn opendrive_share_normalize_display_name(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn opendrive_share_load_attempts(
+pub extern "C" fn osdrive_share_load_attempts(
     registered_type_identifiers_json: *const c_char,
     has_generic_item: bool,
     has_file_url: bool,
-) -> *mut OpendriveJsonResult {
+) -> *mut OsdriveJsonResult {
     catch_json_result(|| {
         let registered_type_identifiers_json = c_string_arg(
             registered_type_identifiers_json,
@@ -125,9 +125,9 @@ pub extern "C" fn opendrive_share_load_attempts(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn opendrive_share_describe_file_url_string(
+pub extern "C" fn osdrive_share_describe_file_url_string(
     file_url_string: *const c_char,
-) -> *mut OpendriveJsonResult {
+) -> *mut OsdriveJsonResult {
     catch_json_result(|| {
         let file_url_string = c_string_arg(file_url_string, "file_url_string")?;
         share_upload::maybe_describe_shared_file_url_string(&file_url_string)
@@ -136,7 +136,7 @@ pub extern "C" fn opendrive_share_describe_file_url_string(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn opendrive_share_result_free(result: *mut OpendriveShareUploadResult) {
+pub extern "C" fn osdrive_share_result_free(result: *mut OsdriveShareUploadResult) {
     if result.is_null() {
         return;
     }
@@ -155,7 +155,7 @@ pub extern "C" fn opendrive_share_result_free(result: *mut OpendriveShareUploadR
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn opendrive_vfs_item_json(identifier: *const c_char) -> *mut OpendriveJsonResult {
+pub extern "C" fn osdrive_vfs_item_json(identifier: *const c_char) -> *mut OsdriveJsonResult {
     catch_json_result(|| {
         let identifier = c_string_arg(identifier, "identifier")?;
         vfs_model::item(&identifier).ok_or_else(|| "No such item.".to_string())
@@ -163,9 +163,9 @@ pub extern "C" fn opendrive_vfs_item_json(identifier: *const c_char) -> *mut Ope
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn opendrive_vfs_enumeration_json(
+pub extern "C" fn osdrive_vfs_enumeration_json(
     identifier: *const c_char,
-) -> *mut OpendriveJsonResult {
+) -> *mut OsdriveJsonResult {
     catch_json_result(|| {
         let identifier = c_string_arg(identifier, "identifier")?;
         vfs_model::enumerate(&identifier).ok_or_else(|| "No such item.".to_string())
@@ -173,10 +173,10 @@ pub extern "C" fn opendrive_vfs_enumeration_json(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn opendrive_vfs_fetch_contents_json(
+pub extern "C" fn osdrive_vfs_fetch_contents_json(
     identifier: *const c_char,
     destination_directory: *const c_char,
-) -> *mut OpendriveJsonResult {
+) -> *mut OsdriveJsonResult {
     catch_json_result(|| {
         let identifier = c_string_arg(identifier, "identifier")?;
         let destination_directory = c_string_arg(destination_directory, "destination_directory")?;
@@ -185,7 +185,7 @@ pub extern "C" fn opendrive_vfs_fetch_contents_json(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn opendrive_json_result_free(result: *mut OpendriveJsonResult) {
+pub extern "C" fn osdrive_json_result_free(result: *mut OsdriveJsonResult) {
     if result.is_null() {
         return;
     }
@@ -216,15 +216,15 @@ fn c_string_arg(value: *const c_char, name: &str) -> Result<String, String> {
     }
 }
 
-fn boxed_success(share_url: String) -> *mut OpendriveShareUploadResult {
-    Box::into_raw(Box::new(OpendriveShareUploadResult {
+fn boxed_success(share_url: String) -> *mut OsdriveShareUploadResult {
+    Box::into_raw(Box::new(OsdriveShareUploadResult {
         share_url: into_raw_c_string(share_url),
         error_message: ptr::null_mut(),
     }))
 }
 
-fn boxed_error(error_message: String) -> *mut OpendriveShareUploadResult {
-    Box::into_raw(Box::new(OpendriveShareUploadResult {
+fn boxed_error(error_message: String) -> *mut OsdriveShareUploadResult {
+    Box::into_raw(Box::new(OsdriveShareUploadResult {
         share_url: ptr::null_mut(),
         error_message: into_raw_c_string(error_message),
     }))
@@ -238,7 +238,7 @@ fn into_raw_c_string(value: String) -> *mut c_char {
         .into_raw()
 }
 
-fn catch_json_result<T, F>(f: F) -> *mut OpendriveJsonResult
+fn catch_json_result<T, F>(f: F) -> *mut OsdriveJsonResult
 where
     T: Serialize,
     F: FnOnce() -> Result<T, String> + panic::UnwindSafe,
@@ -250,9 +250,9 @@ where
     }
 }
 
-fn boxed_json_success<T: Serialize>(value: T) -> *mut OpendriveJsonResult {
+fn boxed_json_success<T: Serialize>(value: T) -> *mut OsdriveJsonResult {
     match serde_json::to_string(&value) {
-        Ok(payload_json) => Box::into_raw(Box::new(OpendriveJsonResult {
+        Ok(payload_json) => Box::into_raw(Box::new(OsdriveJsonResult {
             payload_json: into_raw_c_string(payload_json),
             error_message: ptr::null_mut(),
         })),
@@ -260,8 +260,8 @@ fn boxed_json_success<T: Serialize>(value: T) -> *mut OpendriveJsonResult {
     }
 }
 
-fn boxed_json_error(error_message: String) -> *mut OpendriveJsonResult {
-    Box::into_raw(Box::new(OpendriveJsonResult {
+fn boxed_json_error(error_message: String) -> *mut OsdriveJsonResult {
+    Box::into_raw(Box::new(OsdriveJsonResult {
         payload_json: ptr::null_mut(),
         error_message: into_raw_c_string(error_message),
     }))

@@ -27,7 +27,7 @@ export default function SharedFilePage() {
 
   return (
     <main class="grid gap-6">
-      <Title>{share()?.fileName ? `${share()!.fileName} | OpenDrive` : "Shared file | OpenDrive"}</Title>
+      <Title>{share()?.fileName ? `${share()!.fileName} | OSDrive` : "Shared file | OSDrive"}</Title>
 
       <Switch>
         <Match when={share.loading}>

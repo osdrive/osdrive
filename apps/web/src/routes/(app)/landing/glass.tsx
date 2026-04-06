@@ -8,7 +8,7 @@ import { A } from "@solidjs/router";
 export default function LandingGlass() {
   return (
     <main class="min-h-screen relative">
-      <Title>OpenDrive | Unified file management</Title>
+      <Title>OSDrive | Unified file management</Title>
 
       {/* Background */}
       <div class="fixed inset-0 -z-10">

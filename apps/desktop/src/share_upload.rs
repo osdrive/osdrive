@@ -250,7 +250,7 @@ pub fn maybe_describe_shared_file_url_string(
 fn desktop_shares_endpoint_url(server_base_url: &str) -> Result<Url, ShareUploadError> {
     let base = Url::parse(server_base_url).map_err(|_| {
         ShareUploadError::Message(
-            "Missing OpenDriveServerURL in the share extension configuration.".to_string(),
+            "Missing OSDriveServerURL in the share extension configuration.".to_string(),
         )
     })?;
 
@@ -302,7 +302,7 @@ fn create_multipart_body_file(
     boundary: &str,
 ) -> Result<PathBuf, ShareUploadError> {
     let body_path = std::env::temp_dir().join(format!(
-        "opendrive-share-{}-{}.multipart",
+        "osdrive-share-{}-{}.multipart",
         std::process::id(),
         rand::random::<u64>()
     ));

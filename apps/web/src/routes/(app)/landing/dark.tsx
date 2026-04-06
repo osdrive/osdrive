@@ -8,7 +8,7 @@ import { A } from "@solidjs/router";
 export default function LandingDark() {
   return (
     <main class="min-h-screen bg-black">
-      <Title>OpenDrive | Take control of your files</Title>
+      <Title>OSDrive | Take control of your files</Title>
 
       {/* Hero */}
       <section class="relative overflow-hidden">

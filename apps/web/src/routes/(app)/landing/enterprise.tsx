@@ -8,7 +8,7 @@ import { A } from "@solidjs/router";
 export default function LandingEnterprise() {
   return (
     <main class="min-h-screen">
-      <Title>OpenDrive | Enterprise File Management</Title>
+      <Title>OSDrive | Enterprise File Management</Title>
 
       {/* Hero */}
       <section class="max-w-6xl mx-auto px-6 pt-24 pb-20">
@@ -126,7 +126,7 @@ export default function LandingEnterprise() {
         <div class="text-center mb-16">
           <h2 class="text-4xl font-bold mb-4">Built for enterprise scale</h2>
           <p class="text-xl text-muted max-w-2xl mx-auto">
-            From startup to Fortune 500, OpenDrive grows with your organization.
+            From startup to Fortune 500, OSDrive grows with your organization.
           </p>
         </div>
 
@@ -155,7 +155,7 @@ export default function LandingEnterprise() {
             <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
           </svg>
           <blockquote class="text-2xl font-medium mb-6 leading-relaxed">
-            OpenDrive replaced three separate tools for us. The migration was seamless,
+            OSDrive replaced three separate tools for us. The migration was seamless,
             and our IT team finally has visibility into how files move across the organization.
           </blockquote>
           <div>
@@ -171,7 +171,7 @@ export default function LandingEnterprise() {
           <div>
             <h2 class="text-4xl font-bold mb-4">Ready to transform your file infrastructure?</h2>
             <p class="text-xl text-muted mb-8">
-              Get a personalized demo and see how OpenDrive can work for your team.
+              Get a personalized demo and see how OSDrive can work for your team.
             </p>
             <div class="flex items-center gap-4 flex-wrap">
               <A

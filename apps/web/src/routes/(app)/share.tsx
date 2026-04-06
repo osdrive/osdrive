@@ -78,7 +78,7 @@ export default function SharePage() {
 
   return (
     <main class="grid gap-6">
-      <Title>Share a file | OpenDrive</Title>
+      <Title>Share a file | OSDrive</Title>
 
       <section class="bg-panel border border-border rounded-[1.75rem] backdrop-blur-[18px] shadow-[0_28px_60px_rgba(0,0,0,0.28)] p-6 grid grid-cols-[1.1fr_0.9fr] gap-6 max-lg:grid-cols-1">
         <div class="grid gap-4 content-start">

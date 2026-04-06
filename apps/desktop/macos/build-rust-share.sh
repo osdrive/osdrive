@@ -52,16 +52,16 @@ BUILT_LIBRARIES=
 
 for RUST_TARGET in $RUST_TARGETS; do
   "$CARGO_BIN" build --manifest-path "$CRATE_DIR/Cargo.toml" --lib --target "$RUST_TARGET" $RELEASE_FLAG
-  BUILT_LIBRARIES="$BUILT_LIBRARIES $TARGET_DIR/$RUST_TARGET/$PROFILE/libopendrive_share.a"
+  BUILT_LIBRARIES="$BUILT_LIBRARIES $TARGET_DIR/$RUST_TARGET/$PROFILE/libosdrive_share.a"
 done
 
 set -- $BUILT_LIBRARIES
 
 if [ "$#" -eq 1 ]; then
-  cp "$1" "$BUILT_PRODUCTS_DIR/libopendrive_share.a"
+  cp "$1" "$BUILT_PRODUCTS_DIR/libosdrive_share.a"
 else
-  UNIVERSAL_LIBRARY=$(mktemp "${TMPDIR:-/tmp}/opendrive-share.XXXXXX.a")
+  UNIVERSAL_LIBRARY=$(mktemp "${TMPDIR:-/tmp}/osdrive-share.XXXXXX.a")
   trap 'rm -f "$UNIVERSAL_LIBRARY"' EXIT
   /usr/bin/lipo -create -output "$UNIVERSAL_LIBRARY" "$@"
-  cp "$UNIVERSAL_LIBRARY" "$BUILT_PRODUCTS_DIR/libopendrive_share.a"
+  cp "$UNIVERSAL_LIBRARY" "$BUILT_PRODUCTS_DIR/libosdrive_share.a"
 fi

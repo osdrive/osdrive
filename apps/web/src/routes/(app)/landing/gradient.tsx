@@ -8,7 +8,7 @@ import { A } from "@solidjs/router";
 export default function LandingGradient() {
   return (
     <main class="min-h-screen overflow-hidden">
-      <Title>OpenDrive | Files without limits</Title>
+      <Title>OSDrive | Files without limits</Title>
 
       {/* Background effects */}
       <div class="fixed inset-0 -z-10">
@@ -176,7 +176,7 @@ export default function LandingGradient() {
           <div class="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-cyan-500/20 rounded-3xl blur-3xl" />
           <div class="relative p-12 rounded-3xl border border-white/20 bg-black/40 backdrop-blur-xl">
             <h2 class="text-4xl font-bold mb-4">Ready to level up?</h2>
-            <p class="text-xl text-white/50 mb-8">Join 50,000+ teams already using OpenDrive.</p>
+            <p class="text-xl text-white/50 mb-8">Join 50,000+ teams already using OSDrive.</p>
             <A
               href="/login"
               class="inline-flex px-8 py-4 rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 font-semibold text-lg hover:opacity-90 transition-opacity"

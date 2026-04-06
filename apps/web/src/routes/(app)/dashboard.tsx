@@ -12,7 +12,7 @@ export default function DashboardPage() {
 
   return (
     <main class="grid gap-6">
-      <Title>Dashboard | OpenDrive</Title>
+      <Title>Dashboard | OSDrive</Title>
 
       <section class="bg-panel border border-border rounded-[1.75rem] backdrop-blur-[18px] shadow-[0_28px_60px_rgba(0,0,0,0.28)] p-6 grid gap-4">
         <div class="text-primary-strong uppercase tracking-[0.18em] text-[0.72rem] font-bold">Protected route</div>

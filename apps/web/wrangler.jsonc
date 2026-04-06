@@ -22,14 +22,14 @@
 	"r2_buckets": [
 		{
 			"binding": "DATA",
-			"bucket_name": "opendrive"
+			"bucket_name": "osdrive"
 		}
 	],
 	"d1_databases": [
 		{
 			"binding": "AUTH_DB",
-			"database_name": "opendrive-auth",
-			"database_id": "4bd8d67f-871a-4ef0-8d42-f14c64cd0553",
+			"database_name": "osdrive-auth",
+			"database_id": "84c7004d-913e-4f08-84c9-7139caf4211e",
 			"migrations_dir": "drizzle"
 		}
 	],

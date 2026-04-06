@@ -16,7 +16,7 @@ mod window;
 actions!(example, [QuitApp]);
 
 #[derive(Parser, Debug)]
-#[command(name = "opendrive")]
+#[command(name = "osdrive")]
 #[command(version)]
 struct Cli {
     #[command(subcommand)]
@@ -29,7 +29,7 @@ enum Command {
 }
 
 fn main() -> anyhow::Result<()> {
-    let is_gui_launch_mode = std::env::var("OPENDRIVE_LAUNCH_MODE").ok().as_deref() == Some("gui");
+    let is_gui_launch_mode = std::env::var("OSDRIVE_LAUNCH_MODE").ok().as_deref() == Some("gui");
 
     let cli = Cli::from_arg_matches(
         &Cli::command()

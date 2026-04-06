@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>Share with OpenDrive</string>
+	<string>OSDrive</string>
 	<key>CFBundleName</key>
-	<string>Share with OpenDrive</string>
-	<key>OpenDriveServerURL</key>
-	<string>$(OPEN_DRIVE_SERVER_URL)</string>
+	<string>OSDrive</string>
+	<key>OSDriveServerURL</key>
+	<string>$(OSDRIVE_SERVER_URL)</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>

@@ -46,9 +46,7 @@ mod platform {
 
     pub(crate) fn open_share_extension_settings_message() -> String {
         match open(EXTENSIONS_SETTINGS_URL) {
-            Ok(()) => {
-                "Opened System Settings so you can enable 'Share with OpenDrive'.".to_string()
-            }
+            Ok(()) => "Opened System Settings so you can enable 'OSDrive'.".to_string(),
             Err(error) => format!("Couldn't open System Settings: {error}"),
         }
     }
