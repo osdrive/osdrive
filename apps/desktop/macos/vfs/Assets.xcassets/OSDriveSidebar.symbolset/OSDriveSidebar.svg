@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="3300" height="2200" viewBox="0 0 3300 2200">
+  <g id="Notes">
+    <rect x="0" y="0" width="3300" height="2200" fill="white" opacity="0"/>
+    <text id="template-version" x="3036" y="1933">Template v.4.0</text>
+    <text id="descriptive-name" x="3036" y="1969">OSDriveSidebar</text>
+  </g>
+  <g id="Guides">
+    <line id="Baseline-S" x1="263" y1="696" x2="3036" y2="696" stroke="#27AAE1" stroke-width="0.5" opacity="0"/>
+    <line id="Capline-S" x1="263" y1="625.541" x2="3036" y2="625.541" stroke="#27AAE1" stroke-width="0.5" opacity="0"/>
+    <line id="Baseline-M" x1="263" y1="1126" x2="3036" y2="1126" stroke="#27AAE1" stroke-width="0.5" opacity="0"/>
+    <line id="Capline-M" x1="263" y1="1055.54" x2="3036" y2="1055.54" stroke="#27AAE1" stroke-width="0.5" opacity="0"/>
+    <line id="Baseline-L" x1="263" y1="1556" x2="3036" y2="1556" stroke="#27AAE1" stroke-width="0.5" opacity="0"/>
+    <line id="Capline-L" x1="263" y1="1485.54" x2="3036" y2="1485.54" stroke="#27AAE1" stroke-width="0.5" opacity="0"/>
+    <line id="left-margin-Regular-M" x1="1388" y1="1030" x2="1388" y2="1152" stroke="#00AEEF" stroke-width="0.5" opacity="0"/>
+    <line id="right-margin-Regular-M" x1="1512" y1="1030" x2="1512" y2="1152" stroke="#00AEEF" stroke-width="0.5" opacity="0"/>
+  </g>
+  <g id="Symbols">
+    <g id="Regular-M" transform="translate(1388 1055.54) scale(1.24)">
+      <path d="M29 24C21.8203 24 16 29.8203 16 37V63C16 70.1797 21.8203 76 29 76H71C78.1797 76 84 70.1797 84 63V37C84 29.8203 78.1797 24 71 24H29ZM29 31H71C74.3137 31 77 33.6863 77 37V63C77 66.3137 74.3137 69 71 69H29C25.6863 69 23 66.3137 23 63V37C23 33.6863 25.6863 31 29 31ZM39 45C35.6863 45 33 47.6863 33 51C33 54.3137 35.6863 57 39 57C42.3137 57 45 54.3137 45 51C45 47.6863 42.3137 45 39 45ZM61 45C57.6863 45 55 47.6863 55 51C55 54.3137 57.6863 57 61 57C64.3137 57 67 54.3137 67 51C67 47.6863 64.3137 45 61 45ZM46.5 48.5C44.567 48.5 43 50.067 43 52C43 53.933 44.567 55.5 46.5 55.5H53.5C55.433 55.5 57 53.933 57 52C57 50.067 55.433 48.5 53.5 48.5H46.5Z" fill="black"/>
+    </g>
+  </g>
+</svg>

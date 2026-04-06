@@ -103,7 +103,7 @@ impl Render for ProviderWindow {
                 div()
                     .text_xl()
                     .font_weight(FontWeight::BOLD)
-                    .child("Hello World File Provider"),
+                    .child("OSDrive File Provider"),
             )
             .child(
                 div()

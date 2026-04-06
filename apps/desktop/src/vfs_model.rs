@@ -6,7 +6,7 @@ use std::{
 
 pub const ROOT_IDENTIFIER: &str = "__root__";
 pub const WORKING_SET_IDENTIFIER: &str = "__working_set__";
-pub const DOMAIN_DISPLAY_NAME: &str = "Hello World";
+pub const DOMAIN_DISPLAY_NAME: &str = "OSDrive";
 
 const HELLO_FILE_IDENTIFIER: &str = "hello.txt";
 const CONTENT_VERSION: &[u8] = b"1";

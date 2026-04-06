@@ -417,7 +417,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = share/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Share with OSDrive";
+				INFOPLIST_KEY_CFBundleDisplayName = "OSDrive";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -425,12 +425,13 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MARKETING_VERSION = 0.0.1;
+				OSDRIVE_APP_GROUP_IDENTIFIER = "group.app.osdrive.app.dev";
 				OSDRIVE_SERVER_URL = "http://localhost:5173";
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"$(BUILT_PRODUCTS_DIR)/libosdrive_share.a",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.osdrive.desktop.share;
+				PRODUCT_BUNDLE_IDENTIFIER = app.osdrive.app.dev.share;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -457,7 +458,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = share/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Share with OSDrive";
+				INFOPLIST_KEY_CFBundleDisplayName = "OSDrive";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -465,12 +466,13 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MARKETING_VERSION = 0.0.1;
-				OSDRIVE_SERVER_URL = "https://drive.otbeaumont.me";
+				OSDRIVE_APP_GROUP_IDENTIFIER = "group.app.osdrive.app";
+				OSDRIVE_SERVER_URL = "https://osdrive.app";
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"$(BUILT_PRODUCTS_DIR)/libosdrive_share.a",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.osdrive.desktop.share;
+				PRODUCT_BUNDLE_IDENTIFIER = app.osdrive.app.share;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -620,15 +622,17 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = desktop/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = OSDrive;
+				INFOPLIST_KEY_CFBundleDisplayName = "OSDrive (Development)";
+				INFOPLIST_KEY_CFBundleName = "OSDrive (Development)";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 0.0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.osdrive.desktop;
-				PRODUCT_NAME = OSDrive;
+				OSDRIVE_APP_GROUP_IDENTIFIER = "group.app.osdrive.app.dev";
+				PRODUCT_BUNDLE_IDENTIFIER = app.osdrive.app.dev;
+				PRODUCT_NAME = "OSDrive (Development)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -656,13 +660,15 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = desktop/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = OSDrive;
+				INFOPLIST_KEY_CFBundleName = OSDrive;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 0.0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.osdrive.desktop;
+				OSDRIVE_APP_GROUP_IDENTIFIER = "group.app.osdrive.app";
+				PRODUCT_BUNDLE_IDENTIFIER = app.osdrive.app;
 				PRODUCT_NAME = OSDrive;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -686,7 +692,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = vfs/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = vfs;
+				INFOPLIST_KEY_CFBundleDisplayName = OSDrive;
+				INFOPLIST_KEY_CFBundleName = OSDrive;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -694,11 +701,12 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MARKETING_VERSION = 0.0.1;
+				OSDRIVE_APP_GROUP_IDENTIFIER = "group.app.osdrive.app.dev";
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"$(BUILT_PRODUCTS_DIR)/libosdrive_share.a",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.osdrive.desktop.vfs;
+				PRODUCT_BUNDLE_IDENTIFIER = app.osdrive.app.dev.vfs;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -722,7 +730,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = vfs/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = vfs;
+				INFOPLIST_KEY_CFBundleDisplayName = OSDrive;
+				INFOPLIST_KEY_CFBundleName = OSDrive;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -730,11 +739,12 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MARKETING_VERSION = 0.0.1;
+				OSDRIVE_APP_GROUP_IDENTIFIER = "group.app.osdrive.app";
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"$(BUILT_PRODUCTS_DIR)/libosdrive_share.a",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.osdrive.desktop.vfs;
+				PRODUCT_BUNDLE_IDENTIFIER = app.osdrive.app.vfs;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
