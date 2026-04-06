@@ -80,6 +80,13 @@
 			);
 			target = 551E696D2F82655900FC9136 /* share */;
 		};
+		55FBAFEE2F81888100514AED /* Exceptions for "desktop" folder in "desktop" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 55FBAFEA2F81888000514AED /* desktop */;
+		};
 		55FBB0292F8189F000514AED /* Exceptions for "vfs" folder in "vfs" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -100,6 +107,9 @@
 		};
 		55FBAFED2F81888100514AED /* desktop */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				55FBAFEE2F81888100514AED /* Exceptions for "desktop" folder in "desktop" target */,
+			);
 			path = desktop;
 			sourceTree = "<group>";
 		};
