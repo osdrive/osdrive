@@ -1,7 +1,7 @@
-# Call this stack `osdev-setup`. This must be deployed manually to setup the Git sync.
-# https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/quickcreate?templateURL=https%3A%2F%2Fs3.us-east-1.amazonaws.com%2Fcf-templates-10xpydu1oaf2x-us-east-1%2F2026-04-10T165226.358Zv3p-setup.yaml&stackName=osdev-setup
+# Call this stack `osdev-bootstrap`. This must be deployed manually to setup the Git sync.
+# https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/quickcreate?templateURL=https%3A%2F%2Fs3.us-east-1.amazonaws.com%2Fcf-templates-10xpydu1oaf2x-us-east-1%2F2026-04-10T170609.279Zwmf-bootstrap.yaml&stackName=osdev-bootstrap
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Bootstrap git sync for osdev CloudFormation
+Description: Bootstrap Git sync for osdev CloudFormation
 
 Resources:
   GitSyncConnection:
