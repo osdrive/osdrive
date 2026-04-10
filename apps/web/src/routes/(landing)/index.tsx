@@ -1,35 +1,6 @@
-// v8h: Centered hero, no right panel — headline + subtext + CTAs, then a row of
-// simple drive pills below. Nothing to the right; all the breathing room is the point.
 import * as Popover from "@kobalte/core/popover";
 import { Button } from "~/components/ui/button";
 import { Separator } from "~/components/ui/separator";
-
-function DownloadButton(props: { size?: "sm" | "lg"; class?: string; children: any }) {
-  return (
-    <Popover.Root placement="bottom">
-      <Popover.Trigger
-        as="div"
-        class="inline-flex cursor-pointer"
-        aria-label="Download — coming soon"
-      >
-        <Button
-          size={props.size}
-          class={`bg-stone-900 hover:bg-stone-800 text-stone-50 rounded-full opacity-60 cursor-not-allowed pointer-events-none ${props.class ?? ""}`}
-          aria-disabled="true"
-        >
-          {props.children}
-        </Button>
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content class="z-50 origin-(--kb-popover-content-transform-origin) animate-in fade-in-0 zoom-in-95 rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-lg shadow-stone-900/8 outline-none">
-          <Popover.Arrow class="fill-white [&>path:first-of-type]:stroke-stone-200" />
-          <p class="text-sm font-medium text-stone-900">Coming soon</p>
-          <p class="mt-0.5 text-xs text-stone-500 leading-relaxed max-w-[14rem]">We're putting the finishing touches on the desktop app. Check back shortly.</p>
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
-  );
-}
 
 const capabilities = [
   { icon: (<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>), title: "Native Mounting", desc: "Your drives appear in Finder and Explorer as local volumes. No abstraction, no extra apps." },
@@ -40,27 +11,16 @@ const capabilities = [
   { icon: (<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>), title: "File Explorer UI", desc: "A full browser-based file manager is coming — manage every drive from any device.", soon: true },
 ];
 
-export default function LandingV8h() {
-  return (
-    <div class="min-h-screen bg-stone-50 text-stone-900 font-sans">
-      <header class="sticky top-0 z-50 bg-stone-50/95 backdrop-blur-sm border-b border-stone-200">
-        <div class="mx-auto max-w-7xl px-8 flex h-16 items-center justify-between">
-          <div class="flex items-center gap-2">
-            <img src="/assets/icon-dark.svg" alt="OSDrive" class="h-6 w-6 rounded" />
-            <span class="font-semibold tracking-tight">OSDrive</span>
-          </div>
-          <nav class="hidden md:flex items-center gap-8 text-sm text-stone-500">
-            <a href="#product" class="hover:text-stone-900 transition-colors">Product</a>
-            <a href="#enterprise" class="hover:text-stone-900 transition-colors">Enterprise</a>
-            <a href="/pricing" class="hover:text-stone-900 transition-colors">Pricing</a>
-            <a href="/docs" class="hover:text-stone-900 transition-colors">Docs</a>
-          </nav>
-          <div class="flex items-center gap-3">
-            <a href="/dashboard"><Button variant="outline" size="sm" class="rounded-full border-stone-300 text-stone-600">Dashboard</Button></a>
-          </div>
-        </div>
-      </header>
+const drives = [
+  { name: "Engineering Drive", size: "2.4 TB", status: "Mounted", col: "bg-sky-500" },
+  { name: "Design Assets",     size: "890 GB", status: "Synced",  col: "bg-violet-500" },
+  { name: "Client Work",       size: "340 GB", status: "Mounted", col: "bg-emerald-500" },
+  { name: "Backup Archive",    size: "12.1 TB", status: "Synced", col: "bg-amber-500" },
+];
 
+export default function Page() {
+  return (
+    <>
       {/* Hero — centered, no right panel */}
       <section class="py-24 px-8">
         <div class="mx-auto max-w-3xl text-center">
@@ -79,6 +39,17 @@ export default function LandingV8h() {
             <a href="/dashboard">
               <Button variant="outline" size="lg" class="border-stone-300 text-stone-600 hover:bg-stone-100 rounded-full px-10 h-12">Open Dashboard →</Button>
             </a>
+          </div>
+          {/* Drive pills */}
+          <div class="flex flex-wrap justify-center gap-2.5">
+            {drives.map((d) => (
+              <div class="flex items-center gap-2 border border-stone-200 bg-white rounded-full px-3.5 py-1.5 shadow-sm">
+                <div class={`h-2 w-2 rounded-full ${d.col}`} />
+                <span class="text-xs font-medium text-stone-700">{d.name}</span>
+                <span class="text-xs text-stone-400">{d.size}</span>
+                <span class="text-[10px] text-emerald-600 font-medium">{d.status}</span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -158,21 +129,33 @@ export default function LandingV8h() {
           </div>
         </div>
       </section>
+    </>
+  );
+}
 
-      <footer class="border-t border-stone-200 py-8 px-8">
-        <div class="mx-auto max-w-7xl flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-stone-400">
-          <div class="flex items-center gap-2">
-            <img src="/assets/icon-dark.svg" alt="OSDrive" class="h-4 w-4 rounded" />
-            <span class="font-medium text-stone-900">OSDrive</span>
-            <span>© 2025</span>
-          </div>
-          <div class="flex flex-wrap justify-center gap-6">
-            {[["Privacy","/privacy"],["Terms","/terms"],["Security","/security"],["Docs","/docs"],["Dashboard","/dashboard"],["Account","/account"]].map(([l,h]) => (
-              <a href={h} class="hover:text-stone-900 transition-colors">{l}</a>
-            ))}
-          </div>
-        </div>
-      </footer>
-    </div>
+function DownloadButton(props: { size?: "sm" | "lg"; class?: string; children: any }) {
+  return (
+    <Popover.Root placement="bottom">
+      <Popover.Trigger
+        as="div"
+        class="inline-flex cursor-pointer"
+        aria-label="Download — coming soon"
+      >
+        <Button
+          size={props.size}
+          class={`bg-stone-900 hover:bg-stone-800 text-stone-50 rounded-full opacity-60 cursor-not-allowed pointer-events-none ${props.class ?? ""}`}
+          aria-disabled="true"
+        >
+          {props.children}
+        </Button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content class="z-50 origin-(--kb-popover-content-transform-origin) animate-in fade-in-0 zoom-in-95 rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-lg shadow-stone-900/8 outline-none">
+          <Popover.Arrow class="fill-white [&>path:first-of-type]:stroke-stone-200" />
+          <p class="text-sm font-medium text-stone-900">Coming soon</p>
+          <p class="mt-0.5 text-xs text-stone-500 leading-relaxed max-w-[14rem]">We're putting the finishing touches on the desktop app. Check back shortly.</p>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
