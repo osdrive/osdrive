@@ -1,0 +1,92 @@
+# Call this stack `osdev-setup`. This must be deployed manually to setup the Git sync.
+# https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/quickcreate?templateURL=https%3A%2F%2Fs3.us-east-1.amazonaws.com%2Fcf-templates-10xpydu1oaf2x-us-east-1%2F2026-04-10T165226.358Zv3p-setup.yaml&stackName=osdev-setup
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Bootstrap git sync for osdev CloudFormation
+
+Resources:
+  GitSyncConnection:
+    Type: AWS::CodeStarConnections::Connection
+    Properties:
+      ConnectionName: osdev-git-sync
+      ProviderType: GitHub
+
+  GitSyncRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: osdev-GitSyncRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CfnGitSyncTrustPolicy
+            Effect: Allow
+            Principal:
+              Service: cloudformation.sync.codeconnections.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GitSyncCloudFormationAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: SyncToOnlyOsdevStack
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeStacks
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:GetTemplate
+                  - cloudformation:ListChangeSets
+                  - cloudformation:ValidateTemplate
+                Resource:
+                  - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/osdev/*
+                  - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:changeSet/*/*
+              - Sid: ListStacks
+                Effect: Allow
+                Action:
+                  - cloudformation:ListStacks
+                Resource: "*"
+              - Sid: PolicyForManagedRules
+                Effect: Allow
+                Action:
+                  - events:PutRule
+                  - events:PutTargets
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    events:ManagedBy: cloudformation.sync.codeconnections.amazonaws.com
+              - Sid: PolicyForDescribingRule
+                Effect: Allow
+                Action:
+                  - events:DescribeRule
+                Resource: "*"
+
+  RepositoryLink:
+    Type: AWS::CodeStarConnections::RepositoryLink
+    Properties:
+      ConnectionArn: !Ref GitSyncConnection
+      OwnerId: osdev
+      RepositoryName: osdev
+
+  GitSyncConfig:
+    Type: AWS::CodeStarConnections::SyncConfiguration
+    Properties:
+      Branch: main
+      RepositoryLinkId: !GetAtt RepositoryLink.RepositoryLinkId
+      ResourceName: osdev
+      RoleArn: !GetAtt GitSyncRole.Arn
+      SyncType: CFN_STACK_SYNC
+      PublishDeploymentStatus: ENABLED
+      TriggerResourceUpdateOn: FILE_CHANGE
+      ConfigFile: apps/web/infra/deployment.yaml
+
+Outputs:
+  ConnectionArn:
+    Value: !Ref GitSyncConnection
+
+  RepositoryLinkId:
+    Value: !GetAtt RepositoryLink.RepositoryLinkId
+
+  SyncConfigurationArn:
+    Value: !Ref GitSyncConfig
