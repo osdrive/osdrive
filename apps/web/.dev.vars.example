@@ -1,2 +1,0 @@
-BETTER_AUTH_SECRET="replace-with-a-long-random-secret-at-least-32-chars"
-BETTER_AUTH_URL="http://localhost:3000"

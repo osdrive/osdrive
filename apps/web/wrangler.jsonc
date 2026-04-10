@@ -34,9 +34,14 @@
 		}
 	],
 	"vars": {
-    "BETTER_AUTH_URL": "https://osdrive.app"
-  },
-  "secrets": {
-    "required": ["BETTER_AUTH_SECRET"],
-  },
+		"BETTER_AUTH_URL": "https://osdrive.app",
+		"AWS_REGION": "ap-southeast-2"
+	},
+	"secrets": {
+		"required": [
+			"BETTER_AUTH_SECRET",
+			"AWS_ACCESS_KEY_ID",
+			"AWS_SECRET_ACCESS_KEY"
+		]
+	}
 }

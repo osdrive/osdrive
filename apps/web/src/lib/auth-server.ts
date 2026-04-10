@@ -5,25 +5,40 @@ import { getHeaders, getRequestURL } from "@solidjs/start/http";
 import { getDb } from "~/lib/db";
 import { authSchema } from "~/lib/db/schema/auth";
 
-function readRequiredEnv(name: "BETTER_AUTH_SECRET" | "BETTER_AUTH_URL") {
-  const value = env[name] ?? process.env[name];
-
-  if (typeof value !== "string" || !value.trim()) {
-    throw new Error(`Missing required auth config: ${name}`);
-  }
-
-  return value;
-}
+console.log("GOT", env.BETTER_AUTH_SECRET, env.BETTER_AUTH_URL); // TODO
 
 export const auth = betterAuth({
   database: drizzleAdapter(getDb(), {
     provider: "sqlite",
     schema: authSchema,
   }),
-  secret: readRequiredEnv("BETTER_AUTH_SECRET"),
-  baseURL: readRequiredEnv("BETTER_AUTH_URL"),
+  secret: env.BETTER_AUTH_SECRET,
+  baseURL: env.BETTER_AUTH_URL,
   emailAndPassword: {
     enabled: true,
+    sendResetPassword: async ({ user, url }) => {
+      await env.EMAIL.send({
+        from: "noreply@osdrive.app",
+        to: user.email,
+        subject: "Reset your OSDrive password",
+        text: [
+          "Hi,",
+          "",
+          "You requested a password reset for your OSDrive account.",
+          "",
+          `Reset your password: ${url}`,
+          "",
+          "If you didn't request this, you can safely ignore this email.",
+          "This link expires in 1 hour.",
+        ].join("\n"),
+        html: [
+          "<p>Hi,</p>",
+          "<p>You requested a password reset for your OSDrive account.</p>",
+          `<p><a href="${url}">Reset your password</a></p>`,
+          "<p>If you didn't request this, you can safely ignore this email.<br>This link expires in 1 hour.</p>",
+        ].join(""),
+      });
+    },
   },
   user: {
     changeEmail: {
