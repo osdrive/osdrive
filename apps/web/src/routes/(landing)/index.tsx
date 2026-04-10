@@ -22,7 +22,7 @@ export default function Page() {
   return (
     <>
       {/* Hero — centered, no right panel */}
-      <section class="py-24 px-8">
+      <section class="pt-24 pb-18 px-8">
         <div class="mx-auto max-w-3xl text-center">
           <p class="text-xs text-stone-400 uppercase tracking-[0.2em] mb-7">Cloud storage that disappears into your workflow</p>
           <h1 class="text-6xl md:text-7xl font-light tracking-tight text-stone-900 leading-[1.02] mb-7">
@@ -39,17 +39,6 @@ export default function Page() {
             <a href="/dashboard">
               <Button variant="outline" size="lg" class="border-stone-300 text-stone-600 hover:bg-stone-100 rounded-full px-10 h-12">Open Dashboard →</Button>
             </a>
-          </div>
-          {/* Drive pills */}
-          <div class="flex flex-wrap justify-center gap-2.5">
-            {drives.map((d) => (
-              <div class="flex items-center gap-2 border border-stone-200 bg-white rounded-full px-3.5 py-1.5 shadow-sm">
-                <div class={`h-2 w-2 rounded-full ${d.col}`} />
-                <span class="text-xs font-medium text-stone-700">{d.name}</span>
-                <span class="text-xs text-stone-400">{d.size}</span>
-                <span class="text-[10px] text-emerald-600 font-medium">{d.status}</span>
-              </div>
-            ))}
           </div>
         </div>
       </section>
