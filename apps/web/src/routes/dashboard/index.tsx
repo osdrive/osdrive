@@ -3,7 +3,8 @@
 //  - Tenant switching and creation
 //  - Auth (logout + separate login flow)
 //  - Tenant settings w/ billing, account management
-//  - Contact/feedback buttona
+//  - Contact/feedback button
+//  - DND for file uploads in layout
 //
 //  - Add "drives" to sidebar
 //  - Search???
