@@ -12,6 +12,7 @@
     "@better-auth/drizzle-adapter": "^1.5.6",
     "@fontsource-variable/geist": "^5.2.8",
     "@kobalte/core": "^0.13.11",
+    "@paralleldrive/cuid2": "^3.3.0",
     "@solidjs/meta": "^0.29.4",
     "@solidjs/router": "^0.15.0",
     "@solidjs/start": "2.0.0-alpha.2",

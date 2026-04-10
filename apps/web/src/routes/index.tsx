@@ -1,229 +1,174 @@
+// v8h: Centered hero, no right panel — headline + subtext + CTAs, then a row of
+// simple drive pills below. Nothing to the right; all the breathing room is the point.
+import * as Popover from "@kobalte/core/popover";
 import { Button } from "~/components/ui/button";
-import { Badge } from "~/components/ui/badge";
-import { Card, CardContent } from "~/components/ui/card";
+import { Separator } from "~/components/ui/separator";
 
-const features = [
-  {
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>
-    ),
-    title: "Native Drive Mounting",
-    desc: "Mount cloud shares directly in Finder or Windows Explorer. Access your files as if they're local — no third-party tools required.",
-  },
-  {
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
-    ),
-    title: "Cross-Device Sync",
-    desc: "Keep files in sync across all your devices automatically. Changes propagate instantly with conflict-free resolution.",
-  },
-  {
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-    ),
-    title: "Indexed Filesystem",
-    desc: "We maintain a live index of your filesystem so every search, move, and browse operation is near-instant, regardless of directory size.",
-  },
-  {
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>
-    ),
-    title: "Secure File Sharing",
-    desc: "Share files and folders with granular permissions. Set expiry dates, password protection, and access logs for full visibility.",
-  },
-  {
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-    ),
-    title: "Cloud Drive Creation",
-    desc: "Provision cloud drives in seconds from your dashboard. Define quotas, policies, and access controls per drive.",
-  },
-  {
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-    ),
-    title: "File Explorer UI",
-    desc: "A full-featured browser-based file explorer is coming — manage, preview, and organise your drives from any device, anywhere.",
-  },
-];
-
-const stats = [
-  { value: "10B+", label: "Files Indexed" },
-  { value: "500K+", label: "Active Mounts" },
-  { value: "2,000+", label: "Enterprises" },
-  { value: "99.99%", label: "Uptime SLA" },
-];
-
-export default function Page() {
+function DownloadButton(props: { size?: "sm" | "lg"; class?: string; children: any }) {
   return (
-    <div class="min-h-screen bg-zinc-950 text-white font-sans">
-      {/* Nav */}
-      <header class="fixed top-0 inset-x-0 z-50 border-b border-white/10 bg-zinc-950/80 backdrop-blur-xl">
-        <div class="mx-auto max-w-7xl px-6 flex h-16 items-center justify-between">
-          <div class="flex items-center gap-2.5">
-            <div class="h-8 w-8 rounded-lg bg-white flex items-center justify-center shrink-0">
-              <span class="text-zinc-950 font-bold text-xs tracking-tight">OS</span>
-            </div>
-            <span class="font-semibold text-lg tracking-tight">OSDrive</span>
+    <Popover.Root placement="bottom">
+      <Popover.Trigger
+        as="div"
+        class="inline-flex cursor-pointer"
+        aria-label="Download — coming soon"
+      >
+        <Button
+          size={props.size}
+          class={`bg-stone-900 hover:bg-stone-800 text-stone-50 rounded-full opacity-60 cursor-not-allowed pointer-events-none ${props.class ?? ""}`}
+          aria-disabled="true"
+        >
+          {props.children}
+        </Button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content class="z-50 origin-(--kb-popover-content-transform-origin) animate-in fade-in-0 zoom-in-95 rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-lg shadow-stone-900/8 outline-none">
+          <Popover.Arrow class="fill-white [&>path:first-of-type]:stroke-stone-200" />
+          <p class="text-sm font-medium text-stone-900">Coming soon</p>
+          <p class="mt-0.5 text-xs text-stone-500 leading-relaxed max-w-[14rem]">We're putting the finishing touches on the desktop app. Check back shortly.</p>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+const capabilities = [
+  { icon: (<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>), title: "Native Mounting", desc: "Your drives appear in Finder and Explorer as local volumes. No abstraction, no extra apps." },
+  { icon: (<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>), title: "Live Filesystem Index", desc: "Every search, listing, and move served from an in-memory index. Under 50ms, always." },
+  { icon: (<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>), title: "Cross-Device Sync", desc: "Block-level delta sync propagates changes instantly. Every device, always current." },
+  { icon: (<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>), title: "Secure Sharing", desc: "Shareable links with per-user permissions, expiry, passwords, and a full access log." },
+  { icon: (<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>), title: "Cloud Drive Creation", desc: "Provision drives in seconds. Set quotas, access policies, and RBAC from day one." },
+  { icon: (<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>), title: "File Explorer UI", desc: "A full browser-based file manager is coming — manage every drive from any device.", soon: true },
+];
+
+export default function LandingV8h() {
+  return (
+    <div class="min-h-screen bg-stone-50 text-stone-900 font-sans">
+      <header class="sticky top-0 z-50 bg-stone-50/95 backdrop-blur-sm border-b border-stone-200">
+        <div class="mx-auto max-w-7xl px-8 flex h-16 items-center justify-between">
+          <div class="flex items-center gap-2">
+            <img src="/assets/icon-dark.svg" alt="OSDrive" class="h-6 w-6 rounded" />
+            <span class="font-semibold tracking-tight">OSDrive</span>
           </div>
-          <nav class="hidden md:flex items-center gap-8 text-sm text-zinc-400">
-            <a href="#features" class="hover:text-white transition-colors">Features</a>
-            <a href="#enterprise" class="hover:text-white transition-colors">Enterprise</a>
-            <a href="/docs" class="hover:text-white transition-colors">Docs</a>
+          <nav class="hidden md:flex items-center gap-8 text-sm text-stone-500">
+            <a href="#product" class="hover:text-stone-900 transition-colors">Product</a>
+            <a href="#enterprise" class="hover:text-stone-900 transition-colors">Enterprise</a>
+            <a href="/pricing" class="hover:text-stone-900 transition-colors">Pricing</a>
+            <a href="/docs" class="hover:text-stone-900 transition-colors">Docs</a>
           </nav>
           <div class="flex items-center gap-3">
-            <a href="/account" class="hidden sm:block text-sm text-zinc-400 hover:text-white transition-colors">Account</a>
-            <a href="/dashboard">
-              <Button variant="outline" size="sm" class="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white">
-                Dashboard
-              </Button>
-            </a>
-            <a href="/download">
-              <Button size="sm">
-                Download
-              </Button>
-            </a>
+            <a href="/dashboard"><Button variant="outline" size="sm" class="rounded-full border-stone-300 text-stone-600">Dashboard</Button></a>
           </div>
         </div>
       </header>
 
-      {/* Hero */}
-      <section class="relative pt-40 pb-28 px-6 overflow-hidden">
-        <div
-          class="pointer-events-none absolute inset-0 opacity-30"
-          style="background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 64px 64px;"
-        />
-        <div class="relative mx-auto max-w-4xl text-center">
-          <Badge variant="outline" class="mb-8 border-emerald-500/40 text-emerald-400 bg-emerald-500/10 px-4 py-1.5 text-xs tracking-wide">
-            Enterprise Cloud Storage & Sync
-          </Badge>
-          <h1 class="text-6xl md:text-8xl font-bold tracking-tight leading-none mb-6 bg-gradient-to-b from-white via-white to-zinc-500 bg-clip-text text-transparent">
-            Your Filesystem.<br />Everywhere.
+      {/* Hero — centered, no right panel */}
+      <section class="py-24 px-8">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs text-stone-400 uppercase tracking-[0.2em] mb-7">Cloud storage that disappears into your workflow</p>
+          <h1 class="text-6xl md:text-7xl font-light tracking-tight text-stone-900 leading-[1.02] mb-7">
+            The cloud drive<br />that <em class="italic">feels</em> local.
           </h1>
-          <p class="text-lg md:text-xl text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            OSDrive syncs, shares, and mounts your files natively across every device — backed by a live filesystem index that makes every operation instant.
+          <p class="text-lg text-stone-500 leading-relaxed mb-10 max-w-xl mx-auto">
+            OSDrive mounts your cloud storage natively in Finder, keeps a live filesystem index for instant access, and syncs across every device — automatically.
           </p>
-          <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a href="/download">
-              <Button size="lg" class="px-8 text-base h-12">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                Download OSDrive
-              </Button>
-            </a>
+          <div class="flex flex-wrap justify-center gap-3 mb-12">
+            <DownloadButton size="lg" class="px-10 h-12">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+              Download free
+            </DownloadButton>
             <a href="/dashboard">
-              <Button variant="outline" size="lg" class="px-8 text-base h-12 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white">
-                Open Dashboard →
-              </Button>
+              <Button variant="outline" size="lg" class="border-stone-300 text-stone-600 hover:bg-stone-100 rounded-full px-10 h-12">Open Dashboard →</Button>
             </a>
           </div>
-          <p class="mt-5 text-xs text-zinc-600">Available for macOS · Windows · Linux</p>
         </div>
       </section>
 
-      {/* Stats */}
-      <section class="border-y border-white/5 bg-white/[0.02] py-12 px-6">
-        <div class="mx-auto max-w-5xl grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          {stats.map((s) => (
-            <div>
-              <div class="text-3xl md:text-4xl font-bold text-white tracking-tight">{s.value}</div>
-              <div class="text-sm text-zinc-500 mt-1">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <Separator class="bg-stone-200" />
 
-      {/* Features */}
-      <section id="features" class="py-28 px-6">
-        <div class="mx-auto max-w-6xl">
-          <div class="text-center mb-16">
-            <h2 class="text-4xl md:text-5xl font-bold text-white tracking-tight mb-4">
-              Built for serious work
-            </h2>
-            <p class="text-zinc-400 text-lg max-w-2xl mx-auto">
-              Every feature is designed around speed, reliability, and native OS integration.
-            </p>
+      <section id="product" class="py-20 px-8">
+        <div class="mx-auto max-w-7xl">
+          <div class="mb-14">
+            <p class="text-xs text-stone-400 uppercase tracking-[0.2em] mb-4">Product</p>
+            <h2 class="text-4xl font-light text-stone-900 tracking-tight max-w-lg leading-snug">Everything you need, nothing you don't.</h2>
           </div>
           <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {features.map((f) => (
-              <Card class="border-white/10 bg-white/[0.03] hover:bg-white/[0.06] transition-colors duration-200 rounded-xl">
-                <CardContent class="p-6">
-                  <div class="h-10 w-10 rounded-lg bg-white/10 flex items-center justify-center mb-4 text-zinc-300">
-                    {f.icon}
-                  </div>
-                  <h3 class="font-semibold text-white mb-2">{f.title}</h3>
-                  <p class="text-zinc-400 text-sm leading-relaxed">{f.desc}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Enterprise */}
-      <section id="enterprise" class="py-24 px-6 border-t border-white/5">
-        <div class="mx-auto max-w-5xl grid md:grid-cols-2 gap-16 items-center">
-          <div>
-            <Badge variant="secondary" class="mb-6 text-xs">Enterprise Ready</Badge>
-            <h2 class="text-4xl font-bold text-white tracking-tight mb-5">
-              The infrastructure your team demands
-            </h2>
-            <p class="text-zinc-400 leading-relaxed mb-8">
-              OSDrive is built for organisations that need more than a consumer sync tool. Centralised access control, audit logs, SSO, and dedicated SLAs — all managed from a single dashboard.
-            </p>
-            <ul class="space-y-3 text-sm text-zinc-300">
-              {["SSO & SCIM provisioning", "Role-based access control", "Audit logs & compliance exports", "Dedicated SLA & support", "On-premise deployment option"].map((item) => (
-                <li class="flex items-center gap-3">
-                  <div class="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-            <div class="mt-10 flex gap-4">
-              <a href="/dashboard">
-                <Button size="lg" class="px-6">Get Started</Button>
-              </a>
-              <a href="/contact">
-                <Button variant="outline" size="lg" class="px-6 border-zinc-700 text-zinc-300 hover:bg-zinc-800">Contact Sales</Button>
-              </a>
-            </div>
-          </div>
-          <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-8 space-y-4">
-            {["Filesystem Index", "Drive Mounting", "Cross-device Sync", "Access Control", "Sharing & Permissions", "File Explorer UI"].map((item, i) => (
-              <div class="flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
-                <div class={`h-2 w-2 rounded-full shrink-0 ${i < 5 ? "bg-emerald-400" : "bg-zinc-600"}`} />
-                <span class="text-sm text-zinc-300">{item}</span>
-                <span class="ml-auto text-xs text-zinc-600">{i < 5 ? "Available" : "Coming soon"}</span>
+            {capabilities.map((c) => (
+              <div class={`rounded-2xl border p-7 ${c.soon ? "border-dashed border-stone-200 bg-transparent" : "border-stone-200 bg-white shadow-sm"}`}>
+                <div class="text-stone-400 mb-4">{c.icon}</div>
+                <div class="flex items-center gap-2 mb-2">
+                  <h3 class="text-base font-semibold text-stone-900">{c.title}</h3>
+                  {c.soon && <span class="text-[10px] px-2 py-0.5 rounded-full bg-stone-100 text-stone-400 border border-stone-200">Soon</span>}
+                </div>
+                <p class="text-stone-500 text-sm leading-relaxed">{c.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section class="py-28 px-6">
-        <div class="mx-auto max-w-xl text-center">
-          <h2 class="text-4xl font-bold text-white tracking-tight mb-5">
-            Ready to connect your drives?
-          </h2>
-          <p class="text-zinc-400 mb-8">Download OSDrive and mount your first drive in under two minutes.</p>
-          <a href="/download">
-            <Button size="lg" class="px-10 text-base h-12">
-              Download for Free
-            </Button>
-          </a>
+      <section class="py-20 px-8 bg-stone-900">
+        <div class="mx-auto max-w-7xl">
+          <p class="text-xs text-stone-600 uppercase tracking-[0.2em] mb-12">Scale</p>
+          <div class="grid md:grid-cols-3 gap-12">
+            {[["10 billion","files indexed","across all active installations globally"],["99.99%","uptime","measured continuously for two years"],["< 50ms","index latency","for any filesystem operation on mounted drives"]].map(([v,u,d]) => (
+              <div>
+                <div class="text-5xl font-light text-stone-100 mb-2">{v}</div>
+                <div class="text-stone-400 font-medium mb-2 text-sm">{u}</div>
+                <div class="text-xs text-stone-600 leading-relaxed">{d}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer class="border-t border-white/10 py-10 px-6">
-        <div class="mx-auto max-w-5xl flex flex-col md:flex-row items-center justify-between gap-6">
-          <div class="flex items-center gap-2 text-zinc-500 text-sm">
-            <span class="font-semibold text-white">OSDrive</span>
-            <span>© 2025. All rights reserved.</span>
+      <section id="enterprise" class="py-20 px-8">
+        <div class="mx-auto max-w-7xl grid md:grid-cols-2 gap-20 items-start">
+          <div>
+            <p class="text-xs text-stone-400 uppercase tracking-[0.2em] mb-6">Enterprise</p>
+            <h2 class="text-4xl font-light tracking-tight mb-6 leading-snug">Scales from one person<br />to your entire org</h2>
+            <p class="text-stone-500 text-sm leading-relaxed mb-8">Start on the free tier and grow into SSO, SCIM, audit logs, data residency, and a dedicated SLA — same product, same native feel throughout.</p>
+            <div class="flex gap-3">
+              <a href="/contact"><Button size="lg" class="bg-stone-900 hover:bg-stone-800 text-stone-50 rounded-full px-8">Talk to sales</Button></a>
+              <a href="/dashboard"><Button variant="outline" size="lg" class="border-stone-300 text-stone-600 hover:bg-stone-100 rounded-full px-8">Start free</Button></a>
+            </div>
           </div>
-          <div class="flex flex-wrap justify-center gap-6 text-sm text-zinc-500">
-            {[["Privacy", "/privacy"], ["Terms", "/terms"], ["Docs", "/docs"], ["Dashboard", "/dashboard"], ["Account", "/account"]].map(([label, href]) => (
-              <a href={href} class="hover:text-white transition-colors">{label}</a>
+          <div>
+            {["SSO (SAML 2.0, OIDC)","SCIM provisioning & deprovisioning","Role-based access control","Immutable audit trail","Custom data residency","On-premise deployment","Dedicated SLA & priority support","Volume licensing & invoice billing"].map((item, i) => (
+              <div>
+                {i > 0 && <Separator class="bg-stone-100" />}
+                <div class="flex items-center justify-between py-3.5">
+                  <span class="text-stone-600 text-sm">{item}</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-stone-300 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <Separator class="bg-stone-200" />
+
+      <section class="py-28 px-8">
+        <div class="mx-auto max-w-xl text-center">
+          <h2 class="text-5xl font-light tracking-tight mb-5 leading-tight">One download.<br /><span class="italic">Everything connected.</span></h2>
+          <p class="text-stone-500 mb-10">Mount your first cloud drive in Finder in under two minutes. Free to start.</p>
+          <div class="flex flex-col sm:flex-row justify-center gap-4">
+            <DownloadButton size="lg" class="px-10 h-12 text-base">Download OSDrive</DownloadButton>
+            <a href="/dashboard"><Button variant="outline" size="lg" class="border-stone-300 text-stone-600 hover:bg-stone-100 rounded-full px-10 h-12 text-base">Open Dashboard</Button></a>
+          </div>
+        </div>
+      </section>
+
+      <footer class="border-t border-stone-200 py-8 px-8">
+        <div class="mx-auto max-w-7xl flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-stone-400">
+          <div class="flex items-center gap-2">
+            <img src="/assets/icon-dark.svg" alt="OSDrive" class="h-4 w-4 rounded" />
+            <span class="font-medium text-stone-900">OSDrive</span>
+            <span>© 2025</span>
+          </div>
+          <div class="flex flex-wrap justify-center gap-6">
+            {[["Privacy","/privacy"],["Terms","/terms"],["Security","/security"],["Docs","/docs"],["Dashboard","/dashboard"],["Account","/account"]].map(([l,h]) => (
+              <a href={h} class="hover:text-stone-900 transition-colors">{l}</a>
             ))}
           </div>
         </div>
