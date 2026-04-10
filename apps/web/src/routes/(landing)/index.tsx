@@ -108,6 +108,84 @@ export default function Page() {
 
       <Separator class="bg-stone-200" />
 
+      <section id="pricing" class="py-20 px-8">
+        <div class="mx-auto max-w-7xl">
+          <div class="mb-14">
+            <p class="text-xs text-stone-400 uppercase tracking-[0.2em] mb-4">Pricing</p>
+            <h2 class="text-4xl font-light text-stone-900 tracking-tight leading-snug">Simple, predictable pricing.</h2>
+          </div>
+          <div class="grid md:grid-cols-3 gap-5 items-start">
+            {/* Free */}
+            <div class="rounded-2xl border border-stone-200 bg-white p-8 shadow-sm">
+              <p class="text-sm font-medium text-stone-900 mb-1">Free</p>
+              <div class="flex items-baseline gap-1 mb-1">
+                <span class="text-4xl font-light text-stone-900">$0</span>
+                <span class="text-stone-400 text-sm">/ mo</span>
+              </div>
+              <p class="text-xs text-stone-400 mb-8">For personal use. No card required.</p>
+              <a href="/dashboard">
+                <Button variant="outline" class="w-full rounded-full border-stone-300 text-stone-600 hover:bg-stone-100 mb-8">Get started</Button>
+              </a>
+              <ul class="space-y-3 text-sm text-stone-500">
+                {["50 GB storage", "1 drive", "2 devices", "Basic sharing"].map(f => (
+                  <li class="flex items-center gap-2.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-stone-400 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Pro — featured */}
+            <div class="rounded-2xl border border-stone-900 bg-stone-900 p-8 shadow-sm">
+              <div class="flex items-center justify-between mb-1">
+                <p class="text-sm font-medium text-stone-50">Pro</p>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-stone-700 text-stone-300 font-medium">Most popular</span>
+              </div>
+              <div class="flex items-baseline gap-1 mb-1">
+                <span class="text-4xl font-light text-stone-50">$9</span>
+                <span class="text-stone-500 text-sm">/ mo</span>
+              </div>
+              <p class="text-xs text-stone-500 mb-8">Everything you need as an individual or small team.</p>
+              <a href="/dashboard">
+                <Button class="w-full rounded-full bg-stone-50 text-stone-900 hover:bg-white mb-8">Get started</Button>
+              </a>
+              <ul class="space-y-3 text-sm text-stone-400">
+                {["2 TB storage", "Unlimited drives", "10 devices", "Advanced sharing & permissions", "Priority sync", "Email support"].map(f => (
+                  <li class="flex items-center gap-2.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-stone-500 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Team */}
+            <div class="rounded-2xl border border-stone-200 bg-white p-8 shadow-sm">
+              <p class="text-sm font-medium text-stone-900 mb-1">Team</p>
+              <div class="flex items-baseline gap-1 mb-1">
+                <span class="text-4xl font-light text-stone-900">$25</span>
+                <span class="text-stone-400 text-sm">/ user / mo</span>
+              </div>
+              <p class="text-xs text-stone-400 mb-8">For teams that need shared drives and admin controls.</p>
+              <a href="/contact">
+                <Button variant="outline" class="w-full rounded-full border-stone-300 text-stone-600 hover:bg-stone-100 mb-8">Talk to sales</Button>
+              </a>
+              <ul class="space-y-3 text-sm text-stone-500">
+                {["5 TB per user", "Shared team drives", "Unlimited devices", "RBAC & audit log", "SSO (SAML, OIDC)", "Dedicated support & SLA"].map(f => (
+                  <li class="flex items-center gap-2.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-stone-400 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Separator class="bg-stone-200" />
+
       <section class="py-28 px-8">
         <div class="mx-auto max-w-xl text-center">
           <h2 class="text-5xl font-light tracking-tight mb-5 leading-tight">One download.<br /><span class="italic">Everything connected.</span></h2>
