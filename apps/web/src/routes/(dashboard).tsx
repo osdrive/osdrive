@@ -1,24 +1,11 @@
-// TODO:
-//  - Dashboard layout
-//  - Tenant switching and creation
-//  - Auth (logout + separate login flow)
-//  - Tenant settings w/ billing, account management
-//  - Contact/feedback button
-//  - DND for file uploads in layout
-//
-//  - Add "drives" to sidebar
-//  - Search???
-//  - Command + K menu
-
-import { Check, ChevronsUpDown, Search } from "lucide-solid";
-import { createSignal, For, Show } from "solid-js";
+import { createAsync, useNavigate } from "@solidjs/router";
+import { Check, ChevronsUpDown, LogOut, Search } from "lucide-solid";
+import { createSignal, For, type ParentProps, Show } from "solid-js";
 import {
   Breadcrumb,
   BreadcrumbItem,
-  BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
-  BreadcrumbSeparator,
 } from "~/components/ui/breadcrumb";
 import {
   DropdownMenu,
@@ -31,6 +18,7 @@ import { Separator } from "~/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -44,6 +32,18 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "~/components/ui/sidebar";
+import { requireCurrentUserQuery } from "~/lib/auth";
+import { authClient } from "~/lib/auth-client";
+
+// TODO:
+//  - Tenant switching and creation
+//  - Tenant settings w/ billing, account management
+//  - Contact/feedback button
+//  - DND for file uploads in layout
+//
+//  - Add "drives" to sidebar
+//  - Search???
+//  - Command + K menu
 
 const data = {
   versions: ["1.0.1", "1.1.0-alpha", "2.0.0-beta1"],
@@ -176,8 +176,16 @@ const data = {
   ],
 };
 
-export default function SidebarExample() {
+export default function DashboardLayout(props: ParentProps) {
+  const user = createAsync(() => requireCurrentUserQuery());
+
+  const navigate = useNavigate();
   const [selectedVersion, setSelectedVersion] = createSignal(data.versions[0]);
+
+  const handleSignOut = async () => {
+    await authClient.signOut();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <SidebarProvider>
@@ -246,6 +254,29 @@ export default function SidebarExample() {
             )}
           </For>
         </SidebarContent>
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <div class="flex items-center gap-2 px-2 py-1.5">
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-xs font-semibold">
+                  {user()?.name?.[0]?.toUpperCase() ?? "?"}
+                </span>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium">{user()?.name}</p>
+                  <p class="truncate text-xs text-muted-foreground">{user()?.email}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  class="ml-auto rounded p-1 text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                  title="Sign out"
+                >
+                  <LogOut class="size-4" />
+                </button>
+              </div>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
         <SidebarRail />
       </Sidebar>
       <SidebarInset>
@@ -254,24 +285,13 @@ export default function SidebarExample() {
           <Separator orientation="vertical" class="mr-2 data-[orientation=vertical]:h-4" />
           <Breadcrumb>
             <BreadcrumbList>
-              <BreadcrumbItem class="hidden md:block">
-                <BreadcrumbLink href="#">Building Your Application</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator class="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>Data Fetching</BreadcrumbPage>
+                <BreadcrumbPage>Dashboard</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
         </header>
-        <div class="flex flex-1 flex-col gap-4 p-4">
-          <div class="grid auto-rows-min gap-4 md:grid-cols-3">
-            <div class="aspect-video rounded-xl bg-muted/50" />
-            <div class="aspect-video rounded-xl bg-muted/50" />
-            <div class="aspect-video rounded-xl bg-muted/50" />
-          </div>
-          <div class="min-h-screen flex-1 rounded-xl bg-muted/50 md:min-h-min" />
-        </div>
+        {props.children}
       </SidebarInset>
     </SidebarProvider>
   );

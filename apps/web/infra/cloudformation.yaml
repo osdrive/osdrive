@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template for OSDrive
+
+Parameters:
+  EmailIdentityArn:
+    Type: String
+    Default: arn:aws:ses:ap-southeast-2:630589800159:identity/osdrive.app
+    Description: Existing SES identity ARN the worker is allowed to send from.
+  EmailFromAddress:
+    Type: String
+    Default: hello@osdrive.app
+    Description: Exact From address allowed for the generated credentials.
+  AwsUserName:
+    Type: String
+    Default: osdrive-cloudflare-ses
+    Description: IAM user name for the Cloudflare worker.
+
+Resources:
+  AwsCloudflareUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName:
+        Ref: AwsUserName
+      Policies:
+        - PolicyName: ses-send-email
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Resource:
+                  Ref: EmailIdentityArn
+                Condition:
+                  StringEquals:
+                    ses:FromAddress:
+                      Ref: EmailFromAddress
+
+  AwsCloudflareAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName:
+        Ref: AwsCloudflareUser
+
+Outputs:
+  AwsRegion:
+    Description: Set this as AWS_REGION in Wrangler vars.
+    Value: ap-southeast-2
+  AwsAccessKeyId:
+    Description: Set this as the Cloudflare secret AWS_ACCESS_KEY_ID.
+    Value:
+      Ref: AwsCloudflareAccessKey
+  AwsSecretAccessKey:
+    Description: Set this as the Cloudflare secret AWS_SECRET_ACCESS_KEY.
+    Value:
+      Fn::GetAtt:
+        - AwsCloudflareAccessKey
+        - SecretAccessKey
+  EmailFromAddress:
+    Description: Verified SES sender configured for the worker.
+    Value:
+      Ref: EmailFromAddress
