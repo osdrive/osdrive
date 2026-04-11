@@ -2,22 +2,6 @@ import * as Popover from "@kobalte/core/popover";
 import { Button } from "~/components/ui/button";
 import { Separator } from "~/components/ui/separator";
 
-const capabilities = [
-  { icon: (<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>), title: "Native Mounting", desc: "Your drives appear in Finder and Explorer as local volumes. No abstraction, no extra apps." },
-  { icon: (<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>), title: "Live Filesystem Index", desc: "Every search, listing, and move served from an in-memory index. Under 50ms, always." },
-  { icon: (<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>), title: "Cross-Device Sync", desc: "Block-level delta sync propagates changes instantly. Every device, always current." },
-  { icon: (<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>), title: "Secure Sharing", desc: "Shareable links with per-user permissions, expiry, passwords, and a full access log." },
-  { icon: (<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>), title: "Cloud Drive Creation", desc: "Provision drives in seconds. Set quotas, access policies, and RBAC from day one." },
-  { icon: (<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>), title: "File Explorer UI", desc: "A full browser-based file manager is coming — manage every drive from any device.", soon: true },
-];
-
-const drives = [
-  { name: "Engineering Drive", size: "2.4 TB", status: "Mounted", col: "bg-sky-500" },
-  { name: "Design Assets",     size: "890 GB", status: "Synced",  col: "bg-violet-500" },
-  { name: "Client Work",       size: "340 GB", status: "Mounted", col: "bg-emerald-500" },
-  { name: "Backup Archive",    size: "12.1 TB", status: "Synced", col: "bg-amber-500" },
-];
-
 export default function Page() {
   return (
     <>
@@ -52,16 +36,37 @@ export default function Page() {
             <h2 class="text-4xl font-light text-stone-900 tracking-tight max-w-lg leading-snug">Everything you need, nothing you don't.</h2>
           </div>
           <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {capabilities.map((c) => (
-              <div class={`rounded-2xl border p-7 ${c.soon ? "border-dashed border-stone-200 bg-transparent" : "border-stone-200 bg-white shadow-sm"}`}>
-                <div class="text-stone-400 mb-4">{c.icon}</div>
-                <div class="flex items-center gap-2 mb-2">
-                  <h3 class="text-base font-semibold text-stone-900">{c.title}</h3>
-                  {c.soon && <span class="text-[10px] px-2 py-0.5 rounded-full bg-stone-100 text-stone-400 border border-stone-200">Soon</span>}
-                </div>
-                <p class="text-stone-500 text-sm leading-relaxed">{c.desc}</p>
-              </div>
-            ))}
+            <CapabilityCard
+              icon={<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>}
+              title="Native Mounting"
+              desc="Your drives appear in Finder and Explorer as local volumes. No abstraction, no extra apps."
+            />
+            <CapabilityCard
+              icon={<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>}
+              title="Live Filesystem Index"
+              desc="Every search, listing, and move served from an in-memory index. Under 50ms, always."
+            />
+            <CapabilityCard
+              icon={<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>}
+              title="Cross-Device Sync"
+              desc="Block-level delta sync propagates changes instantly. Every device, always current."
+            />
+            <CapabilityCard
+              icon={<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>}
+              title="Secure Sharing"
+              desc="Shareable links with per-user permissions, expiry, passwords, and a full access log."
+            />
+            <CapabilityCard
+              icon={<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>}
+              title="Cloud Drive Creation"
+              desc="Provision drives in seconds. Set quotas, access policies, and RBAC from day one."
+            />
+            <CapabilityCard
+              icon={<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>}
+              title="File Explorer UI"
+              desc="A full browser-based file manager is coming — manage every drive from any device."
+              soon
+            />
           </div>
         </div>
       </section>
@@ -70,13 +75,9 @@ export default function Page() {
         <div class="mx-auto max-w-7xl">
           <p class="text-xs text-stone-600 uppercase tracking-[0.2em] mb-12">Scale</p>
           <div class="grid md:grid-cols-3 gap-12">
-            {[["10 billion","files indexed","across all active installations globally"],["99.99%","uptime","measured continuously for two years"],["< 50ms","index latency","for any filesystem operation on mounted drives"]].map(([v,u,d]) => (
-              <div>
-                <div class="text-5xl font-light text-stone-100 mb-2">{v}</div>
-                <div class="text-stone-400 font-medium mb-2 text-sm">{u}</div>
-                <div class="text-xs text-stone-600 leading-relaxed">{d}</div>
-              </div>
-            ))}
+            <ScaleStat value="10 billion" unit="files indexed" description="across all active installations globally" />
+            <ScaleStat value="99.99%" unit="uptime" description="measured continuously for two years" />
+            <ScaleStat value="< 50ms" unit="index latency" description="for any filesystem operation on mounted drives" />
           </div>
         </div>
       </section>
@@ -93,15 +94,14 @@ export default function Page() {
             </div>
           </div>
           <div>
-            {["SSO (SAML 2.0, OIDC)","SCIM provisioning & deprovisioning","Role-based access control","Immutable audit trail","Custom data residency","On-premise deployment","Dedicated SLA & priority support","Volume licensing & invoice billing"].map((item, i) => (
-              <div>
-                {i > 0 && <Separator class="bg-stone-100" />}
-                <div class="flex items-center justify-between py-3.5">
-                  <span class="text-stone-600 text-sm">{item}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-stone-300 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-              </div>
-            ))}
+            <EnterpriseFeatureRow label="SSO (SAML 2.0, OIDC)" />
+            <EnterpriseFeatureRow label="SCIM provisioning & deprovisioning" withSeparator />
+            <EnterpriseFeatureRow label="Role-based access control" withSeparator />
+            <EnterpriseFeatureRow label="Immutable audit trail" withSeparator />
+            <EnterpriseFeatureRow label="Custom data residency" withSeparator />
+            <EnterpriseFeatureRow label="On-premise deployment" withSeparator />
+            <EnterpriseFeatureRow label="Dedicated SLA & priority support" withSeparator />
+            <EnterpriseFeatureRow label="Volume licensing & invoice billing" withSeparator />
           </div>
         </div>
       </section>
@@ -127,12 +127,10 @@ export default function Page() {
                 <Button variant="outline" class="w-full rounded-full border-stone-300 text-stone-600 hover:bg-stone-100 mb-8">Get started</Button>
               </a>
               <ul class="space-y-3 text-sm text-stone-500">
-                {["50 GB storage", "1 drive", "2 devices", "Basic sharing"].map(f => (
-                  <li class="flex items-center gap-2.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-stone-400 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
-                    {f}
-                  </li>
-                ))}
+                <PricingFeatureItem text="50 GB storage" iconClass="text-stone-400" />
+                <PricingFeatureItem text="1 drive" iconClass="text-stone-400" />
+                <PricingFeatureItem text="2 devices" iconClass="text-stone-400" />
+                <PricingFeatureItem text="Basic sharing" iconClass="text-stone-400" />
               </ul>
             </div>
 
@@ -151,12 +149,12 @@ export default function Page() {
                 <Button class="w-full rounded-full bg-stone-50 text-stone-900 hover:bg-white mb-8">Get started</Button>
               </a>
               <ul class="space-y-3 text-sm text-stone-400">
-                {["2 TB storage", "Unlimited drives", "10 devices", "Advanced sharing & permissions", "Priority sync", "Email support"].map(f => (
-                  <li class="flex items-center gap-2.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-stone-500 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
-                    {f}
-                  </li>
-                ))}
+                <PricingFeatureItem text="2 TB storage" iconClass="text-stone-500" />
+                <PricingFeatureItem text="Unlimited drives" iconClass="text-stone-500" />
+                <PricingFeatureItem text="10 devices" iconClass="text-stone-500" />
+                <PricingFeatureItem text="Advanced sharing & permissions" iconClass="text-stone-500" />
+                <PricingFeatureItem text="Priority sync" iconClass="text-stone-500" />
+                <PricingFeatureItem text="Email support" iconClass="text-stone-500" />
               </ul>
             </div>
 
@@ -172,12 +170,12 @@ export default function Page() {
                 <Button variant="outline" class="w-full rounded-full border-stone-300 text-stone-600 hover:bg-stone-100 mb-8">Talk to sales</Button>
               </a>
               <ul class="space-y-3 text-sm text-stone-500">
-                {["5 TB per user", "Shared team drives", "Unlimited devices", "RBAC & audit log", "SSO (SAML, OIDC)", "Dedicated support & SLA"].map(f => (
-                  <li class="flex items-center gap-2.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-stone-400 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
-                    {f}
-                  </li>
-                ))}
+                <PricingFeatureItem text="5 TB per user" iconClass="text-stone-400" />
+                <PricingFeatureItem text="Shared team drives" iconClass="text-stone-400" />
+                <PricingFeatureItem text="Unlimited devices" iconClass="text-stone-400" />
+                <PricingFeatureItem text="RBAC & audit log" iconClass="text-stone-400" />
+                <PricingFeatureItem text="SSO (SAML, OIDC)" iconClass="text-stone-400" />
+                <PricingFeatureItem text="Dedicated support & SLA" iconClass="text-stone-400" />
               </ul>
             </div>
           </div>
@@ -197,6 +195,50 @@ export default function Page() {
         </div>
       </section>
     </>
+  );
+}
+
+function CapabilityCard(props: { icon: any; title: string; desc: string; soon?: boolean }) {
+  return (
+    <div class={`rounded-2xl border p-7 ${props.soon ? "border-dashed border-stone-200 bg-transparent" : "border-stone-200 bg-white shadow-sm"}`}>
+      <div class="text-stone-400 mb-4">{props.icon}</div>
+      <div class="flex items-center gap-2 mb-2">
+        <h3 class="text-base font-semibold text-stone-900">{props.title}</h3>
+        {props.soon && <span class="text-[10px] px-2 py-0.5 rounded-full bg-stone-100 text-stone-400 border border-stone-200">Soon</span>}
+      </div>
+      <p class="text-stone-500 text-sm leading-relaxed">{props.desc}</p>
+    </div>
+  );
+}
+
+function ScaleStat(props: { value: string; unit: string; description: string }) {
+  return (
+    <div>
+      <div class="text-5xl font-light text-stone-100 mb-2">{props.value}</div>
+      <div class="text-stone-400 font-medium mb-2 text-sm">{props.unit}</div>
+      <div class="text-xs text-stone-600 leading-relaxed">{props.description}</div>
+    </div>
+  );
+}
+
+function EnterpriseFeatureRow(props: { label: string; withSeparator?: boolean }) {
+  return (
+    <div>
+      {props.withSeparator && <Separator class="bg-stone-100" />}
+      <div class="flex items-center justify-between py-3.5">
+        <span class="text-stone-600 text-sm">{props.label}</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-stone-300 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+    </div>
+  );
+}
+
+function PricingFeatureItem(props: { text: string; iconClass: string }) {
+  return (
+    <li class="flex items-center gap-2.5">
+      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class={`${props.iconClass} shrink-0`}><polyline points="20 6 9 17 4 12"/></svg>
+      {props.text}
+    </li>
   );
 }
 
