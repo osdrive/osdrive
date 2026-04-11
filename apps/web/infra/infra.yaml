@@ -6,23 +6,14 @@ Parameters:
     Type: String
     Default: arn:aws:ses:ap-southeast-2:630589800159:identity/osdrive.app
     Description: Existing SES identity ARN the worker is allowed to send from.
-  EmailFromAddress:
-    Type: String
-    Default: hello@osdrive.app
-    Description: Exact From address allowed for the generated credentials.
-  AwsUserName:
-    Type: String
-    Default: osdrive-cloudflare-ses
-    Description: IAM user name for the Cloudflare worker.
 
 Resources:
-  AwsCloudflareUser:
+  CloudflareUser:
     Type: AWS::IAM::User
     Properties:
-      UserName:
-        Ref: AwsUserName
+      UserName: OSDriveCloudflare
       Policies:
-        - PolicyName: ses-send-email
+        - PolicyName: OSDriveCloudflarePolicy-SES
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -34,14 +25,13 @@ Resources:
                   Ref: EmailIdentityArn
                 Condition:
                   StringEquals:
-                    ses:FromAddress:
-                      Ref: EmailFromAddress
+                    ses:FromAddress: hello@osdrive.app
 
-  AwsCloudflareAccessKey:
+  CloudflareUserAccessKey:
     Type: AWS::IAM::AccessKey
     Properties:
       UserName:
-        Ref: AwsCloudflareUser
+        Ref: CloudflareUser
 
 Outputs:
   AwsRegion:
@@ -57,7 +47,3 @@ Outputs:
       Fn::GetAtt:
         - AwsCloudflareAccessKey
         - SecretAccessKey
-  EmailFromAddress:
-    Description: Verified SES sender configured for the worker.
-    Value:
-      Ref: EmailFromAddress
