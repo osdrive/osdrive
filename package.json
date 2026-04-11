@@ -1,7 +1,10 @@
 {
-  "private": true,
-  "version": "0.0.0",
-  "scripts": {
-     "web": "pnpm --filter @osdrive/web --"
-  }
+   "private": true,
+   "version": "0.0.0",
+   "scripts": {
+      "web": "pnpm --filter @osdrive/web --"
+   },
+   "devDependencies": {
+      "@typescript/native-preview": "7.0.0-dev.20260411.1"
+   }
 }
