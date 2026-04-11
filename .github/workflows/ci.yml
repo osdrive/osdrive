@@ -17,12 +17,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: CloudFormation Lint (infra.yaml)
-        uses: scottbrenner/cfn-lint-action@v2
-        with:
-          command: cfn-lint -t ./apps/web/infra/infra.yaml
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
 
-      - name: CloudFormation Lint (bootstrap.yaml)
-        uses: scottbrenner/cfn-lint-action@v2
-        with:
-          command: cfn-lint -t ./apps/web/infra/bootstrap.yaml
+      - name: CloudFormation Lint
+        run: uvx cfn-lint@latest apps/web/infra/infra.yaml

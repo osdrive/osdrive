@@ -4,7 +4,7 @@ Description: CloudFormation template for OSDrive.
 Parameters:
   EmailIdentityArn:
     Type: String
-    Default: arn:aws:ses:ap-southeast-2:630589800159:identity/osdrive.app
+    Default: arn:aws:ses:us-east-1:630589800159:identity/osdrive.app
     Description: Existing SES identity ARN the worker is allowed to send from.
 
 Resources:
@@ -42,5 +42,5 @@ Outputs:
     Description: AWS_SECRET_ACCESS_KEY
     Value:
       Fn::GetAtt:
-        - CloudflareUserAccessKey
+        - CloudflareUserAccessKey2
         - SecretAccessKey

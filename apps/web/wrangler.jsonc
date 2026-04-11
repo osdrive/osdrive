@@ -35,7 +35,7 @@
 	],
 	"vars": {
 		"BETTER_AUTH_URL": "https://osdrive.app",
-		"AWS_REGION": "ap-southeast-2"
+		"AWS_REGION": "us-east-1"
 	},
 	"secrets": {
 		"required": [
