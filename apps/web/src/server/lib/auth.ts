@@ -1,8 +1,8 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { env } from "cloudflare:workers";
 import * as schema from "~/drizzle/schema";
 import { db } from "~/server/lib/db";
+import { serverEnv } from "./env";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -14,13 +14,13 @@ export const auth = betterAuth({
       verification: schema.verification,
     },
   }),
-  secret: env.BETTER_AUTH_SECRET,
-  baseURL: env.BETTER_AUTH_URL,
+  secret: serverEnv.BETTER_AUTH_SECRET,
+  baseURL: serverEnv.BETTER_AUTH_URL,
   emailAndPassword: {
     enabled: true,
     sendResetPassword: async ({ user, url }) => {
       console.log("RESET EMAIL", user, url);
-      // await env.EMAIL.send({
+      // await sendEmail({
       //   from: "noreply@osdrive.app",
       //   to: user.email,
       //   subject: "Reset your OSDrive password",

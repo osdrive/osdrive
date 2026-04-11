@@ -1,5 +1,8 @@
 // @refresh reload
 import { createHandler, StartServer } from "@solidjs/start/server";
+// This ensures Cloudflare validates the env vars are present during startup (and deployment)!
+import "./server/lib/env";
+import "./lib/env";
 
 export default createHandler(() => (
   <StartServer
@@ -11,6 +14,7 @@ export default createHandler(() => (
           <link rel="icon" href="/favicon.ico" />
           {assets}
         </head>
+
         <body>
           <div id="app">{children}</div>
           {scripts}

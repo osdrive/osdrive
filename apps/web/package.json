@@ -8,8 +8,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "deploy": "pnpm build && wrangler deploy",
-    "migrate:remote": "npx wrangler d1 migrations apply osdrive --remote",
+    "deploy:prod": "pnpm build && wrangler deploy",
+    "migrate:prod": "npx wrangler d1 migrations apply osdrive --remote",
     "migrate:local": "npx wrangler d1 migrations apply osdrive --local"
   },
   "dependencies": {

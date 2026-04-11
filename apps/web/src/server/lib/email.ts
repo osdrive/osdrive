@@ -1,4 +1,4 @@
-import { env } from "cloudflare:workers";
+import { serverEnv } from "./env";
 
 const encoder = new TextEncoder();
 
@@ -71,7 +71,7 @@ function createEmailPayload({ from, to, subject, text, html }: SendEmailOptions)
   });
 }
 
-async function createSignedHeaders(body: string, region: string) {
+async function createSignedHeaders(body: string, region: string, accessKeyId: string, accessKeySecret: string) {
   const url = new URL(`https://email.${region}.amazonaws.com${SES_PATH}`);
   const now = new Date();
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
@@ -97,12 +97,12 @@ async function createSignedHeaders(body: string, region: string) {
 
   const credentialScope = `${dateStamp}/${region}/${SES_SERVICE}/aws4_request`;
   const stringToSign = [AWS_ALGORITHM, amzDate, credentialScope, await sha256Hex(canonicalRequest)].join("\n");
-  const signingKey = await createAwsSigningKey(env.AWS_SECRET_ACCESS_KEY, dateStamp, region);
+  const signingKey = await createAwsSigningKey(accessKeySecret, dateStamp, region);
   const signature = toHex((await signHmacSha256(signingKey, stringToSign)).buffer);
 
   const headers = new Headers({
     authorization: [
-      `${AWS_ALGORITHM} Credential=${env.AWS_ACCESS_KEY_ID}/${credentialScope}`,
+      `${AWS_ALGORITHM} Credential=${accessKeyId}/${credentialScope}`,
       `SignedHeaders=${signedHeaders}`,
       `Signature=${signature}`,
     ].join(", "),
@@ -115,8 +115,13 @@ async function createSignedHeaders(body: string, region: string) {
 }
 
 export async function sendEmail(options: SendEmailOptions) {
+  if (!serverEnv.AWS_ACCESS_KEY_ID) {
+    console.error("SENT EMAIL", options);
+    return;
+  }
+
   const body = createEmailPayload(options);
-  const { headers, url } = await createSignedHeaders(body, env.AWS_REGION);
+  const { headers, url } = await createSignedHeaders(body, serverEnv.AWS_REGION, serverEnv.AWS_ACCESS_KEY_ID, serverEnv.AWS_SECRET_ACCESS_KEY);
   const response = await fetch(url, {
     method: "POST",
     headers,

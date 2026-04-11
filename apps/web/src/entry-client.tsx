@@ -2,7 +2,7 @@
 import { mount, StartClient } from "@solidjs/start/client";
 import { isServer } from "solid-js/web";
 import posthog from 'posthog-js'
-import { clientEnv } from "./env/client";
+import { clientEnv } from "./lib/env";
 
 if (!isServer && !clientEnv.DEV)
 	posthog.init("phc_orzhsp3dg7CQQ28DnSuvKYzYGnwr4zotjwnQEBMZcAFN", {
