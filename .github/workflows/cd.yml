@@ -17,7 +17,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  cloudformation:
+    name: CloudFormation
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository

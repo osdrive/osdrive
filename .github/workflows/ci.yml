@@ -10,7 +10,8 @@ permissions:
   pull-requests: write
 
 jobs:
-  validate:
+  cloudformation:
+    name: CloudFormation
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
