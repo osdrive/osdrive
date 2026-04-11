@@ -1,5 +1,5 @@
 import { createAsync, useNavigate } from "@solidjs/router";
-import { Check, ChevronsUpDown, LogOut, Search } from "lucide-solid";
+import { Check, ChevronsUpDown, Search } from "lucide-solid";
 import { createSignal, For, type ParentProps, Show } from "solid-js";
 import {
   Breadcrumb,
@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
+import { UserDropdown } from "~/components/user-dropdown";
 import { Label } from "~/components/ui/label";
 import { Separator } from "~/components/ui/separator";
 import {
@@ -265,14 +266,6 @@ export default function DashboardLayout(props: ParentProps) {
                   <p class="truncate text-sm font-medium">{user()?.name}</p>
                   <p class="truncate text-xs text-muted-foreground">{user()?.email}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleSignOut}
-                  class="ml-auto rounded p-1 text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-                  title="Sign out"
-                >
-                  <LogOut class="size-4" />
-                </button>
               </div>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -290,6 +283,9 @@ export default function DashboardLayout(props: ParentProps) {
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+          <div class="ml-auto">
+            <UserDropdown user={user()} onSignOut={handleSignOut} />
+          </div>
         </header>
         {props.children}
       </SidebarInset>
