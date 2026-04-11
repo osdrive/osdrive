@@ -1,3 +1,74 @@
+Does t3 env run during deploy or only at runtime? -> If so remove `secrets`
+
+Replace all
+- import.meta.env
+- process.env
+
+
+Email sending hooked back up + better auth for it
+Email rendering
+
+better-auth `requireEmailVerification` + orgs + Stripe
+Better auth plugins
+
+Formatting everything with Vite Plus + Setup CI workflow
+
+
+
+
+
+
+EffectTS
+     - Batching
+     - Calling from frontend w/ errors flowing (using server functions?)
+     - Authentication
+
+     - Organisations
+     - Billing
+     - S3 abstraction
+
+
+
+
+
+
+
+Fallback to console email sender
+
+Login working w/ dashboard
+PostHog setup w/ login system
+
+File sharing back
+
+
+
+
+
+Cleanup `web` project of AI slop
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Remove `TODO` and migrate it to GitHub issues
 Reserve https://docs.rs/osdrive w/ link to website for docs
 VFS icon in Finder is a bit weird

@@ -1,7 +1,7 @@
 import { createAsync, useNavigate } from "@solidjs/router";
 import { createSignal, Show } from "solid-js";
-import { authClient } from "~/lib/auth-client";
-import { redirectAuthenticatedQuery } from "~/lib/auth";
+import { authClient } from "~/lib/auth";
+import { redirectAuthenticatedQuery } from "~/server/legacy";
 
 export default function RegisterPage() {
   createAsync(() => redirectAuthenticatedQuery());

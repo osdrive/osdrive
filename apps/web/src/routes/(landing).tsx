@@ -1,20 +1,6 @@
 import { useLocation } from "@solidjs/router";
 import { type ParentProps, Show } from "solid-js";
-import { authClient } from "~/lib/auth-client";
-
-const NAV_LINKS = [
-  { label: "Product", href: "/#product" },
-  { label: "Enterprise", href: "/#enterprise" },
-  { label: "Pricing", href: "/#pricing" },
-  { label: "Docs", href: "/docs" },
-];
-
-const FOOTER_LINKS = [
-  { label: "Privacy", href: "/privacy" },
-  { label: "Terms", href: "/terms" },
-  { label: "Docs", href: "/docs" },
-  { label: "Support", href: "mailto:oscar@osdrive.app" },
-];
+import { authClient } from "~/lib/auth";
 
 
 export default function Layout(props: ParentProps) {
@@ -26,6 +12,25 @@ export default function Layout(props: ParentProps) {
 
       <Footer />
     </div>
+  );
+}
+
+function NavigationLink(props: { href: string; label: string; active: boolean }) {
+  return (
+    <a
+      href={props.href}
+      class={`transition-colors ${props.active ? "text-stone-900 font-medium" : "text-stone-500 hover:text-stone-900"}`}
+    >
+      {props.label}
+    </a>
+  );
+}
+
+function FooterLink(props: { href: string; label: string }) {
+  return (
+    <a href={props.href} class="hover:text-stone-900 transition-colors">
+      {props.label}
+    </a>
   );
 }
 
@@ -46,19 +51,15 @@ function TopNavigation() {
         </a>
 
         <nav class="hidden md:flex items-center gap-8 text-sm">
-          {NAV_LINKS.map((link) => (
-            <a
-              href={link.href}
-              class={`transition-colors ${isActive(link.href) ? "text-stone-900 font-medium" : "text-stone-500 hover:text-stone-900"}`}
-            >
-              {link.label}
-            </a>
-          ))}
+          <NavigationLink href="/#product" label="Product" active={isActive("/#product")} />
+          <NavigationLink href="/#enterprise" label="Enterprise" active={isActive("/#enterprise")} />
+          <NavigationLink href="/#pricing" label="Pricing" active={isActive("/#pricing")} />
+          <NavigationLink href="/docs" label="Docs" active={isActive("/docs")} />
         </nav>
 
         <div class="flex items-center gap-3 shrink-0">
           <Show
-            when={!session.isPending && session().data?.user}
+            when={!session().isPending && session().data?.user}
             fallback={
               <a
                 href="/dashboard"
@@ -96,11 +97,10 @@ function Footer() {
           <span><a href="https://otbeaumont.me" class="inline hover:underline">Oscar Beaumont</a> © 2025</span>
         </div>
         <div class="flex flex-wrap justify-center gap-6">
-          {FOOTER_LINKS.map(({ label, href }) => (
-            <a href={href} class="hover:text-stone-900 transition-colors">
-              {label}
-            </a>
-          ))}
+          <FooterLink href="/privacy" label="Privacy" />
+          <FooterLink href="/terms" label="Terms" />
+          <FooterLink href="/docs" label="Docs" />
+          <FooterLink href="mailto:oscar@osdrive.app" label="Support" />
         </div>
       </div>
     </footer>

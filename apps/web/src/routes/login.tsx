@@ -1,7 +1,7 @@
 import { createAsync, useNavigate, useSearchParams } from "@solidjs/router";
 import { createSignal, Show } from "solid-js";
-import { authClient } from "~/lib/auth-client";
-import { redirectAuthenticatedQuery } from "~/lib/auth";
+import { authClient } from "~/lib/auth";
+import { redirectAuthenticatedQuery } from "~/server/legacy";
 
 export default function LoginPage() {
   createAsync(() => redirectAuthenticatedQuery());
@@ -30,7 +30,8 @@ export default function LoginPage() {
       return;
     }
 
-    navigate(searchParams.returnTo ?? "/dashboard", { replace: true });
+    const returnTo = searchParams.returnTo && Array.isArray(searchParams.returnTo) ? searchParams.returnTo[0] : searchParams.returnTo;
+    navigate(returnTo ?? "/dashboard", { replace: true });
   };
 
   return (

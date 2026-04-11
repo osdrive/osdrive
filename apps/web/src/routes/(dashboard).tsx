@@ -32,8 +32,8 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "~/components/ui/sidebar";
-import { requireCurrentUserQuery } from "~/lib/auth";
-import { authClient } from "~/lib/auth-client";
+import { requireCurrentUserQuery } from "~/server/legacy";
+import { authClient } from "~/lib/auth";
 
 // TODO:
 //  - Tenant switching and creation

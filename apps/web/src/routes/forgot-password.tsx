@@ -1,7 +1,7 @@
 import { createAsync } from "@solidjs/router";
 import { createSignal, Show } from "solid-js";
-import { authClient } from "~/lib/auth-client";
-import { redirectAuthenticatedQuery } from "~/lib/auth";
+import { authClient } from "~/lib/auth";
+import { redirectAuthenticatedQuery } from "~/server/legacy";
 
 export default function ForgotPasswordPage() {
   createAsync(() => redirectAuthenticatedQuery());
@@ -16,7 +16,7 @@ export default function ForgotPasswordPage() {
     setError(null);
     setPending(true);
 
-    const result = await authClient.forgetPassword({
+    const result = await authClient.requestPasswordReset({
       email: email(),
       redirectTo: "/reset-password",
     });

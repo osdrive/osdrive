@@ -1,7 +1,7 @@
 import { createAsync, useNavigate, useSearchParams } from "@solidjs/router";
 import { createSignal, Show } from "solid-js";
-import { authClient } from "~/lib/auth-client";
-import { redirectAuthenticatedQuery } from "~/lib/auth";
+import { authClient } from "~/lib/auth";
+import { redirectAuthenticatedQuery } from "~/server/legacy";
 
 export default function ResetPasswordPage() {
   createAsync(() => redirectAuthenticatedQuery());
@@ -22,7 +22,7 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    const token = searchParams.token;
+    const token = searchParams.token && Array.isArray(searchParams.token) ? searchParams.token[0] : searchParams.token;
     if (!token) {
       setError("Invalid or missing reset token. Please request a new reset link.");
       return;

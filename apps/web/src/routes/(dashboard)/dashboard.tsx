@@ -1,5 +1,5 @@
 import { createAsync } from "@solidjs/router";
-import { requireCurrentUserQuery } from "~/lib/auth";
+import { requireCurrentUserQuery } from "~/server/legacy";
 
 export default function DashboardPage() {
   const user = createAsync(() => requireCurrentUserQuery());

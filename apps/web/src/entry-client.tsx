@@ -2,10 +2,11 @@
 import { mount, StartClient } from "@solidjs/start/client";
 import { isServer } from "solid-js/web";
 import posthog from 'posthog-js'
+import { clientEnv } from "./env/client";
 
-if (!isServer && !import.meta.env.DEV)
+if (!isServer && !clientEnv.DEV)
 	posthog.init("phc_orzhsp3dg7CQQ28DnSuvKYzYGnwr4zotjwnQEBMZcAFN", {
-		api_host: "/ph_Klc1N",
+		api_host: "/api/ph_Klc1N",
 		ui_host: "https://us.posthog.com",
 		defaults: "2026-01-30",
 		capture_exceptions: true,

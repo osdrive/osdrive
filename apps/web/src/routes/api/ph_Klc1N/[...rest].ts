@@ -5,7 +5,7 @@ import type { APIEvent } from "@solidjs/start/server";
 
 async function handler(e: APIEvent) {
 	// Determine target hostname based on static or dynamic ingestion
-	const hostname = e.nativeEvent.url.pathname.startsWith("/ph_Klc1N/static/")
+	const hostname = e.nativeEvent.url.pathname.startsWith("/api/ph_Klc1N/static/")
 		? "us-assets.i.posthog.com" // change us to eu for EU Cloud
 		: "us.i.posthog.com"; // change us to eu for EU Cloud
 
