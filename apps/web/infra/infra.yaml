@@ -15,7 +15,7 @@ Resources:
                 Action:
                   - ses:SendEmail
                   - ses:SendRawEmail
-                Resource: arn:aws:ses:us-east-1:630589800159:identity/osdrive.app
+                Resource: "*"
                 Condition:
                   StringEquals:
                     ses:FromAddress: hello@osdrive.app
