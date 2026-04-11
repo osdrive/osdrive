@@ -1,0 +1,38 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - apps/web/infra/infra.yaml
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: infra-deploy-osdrive
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::630589800159:role/OSDriveGitHubActions
+          role-session-name: ghactions
+
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --template-file apps/web/infra/infra.yaml \
+            --stack-name osdrive \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset

@@ -1,5 +1,0 @@
-template-file-path: apps/web/infra/infra.yaml
-
-parameters: {}
-
-tags: {}

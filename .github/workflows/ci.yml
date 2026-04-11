@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  pull_request:
+    paths:
+      - apps/web/infra/infra.yaml
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: CloudFormation Lint (infra.yaml)
+        uses: scottbrenner/cfn-lint-action@v2
+        with:
+          command: cfn-lint -t ./apps/web/infra/infra.yaml
+
+      - name: CloudFormation Lint (bootstrap.yaml)
+        uses: scottbrenner/cfn-lint-action@v2
+        with:
+          command: cfn-lint -t ./apps/web/infra/bootstrap.yaml
