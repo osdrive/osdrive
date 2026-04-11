@@ -42,5 +42,5 @@ Outputs:
     Description: AWS_SECRET_ACCESS_KEY
     Value:
       Fn::GetAtt:
-        - CloudflareUserAccessKey2
+        - CloudflareUserAccessKey
         - SecretAccessKey
