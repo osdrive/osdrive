@@ -1,12 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: CloudFormation template for OSDrive.
 
-Parameters:
-  EmailIdentityArn:
-    Type: String
-    Default: arn:aws:ses:us-east-1:630589800159:identity/osdrive.app
-    Description: Existing SES identity ARN the worker is allowed to send from.
-
 Resources:
   CloudflareUser:
     Type: AWS::IAM::User
@@ -21,8 +15,7 @@ Resources:
                 Action:
                   - ses:SendEmail
                   - ses:SendRawEmail
-                Resource:
-                  Ref: EmailIdentityArn
+                Resource: arn:aws:ses:us-east-1:630589800159:identity/osdrive.app
                 Condition:
                   StringEquals:
                     ses:FromAddress: hello@osdrive.app
