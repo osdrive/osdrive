@@ -34,16 +34,13 @@ Resources:
         Ref: CloudflareUser
 
 Outputs:
-  AwsRegion:
-    Description: Set this as AWS_REGION in Wrangler vars.
-    Value: ap-southeast-2
   AwsAccessKeyId:
-    Description: Set this as the Cloudflare secret AWS_ACCESS_KEY_ID.
+    Description: AWS_ACCESS_KEY_ID.
     Value:
-      Ref: AwsCloudflareAccessKey
+      Ref: CloudflareUserAccessKey
   AwsSecretAccessKey:
-    Description: Set this as the Cloudflare secret AWS_SECRET_ACCESS_KEY.
+    Description: AWS_SECRET_ACCESS_KEY.
     Value:
       Fn::GetAtt:
-        - AwsCloudflareAccessKey
+        - CloudflareUserAccessKey
         - SecretAccessKey
