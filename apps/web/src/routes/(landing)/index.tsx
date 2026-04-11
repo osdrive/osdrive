@@ -1,4 +1,5 @@
 import * as Popover from "@kobalte/core/popover";
+import type { JSX, ParentProps } from "solid-js";
 import { Button } from "~/components/ui/button";
 import { Separator } from "~/components/ui/separator";
 
@@ -198,7 +199,7 @@ export default function Page() {
   );
 }
 
-function CapabilityCard(props: { icon: any; title: string; desc: string; soon?: boolean }) {
+function CapabilityCard(props: { icon: JSX.Element; title: string; desc: string; soon?: boolean }) {
   return (
     <div class={`rounded-2xl border p-7 ${props.soon ? "border-dashed border-stone-200 bg-transparent" : "border-stone-200 bg-white shadow-sm"}`}>
       <div class="text-stone-400 mb-4">{props.icon}</div>
@@ -242,7 +243,7 @@ function PricingFeatureItem(props: { text: string; iconClass: string }) {
   );
 }
 
-function DownloadButton(props: { size?: "sm" | "lg"; class?: string; children: any }) {
+function DownloadButton(props: ParentProps<{ size?: "sm" | "lg"; class?: string; }>) {
   return (
     <Popover.Root placement="bottom">
       <Popover.Trigger

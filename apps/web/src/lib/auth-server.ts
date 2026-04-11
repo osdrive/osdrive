@@ -5,8 +5,6 @@ import { getHeaders, getRequestURL } from "@solidjs/start/http";
 import { getDb } from "~/lib/db";
 import { authSchema } from "~/lib/db/schema/auth";
 
-console.log("GOT", env.BETTER_AUTH_SECRET, env.BETTER_AUTH_URL); // TODO
-
 export const auth = betterAuth({
   database: drizzleAdapter(getDb(), {
     provider: "sqlite",
