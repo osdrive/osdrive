@@ -35,11 +35,11 @@ Resources:
 
 Outputs:
   AwsAccessKeyId:
-    Description: AWS_ACCESS_KEY_ID.
+    Description: AWS_ACCESS_KEY_ID
     Value:
       Ref: CloudflareUserAccessKey
   AwsSecretAccessKey:
-    Description: AWS_SECRET_ACCESS_KEY.
+    Description: AWS_SECRET_ACCESS_KEY
     Value:
       Fn::GetAtt:
         - CloudflareUserAccessKey
