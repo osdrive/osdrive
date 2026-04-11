@@ -33,6 +33,10 @@ export const serverEnv = createEnv({
       }),
     ]);
   },
+  // During Cloudflare deployment verification, we get the error without the logs, so this combines them.
+  onValidationError: (issues) => {
+    throw new Error(`Environment validation failed: ${issues.map(i => `- ${i.message}`).join('\n')}`)
+  },
   extends: [vite()],
   runtimeEnv: process.env,
 });

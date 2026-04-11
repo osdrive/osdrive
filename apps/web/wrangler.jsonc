@@ -32,16 +32,5 @@
 			"database_id": "81820c79-fe8c-40ee-9cf5-5bad0323b13a",
 			"migrations_dir": "drizzle"
 		}
-	],
-	"vars": {
-		"BETTER_AUTH_URL": "https://osdrive.app",
-		"AWS_REGION": "us-east-1"
-	},
-	"secrets": {
-		"required": [
-			"BETTER_AUTH_SECRET",
-			"AWS_ACCESS_KEY_ID",
-			"AWS_SECRET_ACCESS_KEY"
-		]
-	}
+	]
 }
