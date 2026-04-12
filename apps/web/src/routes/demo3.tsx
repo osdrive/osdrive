@@ -1,13 +1,21 @@
-import { Context, Effect, Layer, Schedule, Stream } from "effect"
-import {  HttpClient, HttpClientError, HttpClientRequest, HttpClientResponse, Headers } from "effect/unstable/http"
-import { Fetch, RequestInit } from "effect/unstable/http/FetchHttpClient"
+import { Context, Effect, Layer, Request, RequestResolver, Schedule, Stream } from "effect"
+import {  HttpClient, HttpClientError, HttpClientResponse, Headers } from "effect/unstable/http"
+import { RequestInit } from "effect/unstable/http/FetchHttpClient"
 import { HttpApiClient, } from "effect/unstable/httpapi"
 import { onMount } from "solid-js"
 import { demoApi } from "~/server/effect"
 import { fetchWithEvent } from "@solidjs/start/http";
 
-// TODO: Allow multiple w/ batching???
-async function serverFetch(request: any) {
+type BatchedServerRequest = readonly [string, globalThis.RequestInit]
+
+type BatchedServerResponse = {
+  readonly status: number
+  readonly statusText: string
+  readonly headers: ReadonlyArray<readonly [string, string]>
+  readonly body: string
+}
+
+async function serverFetch(requests: ReadonlyArray<BatchedServerRequest>): Promise<ReadonlyArray<BatchedServerResponse>> {
   "use server";
 
   // TODO - Debug why this is???
@@ -15,11 +23,50 @@ async function serverFetch(request: any) {
   // * responsible for validating and restricting the URL.
 
   // TODO: Can we make the result way more efficient???
-  return await fetchWithEvent(...request);
+  console.log("demo3 batched fetch size", requests.length)
+
+  return await Promise.all(
+    requests.map(async (request) => {
+      const response = await fetchWithEvent(...request)
+
+      return {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Array.from(response.headers.entries()),
+        body: await response.text()
+      }
+    })
+  )
 }
 
-const customFetch: HttpClient.HttpClient = HttpClient.make((request, url, signal, fiber) => {
-  const fetch = fiber.getRef(Fetch)
+interface BatchedFetchRequest extends Request.Request<BatchedServerResponse, Error> {
+  readonly _tag: "BatchedFetchRequest"
+  readonly payload: BatchedServerRequest
+}
+
+const BatchedFetchRequest = Request.tagged<BatchedFetchRequest>("BatchedFetchRequest")
+
+const batchedFetchResolver = RequestResolver.make<BatchedFetchRequest>((entries) =>
+  Effect.gen(function* () {
+    const requests = entries.map((entry) => entry.request.payload)
+    const responses = yield* Effect.tryPromise({
+      try: () => serverFetch(requests),
+      catch: (cause) => cause instanceof Error ? cause : new Error(String(cause))
+    })
+
+    yield* Effect.forEach(entries, (entry, index) => {
+      const response = responses[index]
+
+      if (response) {
+        return Request.succeed(entry, response)
+      }
+
+      return Request.fail(entry, new Error("Missing batched response"))
+    }, { discard: true })
+  })
+)
+
+const customFetch: HttpClient.HttpClient = HttpClient.make((request, url, _signal, fiber) => {
   const options: globalThis.RequestInit = fiber.context.mapUnsafe.get(RequestInit.key) ?? {}
   const headers = options.headers ? Headers.merge(Headers.fromInput(options.headers), request.headers) : request.headers
 
@@ -27,29 +74,37 @@ const customFetch: HttpClient.HttpClient = HttpClient.make((request, url, signal
 
   const send = (body: BodyInit | undefined) =>
     Effect.map(
-      Effect.tryPromise({
-        try: () =>
-          serverFetch([
-                  `${url.pathname}${url.search}${url.hash}`,
-											{
-												...options,
-												method: request.method,
-												headers,
-												body,
-												duplex:
-													request.body._tag === "Stream" ? "half" : undefined,
-												// signal
-											} as any,
-										]),
-        catch: (cause) =>
+      Effect.request(BatchedFetchRequest({
+        payload: [
+          `${url.pathname}${url.search}${url.hash}`,
+          {
+            ...options,
+            method: request.method,
+            headers,
+            body,
+            duplex:
+              request.body._tag === "Stream" ? "half" : undefined,
+            // signal
+          } as any
+        ]
+      }), batchedFetchResolver).pipe(
+        Effect.mapError((cause) =>
           new HttpClientError.HttpClientError({
             reason: new HttpClientError.TransportError({
               request,
               cause
             })
           })
-      }),
-      (response) => HttpClientResponse.fromWeb(request, response)
+        )
+      ),
+      (response) => HttpClientResponse.fromWeb(
+        request,
+        new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers.map(([key, value]) => [key, value] as [string, string])
+        })
+      )
     )
   switch (request.body._tag) {
     case "Raw":
@@ -95,8 +150,13 @@ export default function Page() {
     const callApi = Effect.gen(function* () {
       const client = yield* ApiClient
 
-      const result = yield* client.demo.hello({ params: { name: "Oscar!" } });
-      console.log(result);
+      const results = yield* Effect.all([
+        client.demo.hello({ params: { name: "Oscar 1" } }),
+        client.demo.hello({ params: { name: "Oscar 2" } }),
+        client.demo.hello({ params: { name: "Oscar 3" } })
+      ], { concurrency: "unbounded" })
+
+      console.log(results);
     }).pipe(
       Effect.provide(ApiClient.layer)
     );
