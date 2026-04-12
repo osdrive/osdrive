@@ -11,13 +11,13 @@ export const ErrorsResponse = Schema.Struct({
 	message: Schema.String,
 }).annotate({ identifier: "ErrorsResponse" });
 
-export const SchemaErrorResponse = Schema.Struct({
-	_tag: Schema.Literal("SchemaErrorResponse"),
+export const MyErrorResponse = Schema.Struct({
+	_tag: Schema.Literal("MyErrorResponse"),
 	message: Schema.String,
 	issues: Schema.Array(Schema.String),
 })
 	.pipe(HttpApiSchema.status(500))
-	.annotate({ identifier: "SchemaErrorResponse" });
+	.annotate({ identifier: "MyErrorResponse" });
 
 export const helloEndpoint = HttpApiEndpoint.get("hello", "/hello/:name", {
 	params: {
@@ -33,7 +33,7 @@ export const helloEndpoint = HttpApiEndpoint.get("hello", "/hello/:name", {
 
 export const errorsEndpoint = HttpApiEndpoint.get("errors", "/errors", {
 	success: ErrorsResponse,
-	error: SchemaErrorResponse,
+	error: MyErrorResponse,
 })
 	.annotateMerge(
 	OpenApi.annotations({

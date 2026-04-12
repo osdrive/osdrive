@@ -7,16 +7,16 @@ import type { JSX } from "solid-js";
 import { createMemo, For, Show, Suspense } from "solid-js";
 import { isServer } from "solid-js/web";
 import { Button } from "~/components/ui/button";
-import { demoApi, ErrorsResponse, SchemaErrorResponse } from "~/server/effect";
+import { demoApi, ErrorsResponse, MyErrorResponse } from "~/server/effect";
 
 type ErrorsData = Schema.Schema.Type<typeof ErrorsResponse>;
-type ErrorsError = Schema.Schema.Type<typeof SchemaErrorResponse>;
+type ErrorsError = Schema.Schema.Type<typeof MyErrorResponse>;
 type ErrorsViewModel =
 	| { _tag: "Success"; data: ErrorsData }
 	| { _tag: "ApiError"; error: ErrorsError }
 	| { _tag: "UnexpectedError"; message: string };
 
-const isSchemaErrorResponse = Schema.is(SchemaErrorResponse);
+const isMyErrorResponse = Schema.is(MyErrorResponse);
 
 export default function Demo2Page() {
 	const errorsAtom = createMemo(() => {
@@ -38,7 +38,7 @@ export default function Demo2Page() {
 						data: success.value,
 					}),
 				onError: (error) =>
-					isSchemaErrorResponse(error)
+					isMyErrorResponse(error)
 						? AsyncResult.success({
 							_tag: "ApiError",
 							error,

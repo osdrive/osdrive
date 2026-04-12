@@ -24,31 +24,30 @@ const demoGroupLayer = HttpApiBuilder.group(demoApi, "demo", (handlers) =>
 		.handle(
 			"errors",
 			() =>
-				Effect.try({
-					try: () => {
-						if (Math.random() < 0.5) {
-							Schema.decodeUnknownSync(
-								Schema.Struct({
-									message: Schema.String,
-								}),
-							)({
-								message: 123,
-							});
-						}
+				Effect.gen(function* () {
+					if (Math.random() < 0.5) {
+						const error = Schema.decodeUnknownSync(
+							Schema.Struct({
+								message: Schema.String,
+							}),
+						)({
+							message: 123,
+						});
 
-						return {
-							message: "success",
-						};
-					},
-					catch: (error) => ({
-						_tag: "SchemaErrorResponse" as const,
-						message: error instanceof Error ? error.message : "Schema validation failed",
-						issues: [
-							Schema.isSchemaError(error)
-								? SchemaIssue.makeFormatterDefault()(error.issue)
-								: String(error),
-						],
-					}),
+						yield* Effect.fail({
+							_tag: "MyErrorResponse" as const,
+							message: error instanceof Error ? error.message : "Schema validation failed",
+							issues: [
+								Schema.isSchemaError(error)
+									? SchemaIssue.makeFormatterDefault()(error.issue)
+									: String(error),
+							],
+						});
+					}
+
+					return {
+						message: "success",
+					};
 				}).pipe(Effect.withSpan("demo.errors")),
 		),
 );
@@ -59,7 +58,11 @@ const appLayer = Layer.mergeAll(
 ).pipe(Layer.provideMerge(demoGroupLayer));
 
 const makeTelemetryParams = (suffix: string) => ({
-  url: `https://${serverEnv.AXIOM_DOMAIN}${suffix}`,
+  url: `${serverEnv.AXIOM_DOMAIN}${suffix}`,
+  headers: {
+    Authorization: `Bearer ${serverEnv.AXIOM_TOKEN}`,
+    "X-Axiom-Dataset": serverEnv.AXIOM_DATASET,
+  },
 	exportInterval: "1 second",
 	shutdownTimeout: "5 seconds",
 	resource: {
@@ -79,7 +82,8 @@ const telemetry = serverEnv.AXIOM_DATASET ? Layer.merge(
 		Layer.provide(FetchHttpClient.layer),
 	) : Layer.empty;
 
-const appLayerLive = Layer.mergeAll(appLayer, telemetry).pipe(Layer.provide(HttpServer.layerServices));
+const appLayerTemp = appLayer.pipe(Layer.provide(HttpServer.layerServices));
+const appLayerLive = Layer.mergeAll(appLayerTemp, telemetry);
 
 export async function GET({ request }: APIEvent) {
   const { handler, dispose } = HttpRouter.toWebHandler(appLayerLive);

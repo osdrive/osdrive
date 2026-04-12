@@ -6,7 +6,7 @@ import { HttpApiClient } from "effect/unstable/httpapi";
 import { Show, Suspense, createSignal } from "solid-js";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { demoApi, ErrorsResponse, SchemaErrorResponse } from "~/server/effect";
+import { demoApi, ErrorsResponse, MyErrorResponse } from "~/server/effect";
 
 type HelloResult = {
 	message: string;
@@ -14,22 +14,22 @@ type HelloResult = {
 };
 
 type ErrorsResult = Schema.Schema.Type<typeof ErrorsResponse>;
-type SchemaErrorResult = Schema.Schema.Type<typeof SchemaErrorResponse>;
+type ApiErrorResult = Schema.Schema.Type<typeof MyErrorResponse>;
 type UnexpectedQueryError = {
 	_tag: "UnexpectedQueryError";
 	message: string;
 };
 
-type MyEffectQueryError = SchemaErrorResult | UnexpectedQueryError;
+type ApiQueryError = ApiErrorResult | UnexpectedQueryError;
 
 const demoClient = HttpApiClient.make(demoApi).pipe(
 	Effect.provide(FetchHttpClient.layer),
 );
 
-const isSchemaErrorResponse = Schema.is(SchemaErrorResponse);
+const isMyErrorResponse = Schema.is(MyErrorResponse);
 
-function toMyEffectQueryError(cause: unknown): MyEffectQueryError {
-	if (isSchemaErrorResponse(cause)) {
+function toApiQueryError(cause: unknown): ApiQueryError {
+	if (isMyErrorResponse(cause)) {
 		return cause;
 	}
 
@@ -49,7 +49,7 @@ const myEffectQuery = query(async (): Promise<ErrorsResult> => {
 			client.demo.errors({}).pipe(Effect.withSpan("demo.page.call-errors-api")),
 		);
 	} catch (cause) {
-		throw toMyEffectQueryError(cause);
+		throw toApiQueryError(cause);
 	}
 }, "demo.errors");
 
@@ -152,7 +152,7 @@ export default function DemoPage() {
 }
 
 function FetchingDemo() {
-	const data = useQuery<ErrorsResult, MyEffectQueryError>(() => ({
+	const data = useQuery<ErrorsResult, ApiQueryError>(() => ({
 		queryKey: ["demo", "errors"],
 		queryFn: () => myEffectQuery(),
 		staleTime: 30_000,
