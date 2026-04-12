@@ -1,7 +1,8 @@
+import { useQuery } from "@tanstack/solid-query";
 import { Effect } from "effect";
 import { FetchHttpClient } from "effect/unstable/http";
 import { HttpApiClient } from "effect/unstable/httpapi";
-import { Show, createSignal } from "solid-js";
+import { Show, Suspense, createSignal } from "solid-js";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { demoApi } from "~/server/effect";
@@ -105,8 +106,39 @@ export default function DemoPage() {
 							</pre>
 						</div>
 					)}
-				</Show>
+        </Show>
+
+
+        <FetchingDemo />
 			</div>
 		</div>
 	);
+}
+
+// TODO: Can we avoid this and have an automatic system?
+async function bruh() {
+  "use server";
+
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  return {
+    name: "Oscar"
+  }
+}
+
+function FetchingDemo() {
+  const data = useQuery(() => ({
+    queryKey: ["bruh"],
+    queryFn: () => bruh(),
+  }));
+
+  return (
+    <div>
+      <Suspense fallback="Loading...">
+        <pre>{JSON.stringify(data.data)}</pre>
+
+        <Button onClick={() => data.refetch()}>Refetch</Button>
+      </Suspense>
+    </div>
+  )
 }
