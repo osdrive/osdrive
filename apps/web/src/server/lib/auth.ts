@@ -43,12 +43,16 @@ export const auth = betterAuth({
       // });
     },
   },
-  // user: {
-  //   changeEmail: {
-  //     enabled: true,
-  //     // updateEmailWithoutVerification: true, // TODO: Don't keep this
-  //   },
-  // },
+  user: {
+    changeEmail: {
+      enabled: true,
+      sendChangeEmailVerification: async (params: { user: { email: string }; newEmail: string; url: string }) => {
+        const { user, newEmail, url } = params;
+        console.log("CHANGE EMAIL VERIFICATION", user.email, "->", newEmail, url);
+        // TODO: send verification email
+      },
+    },
+  },
 });
 
 export type AuthSession = typeof auth.$Infer.Session;
