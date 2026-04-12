@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Schema, SchemaIssue } from "effect";
 import { FetchHttpClient, HttpRouter, HttpServer } from "effect/unstable/http";
 import { OtlpLogger, OtlpSerialization, OtlpTracer } from "effect/unstable/observability";
 import { HttpApiBuilder, HttpApiScalar } from "effect/unstable/httpapi";
@@ -20,7 +20,37 @@ const demoGroupLayer = HttpApiBuilder.group(demoApi, "demo", (handlers) =>
 					name: params.name,
 				};
 			}).pipe(Effect.withSpan("demo.hello")),
-	),
+	)
+		.handle(
+			"errors",
+			() =>
+				Effect.try({
+					try: () => {
+						if (Math.random() < 0.5) {
+							Schema.decodeUnknownSync(
+								Schema.Struct({
+									message: Schema.String,
+								}),
+							)({
+								message: 123,
+							});
+						}
+
+						return {
+							message: "success",
+						};
+					},
+					catch: (error) => ({
+						_tag: "SchemaErrorResponse" as const,
+						message: error instanceof Error ? error.message : "Schema validation failed",
+						issues: [
+							Schema.isSchemaError(error)
+								? SchemaIssue.makeFormatterDefault()(error.issue)
+								: String(error),
+						],
+					}),
+				}).pipe(Effect.withSpan("demo.errors")),
+		),
 );
 
 const appLayer = Layer.mergeAll(
@@ -41,8 +71,7 @@ const makeTelemetryParams = (suffix: string) => ({
 },
 } as const);
 
-const telemetry =
-serverEnv.AXIOM_DATASET ? Layer.merge(
+const telemetry = serverEnv.AXIOM_DATASET ? Layer.merge(
   OtlpTracer.layer(makeTelemetryParams("/v1/traces")),
   OtlpLogger.layer(makeTelemetryParams("/v1/logs")),
 ).pipe(
@@ -63,3 +92,4 @@ export const POST = GET;
 export const PUT = GET;
 export const PATCH = GET;
 export const DELETE = GET;
+export const OPTIONS = GET;

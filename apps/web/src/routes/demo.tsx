@@ -1,20 +1,57 @@
+import { query } from "@solidjs/router";
 import { useQuery } from "@tanstack/solid-query";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { FetchHttpClient } from "effect/unstable/http";
 import { HttpApiClient } from "effect/unstable/httpapi";
 import { Show, Suspense, createSignal } from "solid-js";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { demoApi } from "~/server/effect";
+import { demoApi, ErrorsResponse, SchemaErrorResponse } from "~/server/effect";
 
 type HelloResult = {
 	message: string;
 	name: string;
 };
 
+type ErrorsResult = Schema.Schema.Type<typeof ErrorsResponse>;
+type SchemaErrorResult = Schema.Schema.Type<typeof SchemaErrorResponse>;
+type UnexpectedQueryError = {
+	_tag: "UnexpectedQueryError";
+	message: string;
+};
+
+type MyEffectQueryError = SchemaErrorResult | UnexpectedQueryError;
+
 const demoClient = HttpApiClient.make(demoApi).pipe(
 	Effect.provide(FetchHttpClient.layer),
 );
+
+const isSchemaErrorResponse = Schema.is(SchemaErrorResponse);
+
+function toMyEffectQueryError(cause: unknown): MyEffectQueryError {
+	if (isSchemaErrorResponse(cause)) {
+		return cause;
+	}
+
+	return {
+		_tag: "UnexpectedQueryError",
+		message: cause instanceof Error ? cause.message : "The demo request failed.",
+	};
+}
+
+const myEffectQuery = query(async (): Promise<ErrorsResult> => {
+	"use server";
+
+	const client = await Effect.runPromise(demoClient);
+
+	try {
+		return await Effect.runPromise(
+			client.demo.errors({}).pipe(Effect.withSpan("demo.page.call-errors-api")),
+		);
+	} catch (cause) {
+		throw toMyEffectQueryError(cause);
+	}
+}, "demo.errors");
 
 export default function DemoPage() {
 	const [name, setName] = createSignal("");
@@ -60,7 +97,7 @@ export default function DemoPage() {
 				<h1 class="text-3xl font-light tracking-tight text-stone-900">Client call with trace propagation</h1>
 				<p class="mt-3 text-sm leading-6 text-stone-500">
 					This page calls the demo Effect HttpApi endpoint from the browser using the generated Effect client.
-					The request runs inside a client span so the API receives distributed tracing headers.
+					 The request runs inside a client span so the API receives distributed tracing headers.
 				</p>
 
 				<form onSubmit={handleSubmit} class="mt-8 space-y-4">
@@ -106,39 +143,51 @@ export default function DemoPage() {
 							</pre>
 						</div>
 					)}
-        </Show>
+				</Show>
 
-
-        <FetchingDemo />
+				<FetchingDemo />
 			</div>
 		</div>
 	);
 }
 
-// TODO: Can we avoid this and have an automatic system?
-async function bruh() {
-  "use server";
-
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  return {
-    name: "Oscar"
-  }
-}
-
 function FetchingDemo() {
-  const data = useQuery(() => ({
-    queryKey: ["bruh"],
-    queryFn: () => bruh(),
-  }));
+	const data = useQuery<ErrorsResult, MyEffectQueryError>(() => ({
+		queryKey: ["demo", "errors"],
+		queryFn: () => myEffectQuery(),
+		staleTime: 30_000,
+		retry: false,
+	}));
 
-  return (
-    <div>
-      <Suspense fallback="Loading...">
-        <pre>{JSON.stringify(data.data)}</pre>
+	return (
+		<div class="mt-8 rounded-2xl border border-stone-200 bg-stone-50 p-5">
+			<p class="text-sm font-medium text-stone-700">TanStack Query</p>
+			<p class="mt-2 text-sm leading-6 text-stone-500">
+				This uses a cached Solid server query to call the typed Effect endpoint and return either the
+				success payload or a typed error object.
+			</p>
 
-        <Button onClick={() => data.refetch()}>Refetch</Button>
-      </Suspense>
-    </div>
-  )
+			<Suspense fallback={<p class="mt-4 text-sm text-stone-500">Loading...</p>}>
+				<Show when={data.error}>
+					{(queryError) => (
+						<div class="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+							<pre class="overflow-x-auto whitespace-pre-wrap">{JSON.stringify(queryError(), null, 2)}</pre>
+						</div>
+					)}
+				</Show>
+
+				<Show when={data.data}>
+					{(value) => (
+						<pre class="mt-4 overflow-x-auto rounded-xl bg-stone-900 p-4 text-sm text-stone-100">
+							{JSON.stringify(value(), null, 2)}
+						</pre>
+					)}
+				</Show>
+
+				<div class="mt-4 flex gap-3">
+					<Button onClick={() => data.refetch()}>Refetch</Button>
+				</div>
+			</Suspense>
+		</div>
+	);
 }

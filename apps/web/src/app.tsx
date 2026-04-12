@@ -1,6 +1,7 @@
 import { MetaProvider, Title } from "@solidjs/meta";
 import { Router } from "@solidjs/router";
 import { FileRoutes } from "@solidjs/start/router";
+import { RegistryProvider } from "@effect/atom-solid";
 import { Suspense } from "solid-js";
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
 import { SolidQueryDevtools } from "@tanstack/solid-query-devtools";
@@ -13,12 +14,15 @@ export default function App() {
     <Router
       root={props => (
         <MetaProvider>
-          <QueryClientProvider client={client}>
-            <Title>OSDrive</Title>
-            <Suspense>{props.children}</Suspense>
+          <RegistryProvider>
+            <QueryClientProvider client={client}>
+              <Title>OSDrive</Title>
 
-            {import.meta.env.DEV && <SolidQueryDevtools initialIsOpen={false} />}
-          </QueryClientProvider>
+              <Suspense>{props.children}</Suspense>
+
+              <SolidQueryDevtools initialIsOpen={false} />
+            </QueryClientProvider>
+          </RegistryProvider>
         </MetaProvider>
       )}
     >
