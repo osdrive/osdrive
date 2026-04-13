@@ -1,7 +1,6 @@
 import { createId } from "@paralleldrive/cuid2";
-import { Effect, Stream } from "effect";
+import { Effect } from "effect";
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
-import * as Multipart from "effect/unstable/http/Multipart";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 import { auth } from "~/server/lib/auth";
 import { R2ObjectNotFoundError, R2Service, R2StorageError } from "~/server/lib/r2";
@@ -83,36 +82,6 @@ const mapStorageError = (cause: R2StorageError) =>
     message:
       cause.cause instanceof Error ? cause.cause.message : String(cause.cause ?? cause.operation),
   });
-
-const parseUploadPayload = (payload: Stream.Stream<Multipart.Part, Multipart.MultipartError>) =>
-  Stream.runCollect(payload).pipe(
-    Effect.mapError(
-      (cause) =>
-        new InvalidShareUploadError({
-          reason: cause.reason._tag,
-        }),
-    ),
-    Effect.flatMap((parts) => {
-      let file: Multipart.File | null = null;
-      let name = "";
-
-      for (const part of parts) {
-        if (part._tag === "Field" && part.key === "name") {
-          name = part.value;
-        }
-
-        if (part._tag === "File" && part.key === "file" && file === null) {
-          file = part;
-        }
-      }
-
-      if (!file) {
-        return Effect.fail(new InvalidShareUploadError({ reason: "File is required" }));
-      }
-
-      return Effect.succeed({ file, name });
-    }),
-  );
 
 const readShareObject = (shareId: ShareId) =>
   Effect.gen(function* () {
@@ -224,29 +193,48 @@ export const shareApiLayer = HttpApiBuilder.group(osDriveApi, "Share", (handlers
           }),
         );
 
-        const body = yield* Effect.tryPromise({
-          try: async () => new Uint8Array(await content.arrayBuffer()),
-          catch: (cause) =>
-            new ShareStorageError({
-              operation: "read-content",
-              message: cause instanceof Error ? cause.message : String(cause),
-            }),
-        });
-
-        return HttpServerResponse.uint8Array(body, {
+        return HttpServerResponse.raw(content.body, {
           contentType: metadata.mimeType,
+          contentLength: metadata.size,
           headers: object.httpMetadata?.contentDisposition
             ? { "content-disposition": object.httpMetadata.contentDisposition }
             : undefined,
         });
       }).pipe(Effect.withSpan("share.get-content")),
     )
-    .handle("createShare", ({ payload }) =>
+    .handleRaw("createShare", ({ request }) =>
       Effect.gen(function* () {
         const user = yield* getCurrentUser;
         const r2 = yield* R2Service;
-        const upload = yield* parseUploadPayload(payload);
-        const name = upload.name.trim() || upload.file.name.trim();
+        const formData = yield* Effect.tryPromise({
+          try: () => {
+            if (request.source instanceof Request) {
+              return request.source.formData();
+            }
+
+            const body = (request.source as { body?: { _tag?: string; formData?: FormData } }).body;
+            if (body?._tag === "FormData" && body.formData instanceof FormData) {
+              return Promise.resolve(body.formData);
+            }
+
+            throw new Error("Request body is not multipart form data");
+          },
+          catch: (cause) =>
+            new InvalidShareUploadError({
+              reason: cause instanceof Error ? cause.message : "Invalid multipart form data",
+            }),
+        });
+        const uploaded = formData.get("file");
+
+        if (!(uploaded instanceof File)) {
+          return yield* Effect.fail(
+            new InvalidShareUploadError({ reason: "Share file is required" }),
+          );
+        }
+
+        const providedName = formData.get("name");
+        const name =
+          (typeof providedName === "string" ? providedName.trim() : "") || uploaded.name.trim();
 
         if (!name) {
           return yield* Effect.fail(
@@ -254,29 +242,14 @@ export const shareApiLayer = HttpApiBuilder.group(osDriveApi, "Share", (handlers
           );
         }
 
-        const file = upload.file;
         const shareId = ShareIdSchema.make(createId());
-        const mimeType = file.contentType || "application/octet-stream";
-        const fileBytes = yield* file.contentEffect.pipe(
-          Effect.mapError(
-            (cause) =>
-              new ShareStorageError({
-                operation: "read-upload",
-                message: cause instanceof Error ? cause.message : String(cause),
-              }),
-          ),
-        );
+        const mimeType = uploaded.type || "application/octet-stream";
         const downloadUrl = toDownloadUrl(shareId);
         const previewUrl = isTextMimeType(mimeType) ? null : downloadUrl;
-        const textPreview =
-          isTextMimeType(mimeType) && fileBytes.byteLength <= TEXT_PREVIEW_MAX_BYTES
-            ? new TextDecoder().decode(fileBytes)
-            : null;
-
-        yield* r2
+        const stored = yield* r2
           .putObject({
             key: toShareKey(shareId),
-            body: fileBytes,
+            body: uploaded,
             httpMetadata: {
               contentType: mimeType,
               contentDisposition: `attachment; filename="${name.replaceAll('"', "")}"`,
@@ -292,14 +265,14 @@ export const shareApiLayer = HttpApiBuilder.group(osDriveApi, "Share", (handlers
         return new ShareDetails({
           id: shareId,
           name,
-          size: fileBytes.byteLength,
+          size: stored.size,
           mimeType,
-          createdAt: new Date(),
+          createdAt: stored.uploaded,
           uploader: user.id,
           displayName: user.name,
           downloadUrl,
           previewUrl,
-          textPreview,
+          textPreview: null,
         });
       }).pipe(Effect.withSpan("share.create")),
     ),

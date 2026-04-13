@@ -1,4 +1,5 @@
 import { type Brand, Schema } from "effect";
+import * as Multipart from "effect/unstable/http/Multipart";
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi";
 
 export type ShareId = string & Brand.Brand<"ShareId">;
@@ -26,7 +27,10 @@ export class ShareDetails extends Schema.Class<ShareDetails>("ShareDetails")({
   textPreview: Schema.NullOr(Schema.String),
 }) {}
 
-export const CreateShareInput = Schema.Struct({}).pipe(HttpApiSchema.asMultipartStream());
+export const CreateShareInput = Schema.Struct({
+  file: Multipart.SingleFileSchema,
+  name: Schema.optional(Schema.String),
+}).pipe(HttpApiSchema.asMultipart());
 
 export class ShareNotFoundError extends Schema.TaggedErrorClass<ShareNotFoundError>()(
   "ShareNotFoundError",

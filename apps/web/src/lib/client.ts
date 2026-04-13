@@ -18,15 +18,10 @@ import { RequestInit } from "effect/unstable/http/FetchHttpClient";
 import { HttpApiClient } from "effect/unstable/httpapi";
 import { osDriveApi } from "~/server/domain";
 import { fetchWithEvent } from "@solidjs/start/http";
+import { isServer } from "solid-js/web";
 
 type BatchedServerRequest = readonly [string, globalThis.RequestInit];
-
-type BatchedServerResponse = {
-  readonly status: number;
-  readonly statusText: string;
-  readonly headers: ReadonlyArray<readonly [string, string]>;
-  readonly body: string;
-};
+type BatchedServerResponse = Response;
 
 async function serverFetch(
   requests: ReadonlyArray<BatchedServerRequest>,
@@ -42,14 +37,7 @@ async function serverFetch(
 
   return await Promise.all(
     requests.map(async (request) => {
-      const response = await fetchWithEvent(...request);
-
-      return {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Array.from(response.headers.entries()),
-        body: await response.text(), // TODO: Handle streaming bytes
-      };
+      return await fetchWithEvent(...request);
     }),
   );
 }
@@ -119,15 +107,7 @@ const customFetch: HttpClient.HttpClient = HttpClient.make((request, url, _signa
             }),
         ),
       ),
-      (response) =>
-        HttpClientResponse.fromWeb(
-          request,
-          new Response(response.body, {
-            status: response.status,
-            statusText: response.statusText,
-            headers: response.headers.map(([key, value]) => [key, value] as [string, string]),
-          }),
-        ),
+      (response) => HttpClientResponse.fromWeb(request, response),
     );
   switch (request.body._tag) {
     case "Raw":
@@ -154,20 +134,20 @@ export class ApiClient extends Context.Service<
     HttpApiClient.make(osDriveApi, {
       // Use transformClient to apply middleware to the generated client. This
       // is useful for settings the base url and applying retry policies.
-      transformClient: (client) =>
-        // TODO: Remove this when using server-function backend
-        client.pipe(
-          HttpClient.mapRequest(flow(HttpClientRequest.prependUrl("http://localhost:5173"))),
-
-          // TODO: I think Tanstack Query will do this for us?
-          // HttpClient.retryTransient({
-          //   schedule: Schedule.exponential(100),
-          //   times: 3,
-          // }),
-        ),
+      // transformClient: isServer ? undefined : (client) =>
+      //   // TODO: Remove this when using server-function backend
+      //   client.pipe(
+      //     HttpClient.mapRequest(flow(HttpClientRequest.prependUrl("http://localhost:5173"))),
+      //     // TODO: I think Tanstack Query will do this for us?
+      //     // HttpClient.retryTransient({
+      //     //   schedule: Schedule.exponential(100),
+      //     //   times: 3,
+      //     // }),
+      //   ),
     }),
   ).pipe(
-    Layer.provide(FetchHttpClient.layer),
+    // TODO: `customFetchLayer` is having problems with streaming bytes but is required for server-rendering so we use it just for now, temporarily.
+    Layer.provide(isServer ? customFetchLayer : FetchHttpClient.layer),
     // Layer.provide(customFetchLayer),  // TODO: Make this work with streaming bytes
   );
 }

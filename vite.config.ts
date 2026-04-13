@@ -1,13 +1,13 @@
 import { defineConfig } from "vite-plus";
 
-export default defineConfig({
-  // Oxlint configuration.
-  // lint: {
-  //   ignorePatterns: ["dist/**"],
-  // },
+const ignorePatterns = ["apps/web/src/worker-configuration.d.ts"];
 
-  // Oxfmt configuration.
+export default defineConfig({
+  lint: {
+    ignorePatterns,
+  },
   fmt: {
     semi: true,
+    ignorePatterns,
   },
 });

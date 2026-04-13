@@ -41,7 +41,7 @@ export default function SharePage() {
     mutationFn: async (input: { file: File; name: string }) => {
       const formData = new FormData();
       formData.set("name", input.name);
-      formData.set("file", input.file);
+      formData.set("file", input.file, input.file.name);
 
       return runApi(
         Effect.gen(function* () {
