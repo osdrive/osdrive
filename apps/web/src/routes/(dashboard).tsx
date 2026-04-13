@@ -1,5 +1,5 @@
 import { createAsync, useLocation, useNavigate } from "@solidjs/router";
-import { Cloud, Download, Laptop, LogOut, Plus, Settings, Smartphone, User } from "lucide-solid";
+import { Cloud, Download, Laptop, LogOut, Plus, Settings, Share2, Smartphone, User } from "lucide-solid";
 import { createSignal, For, type ParentProps, Show, Switch, Match } from "solid-js";
 import {
   Breadcrumb,
@@ -79,6 +79,7 @@ function breadcrumbForPath(path: string) {
   if (path === "/dashboard") return "Dashboard";
   if (path === "/account") return "Account";
   if (path === "/settings") return "Settings";
+  if (path === "/share") return "Share";
   if (path.startsWith("/drive/")) return "Drive";
   return "Dashboard";
 }
@@ -380,9 +381,22 @@ export default function DashboardLayout(props: ParentProps) {
           </SidebarGroup>
         </SidebarContent>
 
-        {/* ── Footer: Settings + User ── */}
+        {/* ── Footer: Share + Settings + User ── */}
         <SidebarFooter class="border-t border-sidebar-border">
           <SidebarMenu>
+            {/* Share */}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                as="a"
+                href="/share"
+                isActive={location.pathname === "/share"}
+                tooltip="Share"
+              >
+                <Share2 />
+                <span>Share</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
             {/* Settings */}
             <SidebarMenuItem>
               <SidebarMenuButton
