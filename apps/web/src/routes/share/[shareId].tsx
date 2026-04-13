@@ -1,5 +1,14 @@
 import { A } from "@solidjs/router";
-import { Calendar, Download, FileAudio, FileImage, FileText, FileVideo, HardDrive, User } from "lucide-solid";
+import {
+  Calendar,
+  Download,
+  FileAudio,
+  FileImage,
+  FileText,
+  FileVideo,
+  HardDrive,
+  User,
+} from "lucide-solid";
 import { Show } from "solid-js";
 
 // ---------------------------------------------------------------------------
@@ -72,7 +81,7 @@ function FileTypeIcon(props: { mimeType: string; class?: string }) {
 // Page
 // ---------------------------------------------------------------------------
 export default function PublicSharePage() {
-  // In future: const params = useParams(); then fetch SHARE by params.id
+  // In future: const params = useParams(); then fetch SHARE by params.shareId
   const share = SHARE;
 
   const hasImagePreview = () => !!share.previewUrl && isImage(share.mimeType);

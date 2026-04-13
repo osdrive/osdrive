@@ -1,5 +1,5 @@
 import { createSignal, For, Show } from "solid-js";
-import { Check, Copy, Link2, Upload } from "lucide-solid";
+import { Check, Copy, ExternalLink, Link2, Upload } from "lucide-solid";
 
 // ---------------------------------------------------------------------------
 // Hardcoded data — replace with API calls when wired up
@@ -185,6 +185,15 @@ export default function SharePage() {
                   </Show>
                   {copied() ? "Copied" : "Copy"}
                 </button>
+                <a
+                  href={buildShareUrl(id())}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="flex items-center justify-center rounded-lg border border-green-300 bg-white px-3 py-2 text-stone-700 hover:bg-green-50 transition-colors"
+                  title="Open in new tab"
+                >
+                  <ExternalLink class="size-4" />
+                </a>
               </div>
             </div>
           )}

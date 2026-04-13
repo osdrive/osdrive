@@ -5,15 +5,12 @@
 // Without any special RPC definitions, or per-page server function.
 //
 
-import { Context, Effect, Layer, Request, RequestResolver, Schedule, Stream } from "effect";
+import { Context, Effect, Layer, Request, RequestResolver, Stream } from "effect";
 import { HttpClient, HttpClientError, HttpClientResponse, Headers } from "effect/unstable/http";
 import { RequestInit } from "effect/unstable/http/FetchHttpClient";
 import { HttpApiClient } from "effect/unstable/httpapi";
-import { createResource, Suspense } from "solid-js";
 import { osDriveApi } from "~/server/domain";
-import { DriveId } from "~/server/domain/Drive";
 import { fetchWithEvent } from "@solidjs/start/http";
-import { action, redirect } from "@solidjs/router";
 
 type BatchedServerRequest = readonly [string, globalThis.RequestInit];
 
@@ -150,51 +147,21 @@ export class ApiClient extends Context.Service<
     HttpApiClient.make(osDriveApi, {
       // Use transformClient to apply middleware to the generated client. This
       // is useful for settings the base url and applying retry policies.
-      transformClient: (client) =>
-        client.pipe(
-          // HttpClient.mapRequest(flow(
-          //   HttpClientRequest.prependUrl("http://localhost:5173")
-          // )),
-          HttpClient.retryTransient({
-            schedule: Schedule.exponential(100),
-            times: 3,
-          }),
-        ),
+      // transformClient: (client) =>
+      //   client.pipe(
+      //     // HttpClient.mapRequest(flow(
+      //     //   HttpClientRequest.prependUrl("http://localhost:5173")
+      //     // )),
+
+      //     // TODO: I think Tanstack Query will do this for us?
+      //     HttpClient.retryTransient({
+      //       schedule: Schedule.exponential(100),
+      //       times: 3,
+      //     }),
+      //   ),
     }),
   ).pipe(
     // Layer.provide(FetchHttpClient.layer)
     Layer.provide(customFetchLayer),
-  );
-}
-
-const testingAction = action(async () => {
-  "use server";
-
-  console.log("Testing action called!");
-
-  throw redirect("/demo3");
-}, "testingAction");
-
-function todo() {
-  "use server";
-
-  return Math.random();
-}
-
-export default function Page() {
-  const [resource] = createResource(() => todo());
-
-  return (
-    <div>
-      <h1>Hello World!</h1>
-      <p>Experimental batching client wired to the current Drive API.</p>
-      <pre>{JSON.stringify({ driveId: DriveId.make("1") }, null, 2)}</pre>
-      <form action={testingAction} method="post">
-        {/*<input name="name" placeholder="New name" />*/}
-        <button>Save</button>
-      </form>
-
-      <Suspense fallback="Pending...">{resource()}</Suspense>
-    </div>
   );
 }
