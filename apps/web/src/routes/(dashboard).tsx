@@ -1,5 +1,15 @@
 import { createAsync, useLocation, useNavigate } from "@solidjs/router";
-import { Cloud, Download, Laptop, LogOut, Plus, Settings, Share2, Smartphone, User } from "lucide-solid";
+import {
+  Cloud,
+  Download,
+  Laptop,
+  LogOut,
+  Plus,
+  Settings,
+  Share2,
+  Smartphone,
+  User,
+} from "lucide-solid";
 import { createSignal, For, type ParentProps, Show, Switch, Match } from "solid-js";
 import {
   Breadcrumb,

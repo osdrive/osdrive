@@ -1,4 +1,5 @@
-import { A } from "@solidjs/router";
+import { A, useParams } from "@solidjs/router";
+import { createQuery } from "@tanstack/solid-query";
 import {
   Calendar,
   Download,
@@ -9,44 +10,10 @@ import {
   HardDrive,
   User,
 } from "lucide-solid";
+import { Effect } from "effect";
 import { Show } from "solid-js";
+import { ApiClient, runApi } from "~/lib/client";
 
-// ---------------------------------------------------------------------------
-// Hardcoded data — replace with API call keyed on useParams().id when wired up
-// ---------------------------------------------------------------------------
-const SHARE = {
-  id: "sh_abc123",
-  name: "Project Notes.txt",
-  size: 1_843,
-  mimeType: "text/plain",
-  createdAt: new Date("2026-03-15T10:23:00Z"),
-  author: {
-    name: "Oscar Beaumont",
-  },
-  // Set a URL string for image/video/audio previews, or null if unavailable
-  previewUrl: null as string | null,
-  // Set for text / code previews
-  textPreview: `# Project Notes — Q1 2026
-
-## Goals
-- Migrate file storage to R2
-- Launch public share links
-- Improve drive sync performance
-
-## Decisions
-- Use Effect for all server-side logic
-- Tailwind CSS v4 + shadcn/ui (Kobalte) for the web UI
-- Cloudflare Workers + D1 for the backend
-
-## Open questions
-- How should we handle very large file previews?
-- Do we need a CDN for shared assets?
-` as string | null,
-};
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -77,123 +44,160 @@ function FileTypeIcon(props: { mimeType: string; class?: string }) {
   return <FileText class={props.class} />;
 }
 
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
 export default function PublicSharePage() {
-  // In future: const params = useParams(); then fetch SHARE by params.shareId
-  const share = SHARE;
+  const params = useParams();
 
-  const hasImagePreview = () => !!share.previewUrl && isImage(share.mimeType);
-  const hasVideoPreview = () => !!share.previewUrl && isVideo(share.mimeType);
-  const hasAudioPreview = () => !!share.previewUrl && isAudio(share.mimeType);
-  const hasTextPreview = () => !!share.textPreview && isText(share.mimeType);
+  const shareQuery = createQuery(() => ({
+    queryKey: ["share", params.shareId],
+    queryFn: () =>
+      runApi(
+        Effect.gen(function* () {
+          const api = yield* ApiClient;
+          return yield* api.Share.getShare({
+            params: {
+              shareId: params.shareId as any,
+            },
+          });
+        }),
+      ),
+  }));
 
   return (
     <div class="min-h-screen bg-stone-50">
-      {/* Header */}
       <header class="border-b border-stone-200 bg-white px-6 py-3.5">
-        <A href="/" class="flex items-center gap-2 w-fit">
+        <A href="/" class="flex w-fit items-center gap-2">
           <img src="/assets/icon-dark.svg" alt="OSDrive" class="size-6 rounded" />
-          <span class="font-semibold text-sm tracking-tight text-stone-900">OSDrive</span>
+          <span class="text-sm font-semibold tracking-tight text-stone-900">OSDrive</span>
         </A>
       </header>
 
-      <main class="mx-auto max-w-2xl px-4 py-12 space-y-4">
-        {/* File info card */}
-        <div class="rounded-xl border border-stone-200 bg-white p-6 space-y-6">
-          {/* Icon + name */}
-          <div class="flex items-start gap-4">
-            <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-stone-100 shrink-0">
-              <FileTypeIcon mimeType={share.mimeType} class="size-7 text-stone-500" />
-            </div>
-            <div class="min-w-0 pt-1">
-              <h1 class="text-lg font-semibold text-stone-900 break-all leading-snug">
-                {share.name}
-              </h1>
-              <p class="text-sm text-stone-500 mt-0.5">{share.mimeType}</p>
-            </div>
-          </div>
-
-          {/* Metadata grid */}
-          <dl class="grid grid-cols-3 gap-y-4 gap-x-6 text-sm border-t border-stone-100 pt-5">
-            <div class="space-y-1">
-              <dt class="flex items-center gap-1.5 text-xs font-medium text-stone-400 uppercase tracking-wide">
-                <HardDrive class="size-3.5" />
-                Size
-              </dt>
-              <dd class="font-medium text-stone-900">{formatBytes(share.size)}</dd>
-            </div>
-            <div class="space-y-1">
-              <dt class="flex items-center gap-1.5 text-xs font-medium text-stone-400 uppercase tracking-wide">
-                <Calendar class="size-3.5" />
-                Created
-              </dt>
-              <dd class="font-medium text-stone-900">
-                {share.createdAt.toLocaleDateString(undefined, {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                })}
-              </dd>
-            </div>
-            <div class="space-y-1">
-              <dt class="flex items-center gap-1.5 text-xs font-medium text-stone-400 uppercase tracking-wide">
-                <User class="size-3.5" />
-                Shared by
-              </dt>
-              <dd class="font-medium text-stone-900">{share.author.name}</dd>
-            </div>
-          </dl>
-
-          {/* Download */}
-          <a
-            href="#"
-            class="inline-flex items-center gap-2 rounded-lg bg-stone-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-stone-800 transition-colors"
+      <main class="mx-auto max-w-2xl space-y-4 px-4 py-12">
+        <Show
+          when={!shareQuery.isLoading}
+          fallback={
+            <div class="rounded-xl border border-stone-200 bg-white p-6">Loading share...</div>
+          }
+        >
+          <Show
+            when={shareQuery.data}
+            fallback={
+              <div class="rounded-xl border border-red-200 bg-white p-6 text-red-700">
+                This share could not be loaded.
+              </div>
+            }
           >
-            <Download class="size-4" />
-            Download
-          </a>
-        </div>
+            {(share) => {
+              const hasImagePreview = () => !!share().previewUrl && isImage(share().mimeType);
+              const hasVideoPreview = () => !!share().previewUrl && isVideo(share().mimeType);
+              const hasAudioPreview = () => !!share().previewUrl && isAudio(share().mimeType);
+              const hasTextPreview = () => !!share().textPreview && isText(share().mimeType);
 
-        {/* Image preview */}
-        <Show when={hasImagePreview()}>
-          <div class="rounded-xl border border-stone-200 bg-white p-4">
-            <p class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-3">Preview</p>
-            <img
-              src={share.previewUrl!}
-              alt={share.name}
-              class="w-full rounded-lg object-contain max-h-96"
-            />
-          </div>
-        </Show>
+              return (
+                <>
+                  <div class="space-y-6 rounded-xl border border-stone-200 bg-white p-6">
+                    <div class="flex items-start gap-4">
+                      <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-stone-100">
+                        <FileTypeIcon mimeType={share().mimeType} class="size-7 text-stone-500" />
+                      </div>
+                      <div class="min-w-0 pt-1">
+                        <h1 class="break-all text-lg font-semibold leading-snug text-stone-900">
+                          {share().name}
+                        </h1>
+                        <p class="mt-0.5 text-sm text-stone-500">{share().mimeType}</p>
+                      </div>
+                    </div>
 
-        {/* Video preview */}
-        <Show when={hasVideoPreview()}>
-          <div class="rounded-xl border border-stone-200 bg-white p-4">
-            <p class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-3">Preview</p>
-            {/* biome-ignore lint/a11y/useMediaCaption: preview only */}
-            <video src={share.previewUrl!} controls class="w-full rounded-lg max-h-96" />
-          </div>
-        </Show>
+                    <dl class="grid grid-cols-3 gap-x-6 gap-y-4 border-t border-stone-100 pt-5 text-sm">
+                      <div class="space-y-1">
+                        <dt class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-stone-400">
+                          <HardDrive class="size-3.5" />
+                          Size
+                        </dt>
+                        <dd class="font-medium text-stone-900">{formatBytes(share().size)}</dd>
+                      </div>
+                      <div class="space-y-1">
+                        <dt class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-stone-400">
+                          <Calendar class="size-3.5" />
+                          Created
+                        </dt>
+                        <dd class="font-medium text-stone-900">
+                          {share().createdAt.toLocaleDateString(undefined, {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </dd>
+                      </div>
+                      <div class="space-y-1">
+                        <dt class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-stone-400">
+                          <User class="size-3.5" />
+                          Shared by
+                        </dt>
+                        <dd class="font-medium text-stone-900">{share().displayName}</dd>
+                      </div>
+                    </dl>
 
-        {/* Audio preview */}
-        <Show when={hasAudioPreview()}>
-          <div class="rounded-xl border border-stone-200 bg-white p-4">
-            <p class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-3">Preview</p>
-            {/* biome-ignore lint/a11y/useMediaCaption: preview only */}
-            <audio src={share.previewUrl!} controls class="w-full" />
-          </div>
-        </Show>
+                    <a
+                      href={share().downloadUrl}
+                      download={share().name}
+                      class="inline-flex items-center gap-2 rounded-lg bg-stone-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-stone-800"
+                    >
+                      <Download class="size-4" />
+                      Download
+                    </a>
+                  </div>
 
-        {/* Text / code preview */}
-        <Show when={hasTextPreview()}>
-          <div class="rounded-xl border border-stone-200 bg-white p-4">
-            <p class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-3">Preview</p>
-            <pre class="text-xs text-stone-700 bg-stone-50 rounded-lg p-4 overflow-auto max-h-96 font-mono whitespace-pre-wrap">
-              {share.textPreview}
-            </pre>
-          </div>
+                  <Show when={hasImagePreview()}>
+                    <div class="rounded-xl border border-stone-200 bg-white p-4">
+                      <p class="mb-3 text-xs font-medium uppercase tracking-wide text-stone-400">
+                        Preview
+                      </p>
+                      <img
+                        src={share().previewUrl!}
+                        alt={share().name}
+                        class="max-h-96 w-full rounded-lg object-contain"
+                      />
+                    </div>
+                  </Show>
+
+                  <Show when={hasVideoPreview()}>
+                    <div class="rounded-xl border border-stone-200 bg-white p-4">
+                      <p class="mb-3 text-xs font-medium uppercase tracking-wide text-stone-400">
+                        Preview
+                      </p>
+                      {/* biome-ignore lint/a11y/useMediaCaption: public file preview */}
+                      <video
+                        src={share().previewUrl!}
+                        controls
+                        class="max-h-96 w-full rounded-lg"
+                      />
+                    </div>
+                  </Show>
+
+                  <Show when={hasAudioPreview()}>
+                    <div class="rounded-xl border border-stone-200 bg-white p-4">
+                      <p class="mb-3 text-xs font-medium uppercase tracking-wide text-stone-400">
+                        Preview
+                      </p>
+                      {/* biome-ignore lint/a11y/useMediaCaption: public file preview */}
+                      <audio src={share().previewUrl!} controls class="w-full" />
+                    </div>
+                  </Show>
+
+                  <Show when={hasTextPreview()}>
+                    <div class="rounded-xl border border-stone-200 bg-white p-4">
+                      <p class="mb-3 text-xs font-medium uppercase tracking-wide text-stone-400">
+                        Preview
+                      </p>
+                      <pre class="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg bg-stone-50 p-4 font-mono text-xs text-stone-700">
+                        {share().textPreview}
+                      </pre>
+                    </div>
+                  </Show>
+                </>
+              );
+            }}
+          </Show>
         </Show>
       </main>
     </div>

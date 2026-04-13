@@ -20,5 +20,3 @@ export default defineConfig(({ mode }) => ({
     tsconfigPaths(),
   ],
 }));
-
-const a = 42;

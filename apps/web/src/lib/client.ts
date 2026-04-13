@@ -5,8 +5,15 @@
 // Without any special RPC definitions, or per-page server function.
 //
 
-import { Context, Effect, Layer, Request, RequestResolver, Stream } from "effect";
-import { HttpClient, HttpClientError, HttpClientResponse, Headers } from "effect/unstable/http";
+import { Context, Effect, flow, Layer, Request, RequestResolver, Stream } from "effect";
+import {
+  HttpClient,
+  HttpClientError,
+  HttpClientResponse,
+  Headers,
+  FetchHttpClient,
+  HttpClientRequest,
+} from "effect/unstable/http";
 import { RequestInit } from "effect/unstable/http/FetchHttpClient";
 import { HttpApiClient } from "effect/unstable/httpapi";
 import { osDriveApi } from "~/server/domain";
@@ -147,21 +154,25 @@ export class ApiClient extends Context.Service<
     HttpApiClient.make(osDriveApi, {
       // Use transformClient to apply middleware to the generated client. This
       // is useful for settings the base url and applying retry policies.
-      // transformClient: (client) =>
-      //   client.pipe(
-      //     // HttpClient.mapRequest(flow(
-      //     //   HttpClientRequest.prependUrl("http://localhost:5173")
-      //     // )),
+      transformClient: (client) =>
+        // TODO: Remove this when using server-function backend
+        client.pipe(
+          HttpClient.mapRequest(flow(HttpClientRequest.prependUrl("http://localhost:5173"))),
 
-      //     // TODO: I think Tanstack Query will do this for us?
-      //     HttpClient.retryTransient({
-      //       schedule: Schedule.exponential(100),
-      //       times: 3,
-      //     }),
-      //   ),
+          // TODO: I think Tanstack Query will do this for us?
+          // HttpClient.retryTransient({
+          //   schedule: Schedule.exponential(100),
+          //   times: 3,
+          // }),
+        ),
     }),
   ).pipe(
-    // Layer.provide(FetchHttpClient.layer)
-    Layer.provide(customFetchLayer),
+    Layer.provide(FetchHttpClient.layer),
+    // Layer.provide(customFetchLayer),  // TODO: Make this work with streaming bytes
   );
 }
+
+export const runApi = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+  Effect.runPromise(
+    effect.pipe(Effect.provide(ApiClient.layer as never)) as Effect.Effect<A, E, never>,
+  );

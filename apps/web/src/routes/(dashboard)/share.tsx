@@ -1,33 +1,9 @@
+import { createMutation, createQuery, useQueryClient } from "@tanstack/solid-query";
+import { Check, Copy, Link2, Upload } from "lucide-solid";
 import { createSignal, For, Show } from "solid-js";
-import { Check, Copy, ExternalLink, Link2, Upload } from "lucide-solid";
+import { Effect } from "effect";
+import { ApiClient, runApi } from "~/lib/client";
 
-// ---------------------------------------------------------------------------
-// Hardcoded data — replace with API calls when wired up
-// ---------------------------------------------------------------------------
-const EXISTING_SHARES = [
-  {
-    id: "sh_abc123",
-    name: "Q4 Financial Report.pdf",
-    size: 2_451_200,
-    createdAt: new Date("2026-03-15T10:23:00Z"),
-  },
-  {
-    id: "sh_def456",
-    name: "Design Mockups.zip",
-    size: 18_204_800,
-    createdAt: new Date("2026-04-01T14:05:00Z"),
-  },
-  {
-    id: "sh_ghi789",
-    name: "Team Photo.jpg",
-    size: 3_145_728,
-    createdAt: new Date("2026-04-10T09:17:00Z"),
-  },
-];
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -36,81 +12,114 @@ function formatBytes(bytes: number): string {
 }
 
 function buildShareUrl(id: string): string {
+  if (typeof window === "undefined") {
+    return `/share/${id}`;
+  }
+
   return `${window.location.origin}/share/${id}`;
 }
 
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
 export default function SharePage() {
+  const queryClient = useQueryClient();
   const [file, setFile] = createSignal<File | null>(null);
   const [name, setName] = createSignal("");
   const [dragging, setDragging] = createSignal(false);
-  const [uploading, setUploading] = createSignal(false);
-  const [shareId, setShareId] = createSignal<string | null>(null);
   const [copied, setCopied] = createSignal(false);
+
+  const sharesQuery = createQuery(() => ({
+    queryKey: ["shares"],
+    queryFn: () =>
+      runApi(
+        Effect.gen(function* () {
+          const api = yield* ApiClient;
+          return yield* api.Share.listShares();
+        }),
+      ),
+  }));
+
+  const createShareMutation = createMutation(() => ({
+    mutationFn: async (input: { file: File; name: string }) => {
+      const formData = new FormData();
+      formData.set("name", input.name);
+      formData.set("file", input.file);
+
+      return runApi(
+        Effect.gen(function* () {
+          const api = yield* ApiClient;
+          return yield* api.Share.createShare({ payload: formData });
+        }),
+      );
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["shares"] });
+    },
+  }));
 
   const inputClass =
     "w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 outline-none focus:border-stone-500 focus:ring-2 focus:ring-stone-200 transition-colors";
 
-  const handleFile = (f: File) => {
-    setFile(f);
-    setName(f.name);
-    setShareId(null);
+  const handleFile = (nextFile: File) => {
+    setFile(nextFile);
+    setName(nextFile.name);
+    createShareMutation.reset();
   };
 
-  const handleDrop = (e: DragEvent) => {
-    e.preventDefault();
+  const handleDrop = (event: DragEvent) => {
+    event.preventDefault();
     setDragging(false);
-    const f = e.dataTransfer?.files[0];
-    if (f) handleFile(f);
+    const droppedFile = event.dataTransfer?.files[0];
+    if (droppedFile) handleFile(droppedFile);
   };
 
-  const handleFileInput = (e: Event) => {
-    const input = e.currentTarget as HTMLInputElement;
-    const f = input.files?.[0];
-    if (f) handleFile(f);
+  const handleFileInput = (event: Event) => {
+    const input = event.currentTarget as HTMLInputElement;
+    const selectedFile = input.files?.[0];
+    if (selectedFile) handleFile(selectedFile);
   };
 
-  const handleUpload = async (e: SubmitEvent) => {
-    e.preventDefault();
-    setUploading(true);
-    // Simulate API call — replace with real upload when wired up
-    await new Promise((r) => setTimeout(r, 800));
-    setShareId("sh_" + Math.random().toString(36).slice(2, 9));
-    setUploading(false);
+  const handleUpload = async (event: SubmitEvent) => {
+    event.preventDefault();
+
+    const selectedFile = file();
+    if (!selectedFile) {
+      return;
+    }
+
+    await createShareMutation.mutateAsync({
+      file: selectedFile,
+      name: name().trim() || selectedFile.name,
+    });
   };
 
-  const copyLink = () => {
-    const id = shareId();
+  const copyLink = async () => {
+    const id = createShareMutation.data?.id;
     if (!id) return;
-    navigator.clipboard.writeText(buildShareUrl(id));
+
+    await navigator.clipboard.writeText(buildShareUrl(id));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div class="flex flex-1 flex-col gap-6 p-6 max-w-2xl">
+    <div class="flex max-w-2xl flex-1 flex-col gap-6 p-6">
       <div>
         <h1 class="text-xl font-semibold text-stone-900">Share a File</h1>
-        <p class="text-sm text-stone-500 mt-1">
+        <p class="mt-1 text-sm text-stone-500">
           Upload a file and get a shareable link anyone can access.
         </p>
       </div>
 
-      {/* Upload form */}
-      <section class="rounded-xl border border-border bg-card p-6 space-y-4">
+      <section class="space-y-4 rounded-xl border border-border bg-card p-6">
         <h2 class="text-sm font-semibold">Upload file</h2>
         <form onSubmit={handleUpload} class="space-y-4">
-          {/* Drop zone */}
           <label
-            class={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 text-center cursor-pointer transition-colors ${
+            class={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 text-center transition-colors ${
               dragging()
                 ? "border-stone-500 bg-stone-50"
                 : "border-stone-300 bg-muted/30 hover:border-stone-400 hover:bg-muted/50"
             }`}
-            onDragOver={(e) => {
-              e.preventDefault();
+            onDragOver={(event) => {
+              event.preventDefault();
               setDragging(true);
             }}
             onDragLeave={() => setDragging(false)}
@@ -127,27 +136,28 @@ export default function SharePage() {
                   <p class="text-sm font-medium text-stone-700">
                     Drop a file here or click to browse
                   </p>
-                  <p class="text-xs text-muted-foreground mt-1">Any file type supported</p>
+                  <p class="mt-1 text-xs text-muted-foreground">Any file type supported</p>
                 </div>
               }
             >
-              {(f) => (
+              {(selectedFile) => (
                 <div>
-                  <p class="text-sm font-medium text-stone-700">{f().name}</p>
-                  <p class="text-xs text-muted-foreground mt-1">{formatBytes(f().size)}</p>
+                  <p class="text-sm font-medium text-stone-700">{selectedFile().name}</p>
+                  <p class="mt-1 text-xs text-muted-foreground">
+                    {formatBytes(selectedFile().size)}
+                  </p>
                 </div>
               )}
             </Show>
           </label>
 
-          {/* Share name */}
           <div class="space-y-1.5">
             <label class="text-xs font-medium text-stone-700">Share name</label>
             <input
               type="text"
               required
               value={name()}
-              onInput={(e) => setName(e.currentTarget.value)}
+              onInput={(event) => setName(event.currentTarget.value)}
               class={inputClass}
               placeholder="e.g. Q4 Report"
             />
@@ -155,80 +165,94 @@ export default function SharePage() {
 
           <button
             type="submit"
-            disabled={!file() || uploading()}
-            class="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50 transition-colors"
+            disabled={!file() || createShareMutation.isPending}
+            class="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-800 disabled:opacity-50"
           >
-            {uploading() ? "Creating link…" : "Create share link"}
+            {createShareMutation.isPending ? "Creating link..." : "Create share link"}
           </button>
         </form>
 
-        {/* Share link result */}
-        <Show when={shareId()}>
-          {(id) => (
-            <div class="rounded-lg border border-green-200 bg-green-50 p-4 space-y-2">
-              <p class="text-sm font-medium text-green-800 flex items-center gap-2">
+        <Show when={createShareMutation.isError}>
+          <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            Failed to create share link.
+          </div>
+        </Show>
+
+        <Show when={createShareMutation.data}>
+          {(share) => (
+            <div class="space-y-2 rounded-lg border border-green-200 bg-green-50 p-4">
+              <p class="flex items-center gap-2 text-sm font-medium text-green-800">
                 <Link2 class="size-4" />
                 Share link created
               </p>
               <div class="flex gap-2">
                 <input
                   readOnly
-                  value={buildShareUrl(id())}
+                  value={buildShareUrl(share().id)}
                   class="flex-1 rounded-lg border border-green-300 bg-white px-3 py-2 text-sm text-stone-900 outline-none"
                 />
                 <button
                   onClick={copyLink}
-                  class="flex items-center gap-1.5 rounded-lg border border-green-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-green-50 transition-colors"
+                  class="flex items-center gap-1.5 rounded-lg border border-green-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-green-50"
                 >
                   <Show when={copied()} fallback={<Copy class="size-4" />}>
                     <Check class="size-4 text-green-600" />
                   </Show>
                   {copied() ? "Copied" : "Copy"}
                 </button>
-                <a
-                  href={buildShareUrl(id())}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="flex items-center justify-center rounded-lg border border-green-300 bg-white px-3 py-2 text-stone-700 hover:bg-green-50 transition-colors"
-                  title="Open in new tab"
-                >
-                  <ExternalLink class="size-4" />
-                </a>
               </div>
             </div>
           )}
         </Show>
       </section>
 
-      {/* Existing shares list */}
-      <section class="rounded-xl border border-border bg-card overflow-hidden">
-        <div class="px-6 py-4 border-b border-border">
+      <section class="overflow-hidden rounded-xl border border-border bg-card">
+        <div class="border-b border-border px-6 py-4">
           <h2 class="text-sm font-semibold">Your shared files</h2>
         </div>
-        <ul class="divide-y divide-border">
-          <For each={EXISTING_SHARES}>
-            {(share) => (
-              <li class="flex items-center gap-3 px-6 py-3">
-                <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-muted shrink-0">
-                  <Link2 class="size-4 text-muted-foreground" />
-                </div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium text-stone-900 truncate">{share.name}</p>
-                  <p class="text-xs text-muted-foreground">
-                    {formatBytes(share.size)} · {share.createdAt.toLocaleDateString()}
-                  </p>
-                </div>
-                <a
-                  href={`/share/${share.id}`}
-                  target="_blank"
-                  class="shrink-0 text-xs text-stone-500 hover:text-stone-900 transition-colors"
-                >
-                  View →
-                </a>
-              </li>
-            )}
-          </For>
-        </ul>
+
+        <Show
+          when={!sharesQuery.isLoading}
+          fallback={<div class="px-6 py-4 text-sm text-muted-foreground">Loading shares...</div>}
+        >
+          <Show
+            when={!sharesQuery.isError}
+            fallback={<div class="px-6 py-4 text-sm text-red-600">Failed to load your shares.</div>}
+          >
+            <Show
+              when={(sharesQuery.data?.length ?? 0) > 0}
+              fallback={
+                <div class="px-6 py-4 text-sm text-muted-foreground">No shared files yet.</div>
+              }
+            >
+              <ul class="divide-y divide-border">
+                <For each={sharesQuery.data}>
+                  {(share) => (
+                    <li class="flex items-center gap-3 px-6 py-3">
+                      <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                        <Link2 class="size-4 text-muted-foreground" />
+                      </div>
+                      <div class="min-w-0 flex-1">
+                        <p class="truncate text-sm font-medium text-stone-900">{share.name}</p>
+                        <p class="text-xs text-muted-foreground">
+                          {formatBytes(share.size)} · {share.createdAt.toLocaleDateString()}
+                        </p>
+                      </div>
+                      <a
+                        href={`/share/${share.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        class="shrink-0 text-xs text-stone-500 transition-colors hover:text-stone-900"
+                      >
+                        View →
+                      </a>
+                    </li>
+                  )}
+                </For>
+              </ul>
+            </Show>
+          </Show>
+        </Show>
       </section>
     </div>
   );

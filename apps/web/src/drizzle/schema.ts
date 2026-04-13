@@ -1,12 +1,5 @@
 import { createId } from "@paralleldrive/cuid2";
-import {
-  index,
-  integer,
-  sqliteTable,
-  text,
-  uniqueIndex,
-  primaryKey,
-} from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const cuid2 = (name = "id") => text(name, { length: 32 }).$defaultFn(() => createId());
 

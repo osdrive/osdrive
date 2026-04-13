@@ -38,14 +38,14 @@ const appLayerLive = Layer.mergeAll(osDriveApiLayer, telemetry).pipe(
 
 async function handler({ request }: APIEvent) {
   const { handler, dispose } = HttpRouter.toWebHandler(appLayerLive);
-  const response = await handler(request, Context.empty());
+  const response = await handler(request, Context.empty() as any);
   waitUntil(dispose().catch((cause) => console.error("OTEL shutdown failed", cause)));
   return response;
 }
 
 export async function GET({ request }: APIEvent) {
   const { handler, dispose } = HttpRouter.toWebHandler(appLayerLive);
-  const response = await handler(request, Context.empty());
+  const response = await handler(request, Context.empty() as any);
   waitUntil(dispose().catch((cause) => console.error("OTEL shutdown failed", cause)));
   return response;
 }
