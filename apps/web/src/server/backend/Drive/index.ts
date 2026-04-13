@@ -5,7 +5,7 @@ import { osDriveApi } from "../../domain";
 
 export const driveApiLayer = HttpApiBuilder.group(osDriveApi, "Drive", (handlers) =>
 	handlers.handle(
-		"drives",
+		"getDrives",
 		() =>
 			Effect.gen(function* () {
 				return [
@@ -15,7 +15,7 @@ export const driveApiLayer = HttpApiBuilder.group(osDriveApi, "Drive", (handlers
 			}).pipe(Effect.withSpan("demo.hello")),
 	)
 		.handle(
-			"drive",
+			"getDrive",
 			({ params }) =>
 				Effect.gen(function* () {
 					if (params.driveId !== DriveId.make("1")) {

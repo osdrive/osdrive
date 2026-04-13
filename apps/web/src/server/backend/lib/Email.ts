@@ -9,6 +9,13 @@ export class EmailAddress extends Schema.Class<EmailAddress>("EmailAddress")({
   value: Schema.String // TODO: Branded types
 }) {}
 
+// TODO: Do this
+// export const SendEmailInput = Schema.Struct({
+//   to: EmailAddress,
+//   subject: Schema.String,
+//   body: Schema.String
+// })
+
 export class SendEmailInput extends Schema.Class<SendEmailInput>("SendEmailInput")({
   to: EmailAddress,
   subject: Schema.String,

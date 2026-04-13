@@ -15,7 +15,7 @@ export class DriveNotFoundError extends Schema.TaggedErrorClass<DriveNotFoundErr
 },  { httpApiStatus: 404 }) {}
 
 export const driveEndpoints = HttpApiGroup.make("Drive")
-	.add(HttpApiEndpoint.get("drives", "/drives", {
+	.add(HttpApiEndpoint.get("getDrives", "/drives", {
 		params: {},
 		success: Schema.Array(Drive),
 }).annotateMerge(
@@ -24,7 +24,7 @@ export const driveEndpoints = HttpApiGroup.make("Drive")
 			description: "Return a list of available drives for the current user",
 		}),
 ))
-	.add(HttpApiEndpoint.get("drive", "/drive/:driveId", {
+	.add(HttpApiEndpoint.get("getDrive", "/drive/:driveId", {
 		params: {
 			driveId: DriveId
 		},

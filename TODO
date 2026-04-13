@@ -4,9 +4,17 @@ With Effect services can we remove all globals. The DB, auth, etc should not be 
 
 https://github.com/CapSoftware/Cap/blob/442f4fc4bb3f9d61c105625912bc0b464f553725/packages/web-domain/scripts/generate-openapi.ts#L2
 
-
+Using `Effect.fn` with tracing for endpoint definitions
 
 https://mintlify.wiki/effect-TS/effect-smol/advanced/batching
+
+Can we convert:
+{
+  "status": 500,
+  "unhandled": true,
+  "message": "HTTPError"
+}
+into an Effect defect on client???
 
 
 
