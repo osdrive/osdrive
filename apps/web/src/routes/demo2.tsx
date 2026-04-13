@@ -7,41 +7,44 @@ import type { JSX } from "solid-js";
 import { createMemo, For, Show, Suspense } from "solid-js";
 import { isServer } from "solid-js/web";
 import { Button } from "~/components/ui/button";
-import { demoApi, ErrorsResponse, MyErrorResponse } from "~/server/effect";
+import { osDriveApi } from "~/server/domain";
+import { Drive, DriveId, DriveNotFoundError } from "~/server/domain/Drive";
 
-type ErrorsData = Schema.Schema.Type<typeof ErrorsResponse>;
-type ErrorsError = Schema.Schema.Type<typeof MyErrorResponse>;
+type DriveData = Drive;
+type DriveError = Schema.Schema.Type<typeof DriveNotFoundError>;
 type ErrorsViewModel =
-	| { _tag: "Success"; data: ErrorsData }
-	| { _tag: "ApiError"; error: ErrorsError }
+	| { _tag: "Success"; data: DriveData }
+	| { _tag: "ApiError"; error: DriveError }
 	| { _tag: "UnexpectedError"; message: string };
 
-const isMyErrorResponse = Schema.is(MyErrorResponse);
+const isDriveNotFoundError = Schema.is(DriveNotFoundError);
 
 export default function Demo2Page() {
 	const errorsAtom = createMemo(() => {
 		const client = AtomHttpApi.Service()("DemoAtomClient", {
-			api: demoApi,
+			api: osDriveApi,
 			httpClient: FetchHttpClient.layer,
 			baseUrl: getBaseUrl(),
 		});
 
-		return client.query("demo", "errors", {});
+		return client.query("Drive", "drive", {
+			params: { driveId: DriveId.make("1") },
+		});
 	});
 	const errorsViewAtom = createMemo(() =>
 		Atom.map(errorsAtom(), (result): AsyncResult.AsyncResult<ErrorsViewModel, never> =>
 			AsyncResult.matchWithError(result, {
 				onInitial: () => AsyncResult.initial(),
-				onSuccess: (success) =>
-					AsyncResult.success({
-						_tag: "Success",
-						data: success.value,
-					}),
-				onError: (error) =>
-					isMyErrorResponse(error)
-						? AsyncResult.success({
-							_tag: "ApiError",
-							error,
+					onSuccess: (success) =>
+						AsyncResult.success({
+							_tag: "Success",
+							data: success.value,
+						}),
+					onError: (error) =>
+						isDriveNotFoundError(error)
+							? AsyncResult.success({
+								_tag: "ApiError",
+								error,
 						})
 						: AsyncResult.success({
 							_tag: "UnexpectedError",
@@ -62,11 +65,11 @@ export default function Demo2Page() {
 		<div class="min-h-screen bg-stone-50 px-6 py-16 text-stone-900">
 			<div class="mx-auto max-w-2xl rounded-3xl border border-stone-200 bg-white p-8 shadow-sm">
 				<p class="mb-3 text-xs uppercase tracking-[0.2em] text-stone-400">Effect Atom Demo</p>
-				<h1 class="text-3xl font-light tracking-tight text-stone-900">Typed `/api/errors` with Solid atoms</h1>
+				<h1 class="text-3xl font-light tracking-tight text-stone-900">Typed `/api/drive/:id` with Solid atoms</h1>
 				<p class="mt-3 text-sm leading-6 text-stone-500">
-					This page uses `AtomHttpApi.query` and `@effect/atom-solid` to fetch the existing
-					 Effect HttpApi endpoint. Both the success payload and the API error payload are rendered
-					 from the endpoint schemas.
+					This page uses `AtomHttpApi.query` and `@effect/atom-solid` to fetch the live drive endpoint.
+					 Both the success payload and the typed not-found error are rendered from the endpoint
+					 schemas.
 				</p>
 
 				<div class="mt-6 flex items-center gap-3">
@@ -79,7 +82,7 @@ export default function Demo2Page() {
 				<Suspense
 					fallback={
 						<div class="mt-6 rounded-2xl border border-stone-200 bg-stone-50 p-5 text-sm text-stone-500">
-							Loading `/api/errors`...
+							Loading `/api/drive/1`...
 						</div>
 					}
 				>
@@ -96,11 +99,11 @@ function getBaseUrl() {
 	return isServer ? getRequestURL().origin : window.location.origin;
 }
 
-function SuccessView(props: { data: ErrorsData }) {
+function SuccessView(props: { data: DriveData }) {
 	return (
 		<div class="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
 			<p class="text-sm font-medium text-emerald-800">Typed success</p>
-			<p class="mt-2 text-sm">Message: {props.data.message}</p>
+			<p class="mt-2 text-sm">Name: {props.data.name}</p>
 			<pre class="mt-4 overflow-x-auto rounded-xl bg-stone-900 p-4 text-sm text-stone-100">
 				{JSON.stringify(props.data, null, 2)}
 			</pre>
@@ -108,18 +111,12 @@ function SuccessView(props: { data: ErrorsData }) {
 	);
 }
 
-function ErrorView(props: { error: ErrorsError }) {
+function ErrorView(props: { error: DriveError }) {
 	return (
 		<div class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950">
 			<p class="text-sm font-medium text-amber-800">Typed API error</p>
 			<p class="mt-2 text-sm">Tag: {props.error._tag}</p>
-			<p class="mt-1 text-sm">Message: {props.error.message}</p>
-			<div class="mt-4">
-				<p class="text-sm font-medium text-amber-800">Issues</p>
-				<ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
-					<For each={props.error.issues}>{(issue) => <li>{issue}</li>}</For>
-				</ul>
-			</div>
+			<p class="mt-1 text-sm">Missing drive ID: {props.error.id}</p>
 			<pre class="mt-4 overflow-x-auto rounded-xl bg-stone-900 p-4 text-sm text-stone-100">
 				{JSON.stringify(props.error, null, 2)}
 			</pre>

@@ -1,10 +1,19 @@
+// Why?
+//  - Batching for performance (Eg. `/api/me` and `/api/users` at same time)
+//  - Single flight mutations
+//
+// Without any special RPC definitions, or per-page server function.
+//
+
 import { Context, Effect, Layer, Request, RequestResolver, Schedule, Stream } from "effect"
 import {  HttpClient, HttpClientError, HttpClientResponse, Headers } from "effect/unstable/http"
 import { RequestInit } from "effect/unstable/http/FetchHttpClient"
 import { HttpApiClient, } from "effect/unstable/httpapi"
-import { onMount } from "solid-js"
-import { demoApi } from "~/server/effect"
+import { createResource, Suspense } from "solid-js"
+import { osDriveApi } from "~/server/domain"
+import { DriveId } from "~/server/domain/Drive"
 import { fetchWithEvent } from "@solidjs/start/http";
+import { action, redirect } from "@solidjs/router"
 
 type BatchedServerRequest = readonly [string, globalThis.RequestInit]
 
@@ -33,7 +42,7 @@ async function serverFetch(requests: ReadonlyArray<BatchedServerRequest>): Promi
         status: response.status,
         statusText: response.statusText,
         headers: Array.from(response.headers.entries()),
-        body: await response.text()
+        body: await response.text() // TODO: Handle streaming bytes
       }
     })
   )
@@ -120,10 +129,10 @@ const customFetch: HttpClient.HttpClient = HttpClient.make((request, url, _signa
 
 const customFetchLayer: Layer.Layer<HttpClient.HttpClient> = HttpClient.layerMergedContext(Effect.succeed(customFetch))
 
-export class ApiClient extends Context.Service<ApiClient, HttpApiClient.ForApi<typeof demoApi>>()("acme/ApiClient") {
+export class ApiClient extends Context.Service<ApiClient, HttpApiClient.ForApi<typeof osDriveApi>>()("acme/ApiClient") {
   static readonly layer = Layer.effect(
     ApiClient,
-    HttpApiClient.make(demoApi, {
+    HttpApiClient.make(osDriveApi, {
       // Use transformClient to apply middleware to the generated client. This
       // is useful for settings the base url and applying retry policies.
       transformClient: (client) =>
@@ -143,27 +152,40 @@ export class ApiClient extends Context.Service<ApiClient, HttpApiClient.ForApi<t
   )
 }
 
+const testingAction = action(async () => {
+  "use server";
+
+  console.log("Testing action called!");
+
+  throw redirect("/demo3");
+}, "testingAction");
+
+function todo() {
+  "use server";
+
+  return Math.random();
+}
 
 export default function Page() {
-  // TODO: hook this up properly w/ SSR streaming
-  onMount(() => {
-    const callApi = Effect.gen(function* () {
-      const client = yield* ApiClient
-
-      const results = yield* Effect.all([
-        client.demo.hello({ params: { name: "Oscar 1" } }),
-        client.demo.hello({ params: { name: "Oscar 2" } }),
-        client.demo.hello({ params: { name: "Oscar 3" } })
-      ], { concurrency: "unbounded" })
-
-      console.log(results);
-    }).pipe(
-      Effect.provide(ApiClient.layer)
-    );
-
-    Effect.runPromise(callApi);
-  });
+  const [resource] = createResource(() => todo());
 
 
-  return <h1>Hello World!</h1>
+  return (
+    <div>
+      <h1>Hello World!</h1>
+      <p>Experimental batching client wired to the current Drive API.</p>
+      <pre>{JSON.stringify({ driveId: DriveId.make("1") }, null, 2)}</pre>
+      <form
+             action={testingAction}
+             method="post"
+           >
+             {/*<input name="name" placeholder="New name" />*/}
+             <button>Save</button>
+      </form>
+
+      <Suspense fallback="Pending...">
+        {resource()}
+      </Suspense>
+    </div>
+  )
 }

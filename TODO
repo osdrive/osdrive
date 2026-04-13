@@ -1,9 +1,67 @@
-Does t3 env run during deploy or only at runtime? -> If so remove `secrets`
+docker run -p 3010:3000 -p 4317:4317 -p 4318:4318 --rm -it docker.io/grafana/otel-lgtm"
 
-Replace all
-- import.meta.env
-- process.env
+With Effect services can we remove all globals. The DB, auth, etc should not be global!!!
 
+https://github.com/CapSoftware/Cap/blob/442f4fc4bb3f9d61c105625912bc0b464f553725/packages/web-domain/scripts/generate-openapi.ts#L2
+
+
+
+https://mintlify.wiki/effect-TS/effect-smol/advanced/batching
+
+
+
+
+
+
+
+Fix hot reload on Effect stuff
+https://github.com/lucas-barake/effect-tanstack-start
+File upload w/ Effect? - https://www.youtube.com/watch?v=-23f_B1fnKA
+
+Devtools:
+ - https://effect.website/docs/getting-started/devtools/
+ - https://github.com/Effect-TS/tsgo
+
+https://github.com/dmmulroy/effect-cloudflare/blob/main/src/scratch.ts
+https://mintlify.wiki/Effect-TS/effect-smol/introduction
+
+Zed:
+{
+    "typescript.experimental.useTsgo": true
+}
+Effect Typescript plugin
+
+OTEL:
+ - SolidStart
+ - Better auth
+ - Server functions (probs requires SS integration)
+
+`effect-atom` streaming SSR data fetching???
+Batched refetching instead of multiple requests???
+
+Account profile photo - https://github.com/better-auth/better-auth/issues/2322
+RBAC - https://www.youtube.com/watch?v=6IaEhu8epnA
+
+Effect:
+ - Client
+    - Distributed tracing -> `X-Request-Id` + working through server functions
+    - Error handling crashes on HTTP requests properly in EffectTS
+ - DB service
+ - Email service
+ - S3/R2/KV service
+ - Auth service (deduplicate and cache DB lookups)
+
+/Users/oscar/Desktop/gpuidrive/apps/web/node_modules/.vite/deps_ssr/chunk-XS77VEGN.js?v=8a5f0af8:91193: Uncaught Error: Disallowed operation called within global scope. Asynchronous I/O (ex: fetch() or connect()), setting a timeout, and generating random values are not allowed within global scope. To fix this error, perform this operation within a handler. https://developers.cloudflare.com/workers/runtime-apis/handlers/ (x7)
+
+Local-first filesystem view so it's incredibly quick
+
+Allow favoriting shares in the sidebar. Have a "Reveal all" button to show the rest???
+Command + K
+
+
+
+User dropdown on main dashboard layout
+Edit account button and a page for it
 
 Email sending hooked back up + better auth for it
 Email rendering
@@ -16,7 +74,7 @@ Formatting everything with Vite Plus + Setup CI workflow
 
 
 
-
+Configure avatars for account???
 
 EffectTS
      - Batching
@@ -37,15 +95,11 @@ Fallback to console email sender
 
 Login working w/ dashboard
 PostHog setup w/ login system
+OpenGraph
 
 File sharing back
 
-
-
-
-
-Cleanup `web` project of AI slop
-
+Forbid "env" import from "cloudflare:workers", "process.env" or "import.meta.env"
 
 
 
@@ -54,6 +108,7 @@ Cleanup `web` project of AI slop
 
 
 
+https://github.com/tobi/qmd
 
 
 
