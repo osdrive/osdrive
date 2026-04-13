@@ -2,9 +2,11 @@
    "private": true,
    "version": "0.0.0",
    "scripts": {
-      "web": "pnpm --filter @osdrive/web --"
+     "web": "pnpm --filter @osdrive/web --",
+     "format": "vp fmt && vp lint"
    },
    "devDependencies": {
-      "@typescript/native-preview": "7.0.0-dev.20260411.1"
+      "@typescript/native-preview": "7.0.0-dev.20260412.1",
+      "vite-plus": "catalog:"
    }
 }
