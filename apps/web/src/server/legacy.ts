@@ -20,7 +20,6 @@ export const redirectAuthenticatedQuery = query(async (returnTo?: string | null)
   return null;
 }, "auth.redirectAuthenticated");
 
-
 function toSafeReturnPath(value?: string | null) {
   if (!value) {
     return "/dashboard";

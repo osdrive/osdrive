@@ -4,7 +4,6 @@ import { Button } from "~/components/ui/button";
 import { UserDropdown } from "~/components/user-dropdown";
 import { authClient } from "~/lib/auth";
 
-
 export default function Layout(props: ParentProps) {
   return (
     <div class="min-h-screen bg-stone-50 text-stone-900 font-sans flex flex-col">
@@ -44,7 +43,13 @@ function TopNavigation() {
     href.startsWith("/") && !href.startsWith("/#") && location.pathname === href;
 
   const handleLogout = async () => {
-    await authClient.signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/"; } } });
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          window.location.href = "/";
+        },
+      },
+    });
   };
 
   return (
@@ -57,7 +62,11 @@ function TopNavigation() {
 
         <nav class="hidden md:flex items-center gap-8 text-sm">
           <NavigationLink href="/#product" label="Product" active={isActive("/#product")} />
-          <NavigationLink href="/#enterprise" label="Enterprise" active={isActive("/#enterprise")} />
+          <NavigationLink
+            href="/#enterprise"
+            label="Enterprise"
+            active={isActive("/#enterprise")}
+          />
           <NavigationLink href="/#pricing" label="Pricing" active={isActive("/#pricing")} />
           <NavigationLink href="/docs" label="Docs" active={isActive("/docs")} />
         </nav>
@@ -65,7 +74,13 @@ function TopNavigation() {
         <div class="flex items-center gap-3 shrink-0">
           {/* Dashboard button — only visible when authenticated, fades in */}
           <Show when={!session().isPending && session().data?.user}>
-            <Button as="a" href="/dashboard" variant="outline" size="sm" class="rounded-full border-stone-300 text-stone-600 hover:bg-stone-100 animate-in fade-in duration-300">
+            <Button
+              as="a"
+              href="/dashboard"
+              variant="outline"
+              size="sm"
+              class="rounded-full border-stone-300 text-stone-600 hover:bg-stone-100 animate-in fade-in duration-300"
+            >
               Dashboard →
             </Button>
           </Show>
@@ -87,7 +102,12 @@ function Footer() {
     <footer class="border-t border-stone-200 py-8 px-8">
       <div class="mx-auto max-w-7xl flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-stone-400">
         <div class="flex items-center gap-2">
-          <span><a href="https://otbeaumont.me" class="inline hover:underline">Oscar Beaumont</a> © 2025</span>
+          <span>
+            <a href="https://otbeaumont.me" class="inline hover:underline">
+              Oscar Beaumont
+            </a>{" "}
+            © 2025
+          </span>
         </div>
         <div class="flex flex-wrap justify-center gap-6">
           <FooterLink href="/privacy" label="Privacy" />

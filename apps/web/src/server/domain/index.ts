@@ -5,15 +5,15 @@ import { version } from "../../../package.json" with { type: "json" };
 import { accountEndpoints } from "./Account";
 
 export const osDriveApi = HttpApi.make("OSDriveApi")
-	.add(accountEndpoints)
-	.add(driveEndpoints)
-	.add(shareEndpoints)
-	.prefix("/api")
-	.annotateMerge(
-		OpenApi.annotations({
-			title: "OSDrive API",
-			version,
-			description: "OSDrive Web API",
-			servers: [{ url: "/" }],
-		}),
-	);
+  .add(accountEndpoints)
+  .add(driveEndpoints)
+  .add(shareEndpoints)
+  .prefix("/api")
+  .annotateMerge(
+    OpenApi.annotations({
+      title: "OSDrive API",
+      version,
+      description: "OSDrive Web API",
+      servers: [{ url: "/" }],
+    }),
+  );

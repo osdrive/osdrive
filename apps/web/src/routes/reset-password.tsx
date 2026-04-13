@@ -22,7 +22,10 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    const token = searchParams.token && Array.isArray(searchParams.token) ? searchParams.token[0] : searchParams.token;
+    const token =
+      searchParams.token && Array.isArray(searchParams.token)
+        ? searchParams.token[0]
+        : searchParams.token;
     if (!token) {
       setError("Invalid or missing reset token. Please request a new reset link.");
       return;
@@ -106,9 +109,7 @@ export default function ResetPasswordPage() {
               />
             </div>
 
-            <Show when={error()}>
-              {(msg) => <p class="text-sm text-red-600">{msg()}</p>}
-            </Show>
+            <Show when={error()}>{(msg) => <p class="text-sm text-red-600">{msg()}</p>}</Show>
 
             <button
               type="submit"

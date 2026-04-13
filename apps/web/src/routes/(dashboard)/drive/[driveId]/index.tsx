@@ -116,11 +116,16 @@ function isPreviewable(type: FileType): boolean {
 
 function fileIconColor(type: FileType): string {
   switch (type) {
-    case "folder": return "text-amber-500";
-    case "image":  return "text-blue-500";
-    case "pdf":    return "text-red-500";
-    case "video":  return "text-purple-500";
-    default:       return "text-stone-400";
+    case "folder":
+      return "text-amber-500";
+    case "image":
+      return "text-blue-500";
+    case "pdf":
+      return "text-red-500";
+    case "video":
+      return "text-purple-500";
+    default:
+      return "text-stone-400";
   }
 }
 
@@ -263,14 +268,9 @@ function MetadataSidebar(props: { file: DriveFile | null; driveId: string }) {
             {/* Icon + name */}
             <div class="flex flex-col items-center gap-3 py-3">
               <div class="flex h-16 w-16 items-center justify-center rounded-xl bg-muted">
-                <FileIcon
-                  type={file().type}
-                  class={`size-8 ${fileIconColor(file().type)}`}
-                />
+                <FileIcon type={file().type} class={`size-8 ${fileIconColor(file().type)}`} />
               </div>
-              <p class="text-sm font-semibold text-center break-all leading-snug">
-                {file().name}
-              </p>
+              <p class="text-sm font-semibold text-center break-all leading-snug">{file().name}</p>
             </div>
 
             {/* Metadata */}
@@ -397,9 +397,7 @@ export default function DrivePage() {
             <thead class="sticky top-0 z-10">
               <tr class="border-b border-border bg-stone-50">
                 <th class="py-2 pl-4 pr-2 w-8" />
-                <th class="py-2 pr-4 text-xs font-medium text-left text-muted-foreground">
-                  Name
-                </th>
+                <th class="py-2 pr-4 text-xs font-medium text-left text-muted-foreground">Name</th>
                 <th class="py-2 pr-4 text-xs font-medium text-right text-muted-foreground hidden sm:table-cell">
                   Size
                 </th>

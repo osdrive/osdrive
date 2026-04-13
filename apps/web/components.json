@@ -22,6 +22,6 @@
   "menuColor": "default",
   "menuAccent": "subtle",
   "registries": {
-     "@zaidan": "https://zaidan.carere.dev/r/{style}/{name}.json"
+    "@zaidan": "https://zaidan.carere.dev/r/{style}/{name}.json"
   }
 }

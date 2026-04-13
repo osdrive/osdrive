@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Description: CloudFormation template for OSDrive.
 
 Resources:
@@ -9,7 +9,7 @@ Resources:
       Policies:
         - PolicyName: OSDriveCloudflarePolicy-SES
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:

@@ -1,12 +1,18 @@
 {
-   "private": true,
-   "version": "0.0.0",
-   "scripts": {
-     "web": "pnpm --filter @osdrive/web --",
-     "format": "vp fmt && vp lint"
-   },
-   "devDependencies": {
-      "@typescript/native-preview": "7.0.0-dev.20260412.1",
-      "vite-plus": "catalog:"
-   }
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "web": "pnpm --filter @osdrive/web --",
+    "format": "vp fmt --write && vp lint"
+  },
+  "dependencies": {
+    "vite-plus": "catalog:"
+  },
+  "devDependencies": {
+    "@typescript/native-preview": "7.0.0-dev.20260412.1"
+  },
+  "engines": {
+    "node": ">=24"
+  }
 }

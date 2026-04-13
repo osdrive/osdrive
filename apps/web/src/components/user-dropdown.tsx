@@ -36,7 +36,11 @@ export function UserDropdown(props: UserDropdownProps) {
     <Show
       when={!props.pending}
       fallback={
-        <div class={props.placeholderClass ?? "h-8 w-8 rounded-full bg-stone-200 opacity-50 animate-pulse"} />
+        <div
+          class={
+            props.placeholderClass ?? "h-8 w-8 rounded-full bg-stone-200 opacity-50 animate-pulse"
+          }
+        />
       }
     >
       <Show
@@ -59,7 +63,11 @@ export function UserDropdown(props: UserDropdownProps) {
               aria-label="Account menu"
             >
               <Show when={user().image} fallback={<span>{getInitials(user().name ?? "?")}</span>}>
-                <img src={user().image!} alt={user().name ?? ""} class="h-full w-full object-cover" />
+                <img
+                  src={user().image!}
+                  alt={user().name ?? ""}
+                  class="h-full w-full object-cover"
+                />
               </Show>
             </DropdownMenuTrigger>
 

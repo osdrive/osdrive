@@ -1,8 +1,14 @@
 import { createId } from "@paralleldrive/cuid2";
-import { index, integer, sqliteTable, text, uniqueIndex, primaryKey } from "drizzle-orm/sqlite-core";
+import {
+  index,
+  integer,
+  sqliteTable,
+  text,
+  uniqueIndex,
+  primaryKey,
+} from "drizzle-orm/sqlite-core";
 
-export const cuid2 = (name = "id") =>
-  text(name, { length: 32 }).$defaultFn(() => createId());
+export const cuid2 = (name = "id") => text(name, { length: 32 }).$defaultFn(() => createId());
 
 export const user = sqliteTable(
   "user",
@@ -15,7 +21,7 @@ export const user = sqliteTable(
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   },
-  table => [uniqueIndex("user_email_unique").on(table.email)],
+  (table) => [uniqueIndex("user_email_unique").on(table.email)],
 );
 
 export const session = sqliteTable(
@@ -32,7 +38,10 @@ export const session = sqliteTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
   },
-  table => [uniqueIndex("session_token_unique").on(table.token), index("session_user_id_idx").on(table.userId)],
+  (table) => [
+    uniqueIndex("session_token_unique").on(table.token),
+    index("session_user_id_idx").on(table.userId),
+  ],
 );
 
 export const account = sqliteTable(
@@ -54,7 +63,7 @@ export const account = sqliteTable(
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   },
-  table => [
+  (table) => [
     uniqueIndex("account_provider_account_unique").on(table.providerId, table.accountId),
     index("account_user_id_idx").on(table.userId),
   ],
@@ -70,7 +79,7 @@ export const verification = sqliteTable(
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   },
-  table => [index("verification_identifier_idx").on(table.identifier)],
+  (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
 // export const tenant = sqliteTable(

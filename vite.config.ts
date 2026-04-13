@@ -1,5 +1,13 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
-  lint: { options: { typeAware: true, typeCheck: true } },
+  // Oxlint configuration.
+  // lint: {
+  //   ignorePatterns: ["dist/**"],
+  // },
+
+  // Oxfmt configuration.
+  fmt: {
+    semi: true,
+  },
 });

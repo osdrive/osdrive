@@ -74,9 +74,7 @@ export default function ForgotPasswordPage() {
               />
             </div>
 
-            <Show when={error()}>
-              {(msg) => <p class="text-sm text-red-600">{msg()}</p>}
-            </Show>
+            <Show when={error()}>{(msg) => <p class="text-sm text-red-600">{msg()}</p>}</Show>
 
             <button
               type="submit"

@@ -1,14 +1,5 @@
 import { createAsync, useLocation, useNavigate } from "@solidjs/router";
-import {
-  Cloud,
-  Download,
-  Laptop,
-  LogOut,
-  Plus,
-  Settings,
-  Smartphone,
-  User,
-} from "lucide-solid";
+import { Cloud, Download, Laptop, LogOut, Plus, Settings, Smartphone, User } from "lucide-solid";
 import { createSignal, For, type ParentProps, Show, Switch, Match } from "solid-js";
 import {
   Breadcrumb,
@@ -55,9 +46,24 @@ import { requireCurrentUserQuery } from "~/server/legacy";
 // Drives (hardcoded — replace with real data when the API is wired up)
 // ---------------------------------------------------------------------------
 const drives = [
-  { id: "company-files", name: "Company Files", type: "cloud" as const, href: "/drive/company-files" },
-  { id: "oscars-laptop", name: "Oscar's Laptop", type: "computer" as const, href: "/drive/oscars-laptop" },
-  { id: "oscars-phone", name: "Oscar's Phone", type: "phone" as const, href: "/drive/oscars-phone" },
+  {
+    id: "company-files",
+    name: "Company Files",
+    type: "cloud" as const,
+    href: "/drive/company-files",
+  },
+  {
+    id: "oscars-laptop",
+    name: "Oscar's Laptop",
+    type: "computer" as const,
+    href: "/drive/oscars-laptop",
+  },
+  {
+    id: "oscars-phone",
+    name: "Oscar's Phone",
+    type: "phone" as const,
+    href: "/drive/oscars-phone",
+  },
 ];
 
 // Hardcoded teams shown in the "create cloud drive" step
@@ -197,9 +203,7 @@ function NewDriveDialog(props: { open: boolean; onOpenChange: (v: boolean) => vo
                   onChange={(e) => setSelectedTeam(e.currentTarget.value)}
                   class={inputClass}
                 >
-                  <For each={teams}>
-                    {(t) => <option value={t.id}>{t.name}</option>}
-                  </For>
+                  <For each={teams}>{(t) => <option value={t.id}>{t.name}</option>}</For>
                 </select>
               </div>
               <div class="flex gap-2 pt-1">
@@ -225,7 +229,8 @@ function NewDriveDialog(props: { open: boolean; onOpenChange: (v: boolean) => vo
             <DialogHeader>
               <DialogTitle>Connect Your Laptop</DialogTitle>
               <DialogDescription>
-                To access files on your laptop, download the OSDrive desktop app and sign in with your account.
+                To access files on your laptop, download the OSDrive desktop app and sign in with
+                your account.
               </DialogDescription>
             </DialogHeader>
             <div class="mt-2 flex flex-col gap-2">
@@ -258,7 +263,8 @@ function NewDriveDialog(props: { open: boolean; onOpenChange: (v: boolean) => vo
             <DialogHeader>
               <DialogTitle>Connect Your Phone</DialogTitle>
               <DialogDescription>
-                To access files on your phone, download the OSDrive mobile app and sign in with your account.
+                To access files on your phone, download the OSDrive mobile app and sign in with your
+                account.
               </DialogDescription>
             </DialogHeader>
             <div class="mt-2 flex flex-col gap-2">
@@ -327,11 +333,7 @@ export default function DashboardLayout(props: ParentProps) {
                 class="gap-2.5 px-2 hover:bg-sidebar-accent"
                 tooltip="OSDrive"
               >
-                <img
-                  src="/assets/icon-dark.svg"
-                  alt="OSDrive"
-                  class="size-7 rounded shrink-0"
-                />
+                <img src="/assets/icon-dark.svg" alt="OSDrive" class="size-7 rounded shrink-0" />
                 <span class="font-semibold tracking-tight">OSDrive</span>
               </SidebarMenuButton>
             </SidebarMenuItem>

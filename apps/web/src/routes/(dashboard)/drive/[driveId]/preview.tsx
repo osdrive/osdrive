@@ -41,7 +41,8 @@ const PREVIEW_FILES: PreviewFile[] = [
     type: "video",
     size: 45_000_000,
     mimeType: "video/mp4",
-    previewUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+    previewUrl:
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
   },
 ];
 

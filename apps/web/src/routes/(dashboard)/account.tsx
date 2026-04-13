@@ -108,7 +108,9 @@ export default function AccountPage() {
     <div class="flex flex-1 flex-col gap-6 p-6 max-w-2xl">
       <div>
         <h1 class="text-xl font-semibold text-stone-900">Account</h1>
-        <p class="text-sm text-stone-500 mt-1">Manage your personal information and security settings.</p>
+        <p class="text-sm text-stone-500 mt-1">
+          Manage your personal information and security settings.
+        </p>
       </div>
 
       {/* Name */}
@@ -140,9 +142,7 @@ export default function AccountPage() {
             {namePending() ? "Saving…" : "Save"}
           </button>
         </form>
-        <Show when={nameError()}>
-          {(msg) => <p class="mt-2 text-sm text-red-600">{msg()}</p>}
-        </Show>
+        <Show when={nameError()}>{(msg) => <p class="mt-2 text-sm text-red-600">{msg()}</p>}</Show>
         <Show when={nameSuccess()}>
           <p class="mt-2 text-sm text-green-600">Name updated successfully.</p>
         </Show>
@@ -152,8 +152,7 @@ export default function AccountPage() {
       <section class="rounded-xl border border-border bg-card p-6">
         <h2 class="text-sm font-semibold mb-1">Email address</h2>
         <p class="text-sm text-muted-foreground mb-1">
-          Your current email is{" "}
-          <span class="font-medium text-stone-900">{user()?.email}</span>
+          Your current email is <span class="font-medium text-stone-900">{user()?.email}</span>
           <Show when={user()?.emailVerified}>
             <span class="ml-1.5 inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
               Verified
@@ -166,13 +165,15 @@ export default function AccountPage() {
           </Show>
         </p>
         <p class="text-sm text-muted-foreground mb-4">
-          A verification link will be sent to your new address. The change takes effect after you confirm it.
+          A verification link will be sent to your new address. The change takes effect after you
+          confirm it.
         </p>
         <Show
           when={!emailSent()}
           fallback={
             <div class="rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
-              Verification email sent. Please check your inbox and click the link to confirm the change.
+              Verification email sent. Please check your inbox and click the link to confirm the
+              change.
             </div>
           }
         >
@@ -200,9 +201,7 @@ export default function AccountPage() {
             </button>
           </form>
         </Show>
-        <Show when={emailError()}>
-          {(msg) => <p class="mt-2 text-sm text-red-600">{msg()}</p>}
-        </Show>
+        <Show when={emailError()}>{(msg) => <p class="mt-2 text-sm text-red-600">{msg()}</p>}</Show>
       </section>
 
       {/* Password */}
@@ -259,9 +258,7 @@ export default function AccountPage() {
               autocomplete="new-password"
             />
           </div>
-          <Show when={passwordError()}>
-            {(msg) => <p class="text-sm text-red-600">{msg()}</p>}
-          </Show>
+          <Show when={passwordError()}>{(msg) => <p class="text-sm text-red-600">{msg()}</p>}</Show>
           <Show when={passwordSuccess()}>
             <p class="text-sm text-green-600">Password changed successfully.</p>
           </Show>

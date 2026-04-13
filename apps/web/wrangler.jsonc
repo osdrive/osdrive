@@ -1,35 +1,35 @@
 {
-	"$schema": "./node_modules/wrangler/config-schema.json",
-	"name": "osdrive",
-	"main": "@solidjs/start/server/entry",
-	"compatibility_date": "2026-04-01",
-	"compatibility_flags": ["nodejs_compat"],
-	"keep_vars": true,
-	"route": {
-		"pattern": "osdrive.app",
-		"custom_domain": true
-	},
-	"observability": {
-		"enabled": true
-	},
-	"kv_namespaces": [
-		{
-			"binding": "KV",
-			"id": "1bad9061a6ec41319b5a82f74004199a"
-		}
-	],
-	"r2_buckets": [
-		{
-			"binding": "DATA",
-			"bucket_name": "osdrive"
-		}
-	],
-	"d1_databases": [
-		{
-			"binding": "DB",
-			"database_name": "osdrive",
-			"database_id": "81820c79-fe8c-40ee-9cf5-5bad0323b13a",
-			"migrations_dir": "drizzle"
-		}
-	]
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "osdrive",
+  "main": "@solidjs/start/server/entry",
+  "compatibility_date": "2026-04-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "keep_vars": true,
+  "route": {
+    "pattern": "osdrive.app",
+    "custom_domain": true,
+  },
+  "observability": {
+    "enabled": true,
+  },
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "1bad9061a6ec41319b5a82f74004199a",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "DATA",
+      "bucket_name": "osdrive",
+    },
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "osdrive",
+      "database_id": "81820c79-fe8c-40ee-9cf5-5bad0323b13a",
+      "migrations_dir": "drizzle",
+    },
+  ],
 }

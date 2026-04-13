@@ -7,12 +7,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
 import { SolidQueryDevtools } from "@tanstack/solid-query-devtools";
 import "./app.css";
 
-const client = new QueryClient()
+const client = new QueryClient();
 
 export default function App() {
   return (
     <Router
-      root={props => (
+      root={(props) => (
         <MetaProvider>
           <RegistryProvider>
             <QueryClientProvider client={client}>

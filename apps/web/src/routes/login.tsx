@@ -30,7 +30,10 @@ export default function LoginPage() {
       return;
     }
 
-    const returnTo = searchParams.returnTo && Array.isArray(searchParams.returnTo) ? searchParams.returnTo[0] : searchParams.returnTo;
+    const returnTo =
+      searchParams.returnTo && Array.isArray(searchParams.returnTo)
+        ? searchParams.returnTo[0]
+        : searchParams.returnTo;
     navigate(returnTo ?? "/dashboard", { replace: true });
   };
 
@@ -68,7 +71,10 @@ export default function LoginPage() {
               <label for="password" class="text-sm font-medium text-stone-700">
                 Password
               </label>
-              <a href="/forgot-password" class="text-xs text-stone-500 hover:text-stone-900 transition-colors">
+              <a
+                href="/forgot-password"
+                class="text-xs text-stone-500 hover:text-stone-900 transition-colors"
+              >
                 Forgot password?
               </a>
             </div>
@@ -84,9 +90,7 @@ export default function LoginPage() {
             />
           </div>
 
-          <Show when={error()}>
-            {(msg) => <p class="text-sm text-red-600">{msg()}</p>}
-          </Show>
+          <Show when={error()}>{(msg) => <p class="text-sm text-red-600">{msg()}</p>}</Show>
 
           <button
             type="submit"
