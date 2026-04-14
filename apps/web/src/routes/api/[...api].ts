@@ -32,7 +32,7 @@ const telemetry = serverEnv.AXIOM_DATASET
     ).pipe(Layer.provide(OtlpSerialization.layerJson), Layer.provide(FetchHttpClient.layer))
   : Layer.empty;
 
-const appLayerLive = Layer.mergeAll(osDriveApiLayer, telemetry).pipe(
+export const appLayerLive = Layer.mergeAll(osDriveApiLayer, telemetry).pipe(
   Layer.provide(HttpServer.layerServices),
 );
 
