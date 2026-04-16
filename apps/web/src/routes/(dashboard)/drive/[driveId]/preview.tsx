@@ -111,7 +111,7 @@ export default function DrivePreviewPage() {
   const params = useParams<{ driveId: string }>();
   const [searchParams] = useSearchParams();
 
-  const entryQuery = api.Drive.query.getEntry(() => ({
+  const entryQuery = api.Drive.getEntry.useQuery(() => ({
     enabled: !!searchParams.file,
     request: {
       params: {

@@ -308,41 +308,41 @@ export default function DrivePage() {
 
   const invalidateDrive = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: api.Drive.query.getDrives.key() }),
+      queryClient.invalidateQueries({ queryKey: api.Drive.getDrives.key() }),
       queryClient.invalidateQueries({
-        queryKey: api.Drive.query.getDrive.key({ params: { driveId: params.driveId as never } }),
+        queryKey: api.Drive.getDrive.key({ params: { driveId: params.driveId as never } }),
       }),
     ]);
   };
 
-  const driveQuery = api.Drive.query.getDrive(() => ({
+  const driveQuery = api.Drive.getDrive.useQuery(() => ({
     request: { params: { driveId: params.driveId as never } },
   }));
 
-  const createFolderMutation = api.Drive.mutation.createFolder(() => ({
+  const createFolderMutation = api.Drive.createFolder.useMutation(() => ({
     onSuccess: invalidateDrive,
   }));
 
-  const uploadFileMutation = api.Drive.mutation.uploadFile(() => ({
+  const uploadFileMutation = api.Drive.uploadFile.useMutation(() => ({
     onSuccess: invalidateDrive,
   }));
 
-  const renameDriveMutation = api.Drive.mutation.renameDrive(() => ({
+  const renameDriveMutation = api.Drive.renameDrive.useMutation(() => ({
     onSuccess: invalidateDrive,
   }));
 
-  const deleteDriveMutation = api.Drive.mutation.deleteDrive(() => ({
+  const deleteDriveMutation = api.Drive.deleteDrive.useMutation(() => ({
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: api.Drive.query.getDrives.key() });
+      await queryClient.invalidateQueries({ queryKey: api.Drive.getDrives.key() });
       navigate("/dashboard");
     },
   }));
 
-  const renameEntryMutation = api.Drive.mutation.renameEntry(() => ({
+  const renameEntryMutation = api.Drive.renameEntry.useMutation(() => ({
     onSuccess: invalidateDrive,
   }));
 
-  const deleteEntryMutation = api.Drive.mutation.deleteEntry(() => ({
+  const deleteEntryMutation = api.Drive.deleteEntry.useMutation(() => ({
     onSuccess: async () => {
       setSelectedEntryId(null);
       await invalidateDrive();

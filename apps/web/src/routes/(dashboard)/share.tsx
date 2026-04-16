@@ -25,11 +25,11 @@ export default function SharePage() {
   const [dragging, setDragging] = createSignal(false);
   const [copied, setCopied] = createSignal(false);
 
-  const sharesQuery = api.Share.query.listShares(() => ({}));
+  const sharesQuery = api.Share.listShares.useQuery(() => ({}));
 
-  const createShareMutation = api.Share.mutation.createShare(() => ({
+  const createShareMutation = api.Share.createShare.useMutation(() => ({
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: api.Share.query.listShares.key() });
+      await queryClient.invalidateQueries({ queryKey: api.Share.listShares.key() });
     },
   }));
 

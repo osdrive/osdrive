@@ -63,9 +63,9 @@ type MutationInput<Fn> = Accessor<
   }
 >;
 
-type QueryHelper<G extends GroupName, E extends EndpointName<G>, Fn> = {
-  <TData = DataOf<Fn>>(input: QueryInput<G, E, Fn, TData>): CreateQueryResult<TData, ErrorOf<Fn>>;
+type QueryEndpointHelper<G extends GroupName, E extends EndpointName<G>, Fn> = {
   useQuery<TData = DataOf<Fn>>(input: QueryInput<G, E, Fn, TData>): CreateQueryResult<TData, ErrorOf<Fn>>;
+  query<TData = DataOf<Fn>>(input: QueryInput<G, E, Fn, TData>): CreateQueryResult<TData, ErrorOf<Fn>>;
   options<TData = DataOf<Fn>>(
     input: QueryInput<G, E, Fn, TData>,
   ): CreateQueryOptions<DataOf<Fn>, ErrorOf<Fn>, TData, QueryKeyOf<G, E, Fn>>;
@@ -73,9 +73,11 @@ type QueryHelper<G extends GroupName, E extends EndpointName<G>, Fn> = {
   fetch(...args: RequestArgsOf<Fn>): Promise<DataOf<Fn>>;
 };
 
-type MutationHelper<G extends GroupName, E extends EndpointName<G>, Fn> = {
-  (input: MutationInput<Fn>): CreateMutationResult<DataOf<Fn>, ErrorOf<Fn>, RequestOf<Fn>, unknown>;
+type MutationEndpointHelper<G extends GroupName, E extends EndpointName<G>, Fn> = {
   useMutation(
+    input: MutationInput<Fn>,
+  ): CreateMutationResult<DataOf<Fn>, ErrorOf<Fn>, RequestOf<Fn>, unknown>;
+  mutation(
     input: MutationInput<Fn>,
   ): CreateMutationResult<DataOf<Fn>, ErrorOf<Fn>, RequestOf<Fn>, unknown>;
   options(
@@ -86,16 +88,7 @@ type MutationHelper<G extends GroupName, E extends EndpointName<G>, Fn> = {
 };
 
 type GroupHelpers<G extends GroupName> = {
-  query: {
-    [E in EndpointName<G>]: QueryHelper<G, E, EndpointFn<G, E>>;
-  };
-  mutation: {
-    [E in EndpointName<G>]: MutationHelper<G, E, EndpointFn<G, E>>;
-  };
-};
-
-type TanstackApi = {
-  [G in GroupName]: GroupHelpers<G>;
+  [E in EndpointName<G>]: QueryEndpointHelper<G, E, EndpointFn<G, E>> | MutationEndpointHelper<G, E, EndpointFn<G, E>>;
 };
 
 type PersistedQuery = {
@@ -198,7 +191,7 @@ async function persistQueryResult(group: string, endpoint: string, queryKey: Que
 function makeQueryHelper<G extends GroupName, E extends EndpointName<G>>(
   group: G,
   endpoint: E,
-): QueryHelper<G, E, EndpointFn<G, E>> {
+): QueryEndpointHelper<G, E, EndpointFn<G, E>> {
   type Fn = EndpointFn<G, E>;
 
   const accessorFor = <TData = DataOf<Fn>>(
@@ -232,20 +225,21 @@ function makeQueryHelper<G extends GroupName, E extends EndpointName<G>>(
   const useQuery = <TData = DataOf<Fn>>(input: QueryInput<G, E, Fn, TData>) =>
     createQuery<DataOf<Fn>, ErrorOf<Fn>, TData, QueryKeyOf<G, E, Fn>>(accessorFor(input) as any);
 
-  const helper = Object.assign(useQuery, {
+  const helper = {
     useQuery,
+    query: useQuery,
     options: optionsFor,
     key: (...args: RequestArgsOf<Fn>) => buildQueryKey<G, E, Fn>(group, endpoint, args[0]),
     fetch: (...args: RequestArgsOf<Fn>) => executeEndpoint(group, endpoint, args[0]),
-  });
+  };
 
-  return helper as unknown as QueryHelper<G, E, Fn>;
+  return helper as QueryEndpointHelper<G, E, Fn>;
 }
 
 function makeMutationHelper<G extends GroupName, E extends EndpointName<G>>(
   group: G,
   endpoint: E,
-): MutationHelper<G, E, EndpointFn<G, E>> {
+): MutationEndpointHelper<G, E, EndpointFn<G, E>> {
   type Fn = EndpointFn<G, E>;
 
   const mutationKey = ["api", group, endpoint, "mutation"] as const;
@@ -260,34 +254,35 @@ function makeMutationHelper<G extends GroupName, E extends EndpointName<G>>(
   const useMutation = (input: MutationInput<Fn>) =>
     createMutation<DataOf<Fn>, ErrorOf<Fn>, RequestOf<Fn>, unknown>(() => optionsFor(input));
 
-  const helper = Object.assign(useMutation, {
+  const helper = {
     useMutation,
+    mutation: useMutation,
     options: optionsFor,
     key: () => mutationKey,
     execute: (...args: RequestArgsOf<Fn>) => executeEndpoint(group, endpoint, args[0]),
-  });
+  };
 
-  return helper as MutationHelper<G, E, Fn>;
+  return helper as MutationEndpointHelper<G, E, Fn>;
 }
 
 function createTanstackApi() {
-  const groups: Record<string, { query: Record<string, unknown>; mutation: Record<string, unknown> }> = {};
+  const groups: Record<string, Record<string, unknown>> = {};
 
   HttpApi.reflect(osDriveApi, {
     onGroup({ group }) {
       if (!group.topLevel) {
-        groups[group.identifier] = { query: {}, mutation: {} };
+        groups[group.identifier] = {};
       }
     },
     onEndpoint({ group, endpoint }) {
-      const groupHelpers = groups[group.identifier] ?? { query: {}, mutation: {} };
+      const groupHelpers = groups[group.identifier] ?? {};
       if (endpoint.method === "GET") {
-        groupHelpers.query[endpoint.name] = makeQueryHelper(
+        groupHelpers[endpoint.name] = makeQueryHelper(
           group.identifier as GroupName,
           endpoint.name as never,
         );
       } else {
-        groupHelpers.mutation[endpoint.name] = makeMutationHelper(
+        groupHelpers[endpoint.name] = makeMutationHelper(
           group.identifier as GroupName,
           endpoint.name as never,
         );
@@ -296,7 +291,7 @@ function createTanstackApi() {
     },
   });
 
-  return groups as TanstackApi;
+  return groups;
 }
 
-export const api = createTanstackApi();
+export const api: any = createTanstackApi();

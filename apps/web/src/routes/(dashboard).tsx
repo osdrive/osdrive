@@ -153,13 +153,13 @@ export default function DashboardLayout(props: ParentProps) {
     }
   });
 
-  const drivesQuery = api.Drive.query.getDrives(() => ({
+  const drivesQuery = api.Drive.getDrives.useQuery(() => ({
     enabled: !session().isPending && !!user(),
   }));
 
-  const createDriveMutation = api.Drive.mutation.createDrive(() => ({
-    onSuccess: async (drive) => {
-      await queryClient.invalidateQueries({ queryKey: api.Drive.query.getDrives.key() });
+  const createDriveMutation = api.Drive.createDrive.useMutation(() => ({
+    onSuccess: async (drive: { id: string }) => {
+      await queryClient.invalidateQueries({ queryKey: api.Drive.getDrives.key() });
       navigate(`/drive/${drive.id}`);
     },
   }));

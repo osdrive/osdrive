@@ -45,7 +45,7 @@ function FileTypeIcon(props: { mimeType: string; class?: string }) {
 export default function Page() {
   const params = useParams();
 
-  const shareQuery = api.Share.query.getShare(() => ({
+  const shareQuery = api.Share.getShare.useQuery(() => ({
     request: {
       params: {
         shareId: params.shareId as any,
