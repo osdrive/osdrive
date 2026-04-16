@@ -44,7 +44,7 @@ function FileTypeIcon(props: { mimeType: string; class?: string }) {
   return <FileText class={props.class} />;
 }
 
-function Page() {
+export default function Page() {
   const params = useParams();
 
   const shareQuery = createQuery(() => ({
@@ -203,7 +203,3 @@ function Page() {
     </div>
   );
 }
-
-// TODO: Reenable server rendering
-import { clientOnly } from "@solidjs/start";
-export default clientOnly(async () => ({ default: Page }), { lazy: true });
