@@ -1,8 +1,7 @@
-import { createAsync } from "@solidjs/router";
-import { requireCurrentUserQuery } from "~/server/legacy";
+import { useDashboardUser } from "~/lib/dashboard-user";
 
 export default function DashboardPage() {
-  const user = createAsync(() => requireCurrentUserQuery());
+  const user = useDashboardUser();
 
   return (
     <div class="flex flex-1 flex-col gap-4 p-4">

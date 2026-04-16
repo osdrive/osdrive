@@ -1,4 +1,39 @@
-docker run -p 3010:3000 -p 4317:4317 -p 4318:4318 --rm -it docker.io/grafana/otel-lgtm"
+Doing deletes with delayed file removal for recovery -> Implement immutable recycling bin
+
+Root suspense is being hit and getting stuck
+Sidebar loading state for drives + cache them into browser
+Loading state for FS view and preview views + can we restore anything from cache like Mattrax
+
+Data is hanging in SSR + make `[shareId]` SSRed
+Drop `displayName` from R2 metadata and lookup from D1
+Track the uploaded file name and the diplay name separately. Download it with the original name.
+Upload status UI for large files. Allow uploading multiple at once too and resuming them on client.
+
+
+
+SSR streamed data in UI (instead of client-fetch)
+Single flight mutations or some way of refetching while doing a mutation???
+Normalised cache using Effect tagged schema types???
+Using `effect-atom` or have somethig proxy for automatic Tanstack Query support for HTTP endpoints
+
+https://app.axiom.co/osdrive-xqjt/stream/osdrive?start=2026-04-13T00%3A49%3A06.706Z
+
+Allow resizing the sidebar in the dashboard layout + persist it across reloads. Reset it to default when double clicked.
+
+https://better-auth.com/docs/plugins/organization
+Dark mode - https://zaidan.carere.dev/dark-mode?primitive=kobalte&style=vega&baseColor=neutral&theme=neutral&font=inter&radius=default&menuAccent=subtle
+File upload w/ DO + R2 - https://www.youtube.com/watch?v=O9Wlb6GX5d8
+File permissions on macOS - https://chatgpt.com/c/69d1f0c7-08ac-839d-8d2e-1da154aaa9bb
+Allow anyone to codesign - https://chatgpt.com/c/69d1e627-dd58-839b-b5c8-60ba02f7c1ee
+
+https://docs.archil.com/getting-started/macos-app
+https://github.com/Effect-TS/eslint-plugin
+
+
+
+
+
+
 
 With Effect services can we remove all globals. The DB, auth, etc should not be global!!!
 

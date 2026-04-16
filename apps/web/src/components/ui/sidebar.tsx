@@ -505,7 +505,7 @@ const sidebarMenuButtonVariants = cva(
 
 type SidebarMenuButtonProps<T extends ValidComponent = "button"> = PolymorphicProps<
   T,
-  Pick<ComponentProps<T>, "class" | "children">
+  Pick<ComponentProps<T>, "class" | "children" | "type">
 > &
   VariantProps<typeof sidebarMenuButtonVariants> & {
     isActive?: boolean;
@@ -526,10 +526,11 @@ const SidebarMenuButton = <T extends ValidComponent = "button">(
   const { isMobile, state } = useSidebar();
 
   const MenuButton = (props: SidebarMenuButtonProps) => {
-    const [_local, _others] = splitProps(props as SidebarMenuButtonProps, ["class"]);
+    const [_local, _others] = splitProps(props as SidebarMenuButtonProps, ["class", "type"]);
     return (
       <Polymorphic<SidebarMenuButtonProps>
         as="button"
+        type={_local.type ?? "button"}
         data-slot="sidebar-menu-button"
         data-sidebar="menu-button"
         data-size={local.size}

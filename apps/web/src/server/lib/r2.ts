@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { Context, Data, Effect, Layer } from "effect";
 
 export class R2StorageError extends Data.TaggedError("R2StorageError")<{
-  readonly operation: "put" | "get" | "head" | "list";
+  readonly operation: "put" | "get" | "head" | "list" | "delete";
   readonly key?: string;
   readonly cause?: unknown;
 }> {}
@@ -44,6 +44,7 @@ export class R2Service extends Context.Service<
       key: string,
     ) => Effect.Effect<R2Object, R2StorageError | R2ObjectNotFoundError>;
     readonly listObjects: (input: ListObjectsInput) => Effect.Effect<R2Objects, R2StorageError>;
+    readonly deleteObject: (key: string) => Effect.Effect<void, R2StorageError>;
   }
 >()("app/R2Service") {
   static readonly Live = Layer.succeed(
@@ -75,6 +76,7 @@ export class R2Service extends Context.Service<
             include: input.include,
           }),
         ),
+      deleteObject: (key: string) => tryR2("delete", key, () => env.DATA.delete(key)),
     }),
   );
 }

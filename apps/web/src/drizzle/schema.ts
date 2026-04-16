@@ -75,40 +75,41 @@ export const verification = sqliteTable(
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
-// export const tenant = sqliteTable(
-//   "tenant",
-//   {
-//     id: text("id").primaryKey(),
-//     name: text("name").notNull(),
-//     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-//     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
-//   },
-// );
+export const drive = sqliteTable(
+  "drive",
+  {
+    id: cuid2().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [index("drive_user_id_idx").on(table.userId)],
+);
 
-// export const driveSources = ["r2"] as const;
+export const driveEntryKinds = ["folder", "file"] as const;
 
-// export const drives = sqliteTable(
-//   "drive",
-//   {
-//     id: cuid2().primaryKey(),
-//     tenantId: cuid2("tenant").notNull(),
-//     name: text("name").notNull(),
-//     description: text("description"),
-//     source: text("source", { enum: driveSources }).notNull(),
-//     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-//   },
-// );
-
-// export const driveTenant = sqliteTable(
-//   "drive_tenant",
-//   {
-//     tenant: cuid2().notNull(),
-//     drive: cuid2().notNull(),
-//   },
-//   (table) => [
-//     primaryKey({
-//       name: "users_to_groups_pk",
-//       columns: [table.tenant, table.drive],
-//     }),
-//   ]
-// );
+export const driveEntry = sqliteTable(
+  "drive_entry",
+  {
+    id: cuid2().primaryKey(),
+    driveId: text("drive_id")
+      .notNull()
+      .references(() => drive.id, { onDelete: "cascade" }),
+    parentId: text("parent_id"),
+    kind: text("kind", { enum: driveEntryKinds }).notNull(),
+    name: text("name").notNull(),
+    storageKey: text("storage_key"),
+    mimeType: text("mime_type"),
+    size: integer("size"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [
+    index("drive_entry_drive_id_idx").on(table.driveId),
+    index("drive_entry_parent_id_idx").on(table.parentId),
+    uniqueIndex("drive_entry_sibling_name_unique").on(table.driveId, table.parentId, table.name),
+  ],
+);

@@ -1,10 +1,9 @@
-import { createAsync } from "@solidjs/router";
 import { createEffect, createSignal, Show } from "solid-js";
 import { authClient } from "~/lib/auth";
-import { requireCurrentUserQuery } from "~/server/legacy";
+import { useDashboardUser } from "~/lib/dashboard-user";
 
 export default function AccountPage() {
-  const user = createAsync(() => requireCurrentUserQuery());
+  const user = useDashboardUser();
 
   // --- Name ---
   const [name, setName] = createSignal("");

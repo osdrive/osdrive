@@ -18,7 +18,7 @@ export default function App() {
             <QueryClientProvider client={client}>
               <Title>OSDrive</Title>
 
-              <Suspense>{props.children}</Suspense>
+              <Suspense fallback="Loading...">{props.children}</Suspense>
 
               <SolidQueryDevtools initialIsOpen={false} />
             </QueryClientProvider>

@@ -5,7 +5,15 @@
 // Without any special RPC definitions, or per-page server function.
 //
 
-import { Context, Effect, flow, Layer, Request as EffectRequest, RequestResolver, Stream } from "effect";
+import {
+  Context,
+  Effect,
+  flow,
+  Layer,
+  Request as EffectRequest,
+  RequestResolver,
+  Stream,
+} from "effect";
 import {
   HttpClient,
   HttpClientError,
@@ -22,7 +30,7 @@ import { waitUntil } from "cloudflare:workers";
 import { isServer } from "solid-js/web";
 
 import { HttpRouter } from "effect/unstable/http";
-import { appLayerLive } from "~/routes/api/[...api]"
+import { appLayerLive } from "~/server";
 
 type BatchedServerRequest = readonly [string, globalThis.RequestInit];
 type BatchedServerResponse = Response;
@@ -38,7 +46,10 @@ async function serverFetch(
       const absoluteUrl = new URL(path, requestUrl.origin);
 
       const { handler, dispose } = HttpRouter.toWebHandler(appLayerLive);
-      const response = await handler(new globalThis.Request(absoluteUrl, init), Context.empty() as any);
+      const response = await handler(
+        new globalThis.Request(absoluteUrl, init),
+        Context.empty() as any,
+      );
       waitUntil(dispose().catch((cause) => console.error("OTEL shutdown failed", cause)));
       return response;
     }),
@@ -137,21 +148,22 @@ export class ApiClient extends Context.Service<
     HttpApiClient.make(osDriveApi, {
       // Use transformClient to apply middleware to the generated client. This
       // is useful for settings the base url and applying retry policies.
-      // transformClient:(client) =>
-      //   // TODO: Remove this when using server-function backend
-      //   client.pipe(
-      //     HttpClient.mapRequest(flow(HttpClientRequest.prependUrl("http://localhost:5173"))),
-      //     // TODO: I think Tanstack Query will do this for us?
-      //     // HttpClient.retryTransient({
-      //     //   schedule: Schedule.exponential(100),
-      //     //   times: 3,
-      //     // }),
-      //   ),
+      transformClient: (client) =>
+        // TODO: Remove this when using server-function backend
+        client.pipe(
+          HttpClient.mapRequest(flow(HttpClientRequest.prependUrl("http://localhost:5173"))), // TODO: This won't work in prod
+          // TODO: I think Tanstack Query will do this for us?
+          // HttpClient.retryTransient({
+          //   schedule: Schedule.exponential(100),
+          //   times: 3,
+          // }),
+        ),
     }),
   ).pipe(
-    // TODO: `customFetchLayer` is having problems with streaming bytes but is required for server-rendering so we use it just for now, temporarily.
+    Layer.provide(FetchHttpClient.layer),
+    // Use the in-process batched server transport during SSR, but real browser
+    // fetch on the client so auth cookies/session headers are preserved.
     // Layer.provide(isServer ? customFetchLayer : FetchHttpClient.layer),
-    Layer.provide(customFetchLayer),  // TODO: Make this work with streaming bytes
   );
 }
 

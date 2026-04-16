@@ -1,198 +1,220 @@
-import { useParams, useSearchParams } from "@solidjs/router";
-import { ArrowLeft, Download, ExternalLink } from "lucide-solid";
-import { createMemo, Show, Switch, Match } from "solid-js";
-
-// ---------------------------------------------------------------------------
-// Hardcoded preview data — replace with fetched data later
-// ---------------------------------------------------------------------------
-type FileType = "image" | "pdf" | "video" | "folder" | "archive" | "file";
-
-interface PreviewFile {
-  id: string;
-  name: string;
-  type: FileType;
-  size: number | null;
-  mimeType: string;
-  // Placeholder URL — swap with real signed URLs when the API is ready
-  previewUrl: string;
-}
-
-const PREVIEW_FILES: PreviewFile[] = [
-  {
-    id: "file_2",
-    name: "homepage.png",
-    type: "image",
-    size: 2_450_000,
-    mimeType: "image/png",
-    previewUrl: "https://placehold.co/1280x800/e2e8f0/94a3b8?text=homepage.png",
-  },
-  {
-    id: "file_4",
-    name: "project-brief.pdf",
-    type: "pdf",
-    size: 890_000,
-    mimeType: "application/pdf",
-    previewUrl:
-      "https://docs.google.com/viewer?embedded=true&url=https://www.w3.org/WAI/WCAG21/Techniques/pdf/PDF1.pdf",
-  },
-  {
-    id: "file_5",
-    name: "demo-video.mp4",
-    type: "video",
-    size: 45_000_000,
-    mimeType: "video/mp4",
-    previewUrl:
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-  },
-];
+import { A, useParams, useSearchParams } from "@solidjs/router";
+import { createQuery } from "@tanstack/solid-query";
+import { ArrowLeft, Download, ExternalLink, FileWarning } from "lucide-solid";
+import { Effect } from "effect";
+import { Match, Show, Switch } from "solid-js";
+import { ApiClient, runApi } from "~/lib/client";
 
 function formatSize(bytes: number | null): string {
-  if (bytes === null) return "—";
+  if (bytes === null) return "-";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
-// ---------------------------------------------------------------------------
-// Viewers
-// ---------------------------------------------------------------------------
-function ImageViewer(props: { file: PreviewFile }) {
+function isImage(mime: string | null) {
+  return !!mime && mime.startsWith("image/");
+}
+
+function isVideo(mime: string | null) {
+  return !!mime && mime.startsWith("video/");
+}
+
+function isAudio(mime: string | null) {
+  return !!mime && mime.startsWith("audio/");
+}
+
+function isText(mime: string | null) {
+  return !!mime && (mime.startsWith("text/") || mime === "application/json");
+}
+
+function isPdf(mime: string | null) {
+  return mime === "application/pdf";
+}
+
+function ImageViewer(props: { url: string; name: string }) {
   return (
-    <div class="flex flex-1 items-center justify-center p-8 bg-stone-900/5">
+    <div class="flex flex-1 items-center justify-center bg-stone-900/5 p-8">
       <img
-        src={props.file.previewUrl}
-        alt={props.file.name}
-        class="max-h-full max-w-full rounded-lg shadow-xl object-contain"
+        src={props.url}
+        alt={props.name}
+        class="max-h-full max-w-full rounded-lg object-contain shadow-xl"
       />
     </div>
   );
 }
 
-function PdfViewer(props: { file: PreviewFile }) {
+function PdfViewer(props: { url: string; name: string }) {
+  return <iframe src={props.url} title={props.name} class="flex-1 w-full border-0" />;
+}
+
+function VideoViewer(props: { url: string }) {
   return (
-    <div class="flex flex-1">
-      <iframe
-        src={props.file.previewUrl}
-        title={props.file.name}
-        class="flex-1 w-full border-0"
-        sandbox="allow-scripts allow-same-origin allow-popups"
-      />
+    <div class="flex flex-1 items-center justify-center bg-stone-900/5 p-8">
+      {/* biome-ignore lint/a11y/useMediaCaption: user preview */}
+      <video src={props.url} controls class="max-h-full max-w-full rounded-lg shadow-xl" />
     </div>
   );
 }
 
-function VideoViewer(props: { file: PreviewFile }) {
+function AudioViewer(props: { url: string; name: string }) {
   return (
-    <div class="flex flex-1 items-center justify-center p-8 bg-stone-900/5">
-      {/* biome-ignore lint/a11y/useMediaCaption: demo placeholder */}
-      <video
-        src={props.file.previewUrl}
-        controls
-        class="max-h-full max-w-full rounded-lg shadow-xl"
-        style={{ "max-height": "calc(100vh - 10rem)" }}
-      />
+    <div class="flex flex-1 flex-col items-center justify-center gap-6 bg-stone-900/5 p-8 text-center">
+      <div>
+        <p class="text-base font-semibold text-stone-900">{props.name}</p>
+        <p class="mt-1 text-sm text-stone-500">Audio preview</p>
+      </div>
+      {/* biome-ignore lint/a11y/useMediaCaption: user preview */}
+      <audio src={props.url} controls class="w-full max-w-xl" />
     </div>
   );
 }
 
-function UnsupportedViewer(props: { file: PreviewFile }) {
+function TextViewer(props: { text: string }) {
   return (
-    <div class="flex flex-1 flex-col items-center justify-center gap-4 text-center px-4">
+    <div class="flex flex-1 overflow-auto bg-stone-950 p-6">
+      <pre class="w-full whitespace-pre-wrap break-words font-mono text-xs text-stone-100">
+        {props.text}
+      </pre>
+    </div>
+  );
+}
+
+function UnsupportedViewer(props: { url: string | null; mimeType: string | null; name: string }) {
+  return (
+    <div class="flex flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
       <div class="flex h-16 w-16 items-center justify-center rounded-xl bg-muted">
-        <ExternalLink class="size-7 text-muted-foreground" />
+        <FileWarning class="size-7 text-muted-foreground" />
       </div>
       <div>
         <p class="text-sm font-medium">Preview not available</p>
-        <p class="text-sm text-muted-foreground mt-1">
-          This file type ({props.file.mimeType}) can't be previewed in the browser.
+        <p class="mt-1 text-sm text-muted-foreground">
+          {props.mimeType ?? "This file type"} cannot be previewed in the browser.
         </p>
       </div>
-      <a
-        href={props.file.previewUrl}
-        download={props.file.name}
-        class="flex items-center gap-2 rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 transition-colors"
-      >
-        <Download class="size-4" />
-        Download file
-      </a>
+      <Show when={props.url}>
+        {(url) => (
+          <a
+            href={url()}
+            download={props.name}
+            class="flex items-center gap-2 rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-800"
+          >
+            <Download class="size-4" />
+            Download file
+          </a>
+        )}
+      </Show>
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
 export default function DrivePreviewPage() {
   const params = useParams<{ driveId: string }>();
   const [searchParams] = useSearchParams();
 
-  const file = createMemo(() => {
-    const fileId = searchParams.file;
-    return PREVIEW_FILES.find((f) => f.id === fileId) ?? PREVIEW_FILES[0];
-  });
+  const entryQuery = createQuery(() => ({
+    queryKey: ["drive", params.driveId, "entry", searchParams.file],
+    enabled: !!searchParams.file,
+    queryFn: () =>
+      runApi(
+        Effect.gen(function* () {
+          const api = yield* ApiClient;
+          return yield* api.Drive.getEntry({
+            params: {
+              driveId: params.driveId as never,
+              entryId: searchParams.file as never,
+            },
+          });
+        }),
+      ),
+  }));
 
   return (
-    <div class="flex flex-col overflow-hidden" style={{ height: "calc(100svh - 3.5rem)" }}>
-      {/* Preview toolbar */}
-      <div class="flex h-11 shrink-0 items-center gap-3 border-b border-border bg-white px-4">
-        <a
-          href={`/drive/${params.driveId}`}
-          class="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
-        >
-          <ArrowLeft class="size-4" />
-          Back
-        </a>
-        <span class="text-stone-200 shrink-0">·</span>
-        <span class="text-sm font-medium text-stone-800 truncate">{file().name}</span>
-        <span class="text-xs text-muted-foreground hidden sm:block shrink-0">
-          {formatSize(file().size)}
-        </span>
+    <Show
+      when={!entryQuery.isLoading && entryQuery.data}
+      fallback={<div class="p-6 text-sm text-muted-foreground">Loading preview...</div>}
+    >
+      {(entry) => (
+        <div class="flex flex-col overflow-hidden" style={{ height: "calc(100svh - 3.5rem)" }}>
+          <div class="flex h-11 shrink-0 items-center gap-3 border-b border-border bg-white px-4">
+            <A
+              href={`/drive/${params.driveId}`}
+              class="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft class="size-4" />
+              Back
+            </A>
+            <span class="shrink-0 text-stone-200">·</span>
+            <span class="truncate text-sm font-medium text-stone-800">{entry().name}</span>
+            <span class="hidden shrink-0 text-xs text-muted-foreground sm:block">
+              {formatSize(entry().size)}
+            </span>
 
-        <div class="ml-auto flex items-center gap-2 shrink-0">
-          <a
-            href={file().previewUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ExternalLink class="size-4" />
-            <span class="hidden sm:inline">Open original</span>
-          </a>
-          <a
-            href={file().previewUrl}
-            download={file().name}
-            class="flex items-center gap-1.5 rounded-lg bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 transition-colors"
-          >
-            <Download class="size-4" />
-            <span class="hidden sm:inline">Download</span>
-          </a>
+            <div class="ml-auto flex shrink-0 items-center gap-2">
+              <Show when={entry().contentUrl}>
+                {(url) => (
+                  <>
+                    <a
+                      href={url()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <ExternalLink class="size-4" />
+                      <span class="hidden sm:inline">Open original</span>
+                    </a>
+                    <a
+                      href={url()}
+                      download={entry().name}
+                      class="flex items-center gap-1.5 rounded-lg bg-stone-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-stone-800"
+                    >
+                      <Download class="size-4" />
+                      <span class="hidden sm:inline">Download</span>
+                    </a>
+                  </>
+                )}
+              </Show>
+            </div>
+          </div>
+
+          <div class="flex flex-1 min-h-0 overflow-hidden">
+            <Switch
+              fallback={
+                <UnsupportedViewer
+                  url={entry().contentUrl}
+                  mimeType={entry().mimeType}
+                  name={entry().name}
+                />
+              }
+            >
+              <Match when={entry().previewUrl && isImage(entry().mimeType)}>
+                <ImageViewer url={entry().previewUrl!} name={entry().name} />
+              </Match>
+              <Match when={entry().previewUrl && isPdf(entry().mimeType)}>
+                <PdfViewer url={entry().previewUrl!} name={entry().name} />
+              </Match>
+              <Match when={entry().previewUrl && isVideo(entry().mimeType)}>
+                <VideoViewer url={entry().previewUrl!} />
+              </Match>
+              <Match when={entry().previewUrl && isAudio(entry().mimeType)}>
+                <AudioViewer url={entry().previewUrl!} name={entry().name} />
+              </Match>
+              <Match when={entry().textPreview && isText(entry().mimeType)}>
+                <TextViewer text={entry().textPreview!} />
+              </Match>
+            </Switch>
+          </div>
+
+          <Show when={!isPdf(entry().mimeType)}>
+            <div class="flex h-9 shrink-0 items-center justify-center border-t border-border bg-stone-50 px-4">
+              <p class="text-xs text-muted-foreground">
+                Viewing <span class="font-medium text-stone-700">{entry().name}</span> via OSDrive
+              </p>
+            </div>
+          </Show>
         </div>
-      </div>
-
-      {/* Viewer */}
-      <div class="flex flex-1 min-h-0 overflow-hidden">
-        <Switch fallback={<UnsupportedViewer file={file()} />}>
-          <Match when={file().type === "image"}>
-            <ImageViewer file={file()} />
-          </Match>
-          <Match when={file().type === "pdf"}>
-            <PdfViewer file={file()} />
-          </Match>
-          <Match when={file().type === "video"}>
-            <VideoViewer file={file()} />
-          </Match>
-        </Switch>
-      </div>
-
-      {/* Footer bar (not shown for PDF since it fills entirely) */}
-      <Show when={file().type !== "pdf"}>
-        <div class="flex h-9 shrink-0 items-center justify-center border-t border-border bg-stone-50 px-4">
-          <p class="text-xs text-muted-foreground">
-            Viewing <span class="font-medium text-stone-700">{file().name}</span> via OSDrive
-          </p>
-        </div>
-      </Show>
-    </div>
+      )}
+    </Show>
   );
 }
