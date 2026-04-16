@@ -63,32 +63,28 @@ type MutationInput<Fn> = Accessor<
   }
 >;
 
-type QueryEndpointHelper<G extends GroupName, E extends EndpointName<G>, Fn> = {
+type EndpointHelper<G extends GroupName, E extends EndpointName<G>, Fn> = {
   useQuery<TData = DataOf<Fn>>(input: QueryInput<G, E, Fn, TData>): CreateQueryResult<TData, ErrorOf<Fn>>;
   query<TData = DataOf<Fn>>(input: QueryInput<G, E, Fn, TData>): CreateQueryResult<TData, ErrorOf<Fn>>;
-  options<TData = DataOf<Fn>>(
+  queryOptions<TData = DataOf<Fn>>(
     input: QueryInput<G, E, Fn, TData>,
   ): CreateQueryOptions<DataOf<Fn>, ErrorOf<Fn>, TData, QueryKeyOf<G, E, Fn>>;
-  key(...args: RequestArgsOf<Fn>): QueryKeyOf<G, E, Fn>;
-  fetch(...args: RequestArgsOf<Fn>): Promise<DataOf<Fn>>;
-};
-
-type MutationEndpointHelper<G extends GroupName, E extends EndpointName<G>, Fn> = {
   useMutation(
     input: MutationInput<Fn>,
   ): CreateMutationResult<DataOf<Fn>, ErrorOf<Fn>, RequestOf<Fn>, unknown>;
   mutation(
     input: MutationInput<Fn>,
   ): CreateMutationResult<DataOf<Fn>, ErrorOf<Fn>, RequestOf<Fn>, unknown>;
-  options(
+  mutationOptions(
     input: MutationInput<Fn>,
   ): SolidMutationOptions<DataOf<Fn>, ErrorOf<Fn>, RequestOf<Fn>, unknown>;
-  key(): readonly ["api", G, E, "mutation"];
+  key(...args: RequestArgsOf<Fn>): QueryKeyOf<G, E, Fn>;
+  fetch(...args: RequestArgsOf<Fn>): Promise<DataOf<Fn>>;
   execute(...args: RequestArgsOf<Fn>): Promise<DataOf<Fn>>;
 };
 
 type GroupHelpers<G extends GroupName> = {
-  [E in EndpointName<G>]: QueryEndpointHelper<G, E, EndpointFn<G, E>> | MutationEndpointHelper<G, E, EndpointFn<G, E>>;
+  [E in EndpointName<G>]: EndpointHelper<G, E, EndpointFn<G, E>>;
 };
 
 type PersistedQuery = {
@@ -148,13 +144,14 @@ async function executeEndpoint<G extends GroupName, E extends EndpointName<G>>(
 }
 
 async function restorePersistedQuery<TData>(
+  method: string,
   group: string,
   endpoint: string,
   queryKey: QueryKey,
   client: { getQueryState: (key: QueryKey) => { dataUpdatedAt: number } | undefined; setQueryData: any },
 ) {
   const database = getQueryDatabase();
-  if (!database || NON_PERSISTED_QUERIES.has(`${group}.${endpoint}`)) {
+  if (method !== "GET" || !database || NON_PERSISTED_QUERIES.has(`${group}.${endpoint}`)) {
     return undefined;
   }
 
@@ -171,9 +168,9 @@ async function restorePersistedQuery<TData>(
   return entry.data as TData;
 }
 
-async function persistQueryResult(group: string, endpoint: string, queryKey: QueryKey, data: unknown) {
+async function persistQueryResult(method: string, group: string, endpoint: string, queryKey: QueryKey, data: unknown) {
   const database = getQueryDatabase();
-  if (!database || NON_PERSISTED_QUERIES.has(`${group}.${endpoint}`)) {
+  if (method !== "GET" || !database || NON_PERSISTED_QUERIES.has(`${group}.${endpoint}`)) {
     return;
   }
 
@@ -191,7 +188,8 @@ async function persistQueryResult(group: string, endpoint: string, queryKey: Que
 function makeQueryHelper<G extends GroupName, E extends EndpointName<G>>(
   group: G,
   endpoint: E,
-): QueryEndpointHelper<G, E, EndpointFn<G, E>> {
+  method: string,
+): Pick<EndpointHelper<G, E, EndpointFn<G, E>>, "useQuery" | "query" | "queryOptions" | "key" | "fetch"> {
   type Fn = EndpointFn<G, E>;
 
   const accessorFor = <TData = DataOf<Fn>>(
@@ -206,15 +204,15 @@ function makeQueryHelper<G extends GroupName, E extends EndpointName<G>>(
         queryKey,
         queryFn: async (context: QueryFunctionContext<QueryKeyOf<G, E, Fn>>) => {
           const networkPromise = executeEndpoint(group, endpoint, request);
-          void restorePersistedQuery<DataOf<Fn>>(group, endpoint, queryKey, context.client as any);
+          void restorePersistedQuery<DataOf<Fn>>(method, group, endpoint, queryKey, context.client as any);
           const data = await networkPromise;
-          void persistQueryResult(group, endpoint, queryKey, data);
+          void persistQueryResult(method, group, endpoint, queryKey, data);
           return data;
         },
       };
     };
 
-  const optionsFor = <TData = DataOf<Fn>>(input: QueryInput<G, E, Fn, TData>) =>
+  const queryOptionsFor = <TData = DataOf<Fn>>(input: QueryInput<G, E, Fn, TData>) =>
     accessorFor(input) as unknown as CreateQueryOptions<
       DataOf<Fn>,
       ErrorOf<Fn>,
@@ -225,44 +223,36 @@ function makeQueryHelper<G extends GroupName, E extends EndpointName<G>>(
   const useQuery = <TData = DataOf<Fn>>(input: QueryInput<G, E, Fn, TData>) =>
     createQuery<DataOf<Fn>, ErrorOf<Fn>, TData, QueryKeyOf<G, E, Fn>>(accessorFor(input) as any);
 
-  const helper = {
+  return {
     useQuery,
     query: useQuery,
-    options: optionsFor,
+    queryOptions: queryOptionsFor,
     key: (...args: RequestArgsOf<Fn>) => buildQueryKey<G, E, Fn>(group, endpoint, args[0]),
     fetch: (...args: RequestArgsOf<Fn>) => executeEndpoint(group, endpoint, args[0]),
   };
-
-  return helper as QueryEndpointHelper<G, E, Fn>;
 }
 
 function makeMutationHelper<G extends GroupName, E extends EndpointName<G>>(
   group: G,
   endpoint: E,
-): MutationEndpointHelper<G, E, EndpointFn<G, E>> {
+): Pick<EndpointHelper<G, E, EndpointFn<G, E>>, "useMutation" | "mutation" | "mutationOptions" | "execute"> {
   type Fn = EndpointFn<G, E>;
 
-  const mutationKey = ["api", group, endpoint, "mutation"] as const;
-
-  const optionsFor = (input: MutationInput<Fn>) =>
+  const mutationOptionsFor = (input: MutationInput<Fn>) =>
     mutationOptions<DataOf<Fn>, ErrorOf<Fn>, RequestOf<Fn>, unknown>({
-      mutationKey,
       ...input(),
       mutationFn: (request) => executeEndpoint(group, endpoint, request),
     });
 
   const useMutation = (input: MutationInput<Fn>) =>
-    createMutation<DataOf<Fn>, ErrorOf<Fn>, RequestOf<Fn>, unknown>(() => optionsFor(input));
+    createMutation<DataOf<Fn>, ErrorOf<Fn>, RequestOf<Fn>, unknown>(() => mutationOptionsFor(input));
 
-  const helper = {
+  return {
     useMutation,
     mutation: useMutation,
-    options: optionsFor,
-    key: () => mutationKey,
+    mutationOptions: mutationOptionsFor,
     execute: (...args: RequestArgsOf<Fn>) => executeEndpoint(group, endpoint, args[0]),
   };
-
-  return helper as MutationEndpointHelper<G, E, Fn>;
 }
 
 function createTanstackApi() {
@@ -276,17 +266,10 @@ function createTanstackApi() {
     },
     onEndpoint({ group, endpoint }) {
       const groupHelpers = groups[group.identifier] ?? {};
-      if (endpoint.method === "GET") {
-        groupHelpers[endpoint.name] = makeQueryHelper(
-          group.identifier as GroupName,
-          endpoint.name as never,
-        );
-      } else {
-        groupHelpers[endpoint.name] = makeMutationHelper(
-          group.identifier as GroupName,
-          endpoint.name as never,
-        );
-      }
+      groupHelpers[endpoint.name] = {
+        ...makeQueryHelper(group.identifier as GroupName, endpoint.name as never, endpoint.method),
+        ...makeMutationHelper(group.identifier as GroupName, endpoint.name as never),
+      };
       groups[group.identifier] = groupHelpers;
     },
   });
@@ -294,4 +277,8 @@ function createTanstackApi() {
   return groups;
 }
 
-export const api: any = createTanstackApi();
+export const api: {
+  [G in GroupName]: GroupHelpers<G>;
+} = createTanstackApi() as {
+  [G in GroupName]: GroupHelpers<G>;
+};
