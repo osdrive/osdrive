@@ -1,5 +1,4 @@
 import { A, useParams } from "@solidjs/router";
-import { createQuery } from "@tanstack/solid-query";
 import {
   Calendar,
   Download,
@@ -10,9 +9,8 @@ import {
   HardDrive,
   User,
 } from "lucide-solid";
-import { Effect } from "effect";
 import { Show } from "solid-js";
-import { ApiClient, runApi } from "~/lib/client";
+import { api } from "~/lib/tanstack";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -47,19 +45,12 @@ function FileTypeIcon(props: { mimeType: string; class?: string }) {
 export default function Page() {
   const params = useParams();
 
-  const shareQuery = createQuery(() => ({
-    queryKey: ["share", params.shareId],
-    queryFn: () =>
-      runApi(
-        Effect.gen(function* () {
-          const api = yield* ApiClient;
-          return yield* api.Share.getShare({
-            params: {
-              shareId: params.shareId as any,
-            },
-          });
-        }),
-      ),
+  const shareQuery = api.Share.query.getShare(() => ({
+    request: {
+      params: {
+        shareId: params.shareId as any,
+      },
+    },
   }));
 
   return (

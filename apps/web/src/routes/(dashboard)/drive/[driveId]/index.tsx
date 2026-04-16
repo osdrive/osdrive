@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "@solidjs/router";
-import { createMutation, createQuery, useQueryClient } from "@tanstack/solid-query";
+import { useQueryClient } from "@tanstack/solid-query";
 import {
   Archive,
   ChevronRight,
@@ -19,9 +19,8 @@ import {
   Trash2,
   Upload,
 } from "lucide-solid";
-import { Effect } from "effect";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
-import { ApiClient, runApi } from "~/lib/client";
+import { api } from "~/lib/tanstack";
 
 type BrowserEntry = {
   id: string;
@@ -309,116 +308,61 @@ export default function DrivePage() {
 
   const invalidateDrive = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["drives"] }),
-      queryClient.invalidateQueries({ queryKey: ["drive", params.driveId] }),
+      queryClient.invalidateQueries({ queryKey: api.Drive.query.getDrives.key() }),
+      queryClient.invalidateQueries({
+        queryKey: api.Drive.query.getDrive.key({ params: { driveId: params.driveId as never } }),
+      }),
     ]);
   };
 
-  const driveQuery = createQuery(() => ({
-    queryKey: ["drive", params.driveId],
-    queryFn: () =>
-      runApi(
-        Effect.gen(function* () {
-          const api = yield* ApiClient;
-          return yield* api.Drive.getDrive({ params: { driveId: params.driveId as never } });
-        }),
-      ),
+  const driveQuery = api.Drive.query.getDrive(() => ({
+    request: { params: { driveId: params.driveId as never } },
   }));
 
-  const createFolderMutation = createMutation(() => ({
-    mutationFn: async (name: string) =>
-      runApi(
-        Effect.gen(function* () {
-          const api = yield* ApiClient;
-          return yield* api.Drive.createFolder({
-            params: { driveId: params.driveId as never },
-            payload: { name, parentId: (currentFolderId() ?? undefined) as never },
-          });
-        }),
-      ),
+  const createFolderMutation = api.Drive.mutation.createFolder(() => ({
     onSuccess: invalidateDrive,
   }));
 
-  const uploadFileMutation = createMutation(() => ({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.set("file", file, file.name);
-      if (currentFolderId()) {
-        formData.set("parentId", currentFolderId()!);
-      }
-
-      return runApi(
-        Effect.gen(function* () {
-          const api = yield* ApiClient;
-          return yield* api.Drive.uploadFile({
-            params: { driveId: params.driveId as never },
-            payload: formData,
-          });
-        }),
-      );
-    },
+  const uploadFileMutation = api.Drive.mutation.uploadFile(() => ({
     onSuccess: invalidateDrive,
   }));
 
-  const renameDriveMutation = createMutation(() => ({
-    mutationFn: async (name: string) =>
-      runApi(
-        Effect.gen(function* () {
-          const api = yield* ApiClient;
-          return yield* api.Drive.renameDrive({
-            params: { driveId: params.driveId as never },
-            payload: { name },
-          });
-        }),
-      ),
+  const renameDriveMutation = api.Drive.mutation.renameDrive(() => ({
     onSuccess: invalidateDrive,
   }));
 
-  const deleteDriveMutation = createMutation(() => ({
-    mutationFn: async () =>
-      runApi(
-        Effect.gen(function* () {
-          const api = yield* ApiClient;
-          return yield* api.Drive.deleteDrive({ params: { driveId: params.driveId as never } });
-        }),
-      ),
+  const deleteDriveMutation = api.Drive.mutation.deleteDrive(() => ({
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["drives"] });
+      await queryClient.invalidateQueries({ queryKey: api.Drive.query.getDrives.key() });
       navigate("/dashboard");
     },
   }));
 
-  const renameEntryMutation = createMutation(() => ({
-    mutationFn: async (input: { entryId: string; name: string }) =>
-      runApi(
-        Effect.gen(function* () {
-          const api = yield* ApiClient;
-          return yield* api.Drive.renameEntry({
-            params: { driveId: params.driveId as never, entryId: input.entryId as never },
-            payload: { name: input.name },
-          });
-        }),
-      ),
+  const renameEntryMutation = api.Drive.mutation.renameEntry(() => ({
     onSuccess: invalidateDrive,
   }));
 
-  const deleteEntryMutation = createMutation(() => ({
-    mutationFn: async (entryId: string) =>
-      runApi(
-        Effect.gen(function* () {
-          const api = yield* ApiClient;
-          return yield* api.Drive.deleteEntry({
-            params: { driveId: params.driveId as never, entryId: entryId as never },
-          });
-        }),
-      ),
+  const deleteEntryMutation = api.Drive.mutation.deleteEntry(() => ({
     onSuccess: async () => {
       setSelectedEntryId(null);
       await invalidateDrive();
     },
   }));
 
-  const entries = createMemo(() => driveQuery.data?.entries ?? []);
+  const uploadFile = async (file: File) => {
+    const formData = new FormData();
+    formData.set("file", file, file.name);
+    if (currentFolderId()) {
+      formData.set("parentId", currentFolderId()!);
+    }
+
+    return uploadFileMutation.mutateAsync({
+      params: { driveId: params.driveId as never },
+      payload: formData,
+    });
+  };
+
+  const entries = createMemo<ReadonlyArray<BrowserEntry>>(() => driveQuery.data?.entries ?? []);
 
   createEffect(() => {
     const folderId = currentFolderId();
@@ -497,14 +441,17 @@ export default function DrivePage() {
   const handleCreateFolder = async () => {
     const name = window.prompt("Folder name");
     if (!name) return;
-    await createFolderMutation.mutateAsync(name);
+    await createFolderMutation.mutateAsync({
+      params: { driveId: params.driveId as never },
+      payload: { name, parentId: (currentFolderId() ?? undefined) as never },
+    });
   };
 
   const handleUpload = async (event: Event) => {
     const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    await uploadFileMutation.mutateAsync(file);
+    await uploadFile(file);
     input.value = "";
   };
 
@@ -512,14 +459,17 @@ export default function DrivePage() {
     if (!driveQuery.data) return;
     const name = window.prompt("Rename drive", driveQuery.data.name);
     if (!name) return;
-    await renameDriveMutation.mutateAsync(name);
+    await renameDriveMutation.mutateAsync({
+      params: { driveId: params.driveId as never },
+      payload: { name },
+    });
   };
 
   const handleDeleteDrive = async () => {
     if (!driveQuery.data) return;
     const confirmed = window.confirm(`Delete ${driveQuery.data.name} and all of its files?`);
     if (!confirmed) return;
-    await deleteDriveMutation.mutateAsync();
+    await deleteDriveMutation.mutateAsync({ params: { driveId: params.driveId as never } });
   };
 
   const handleRenameEntry = async () => {
@@ -527,7 +477,10 @@ export default function DrivePage() {
     if (!entry) return;
     const name = window.prompt(`Rename ${entry.kind}`, entry.name);
     if (!name) return;
-    await renameEntryMutation.mutateAsync({ entryId: entry.id, name });
+    await renameEntryMutation.mutateAsync({
+      params: { driveId: params.driveId as never, entryId: entry.id as never },
+      payload: { name },
+    });
   };
 
   const handleDeleteEntry = async () => {
@@ -539,7 +492,9 @@ export default function DrivePage() {
         : `Delete ${entry.name}?`,
     );
     if (!confirmed) return;
-    await deleteEntryMutation.mutateAsync(entry.id);
+    await deleteEntryMutation.mutateAsync({
+      params: { driveId: params.driveId as never, entryId: entry.id as never },
+    });
   };
 
   return (

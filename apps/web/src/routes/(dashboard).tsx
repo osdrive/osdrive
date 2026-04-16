@@ -1,7 +1,6 @@
 import { useLocation, useNavigate } from "@solidjs/router";
-import { createMutation, createQuery, useQueryClient } from "@tanstack/solid-query";
+import { useQueryClient } from "@tanstack/solid-query";
 import { Cloud, Laptop, LogOut, Plus, Settings, Share2, Smartphone, User } from "lucide-solid";
-import { Effect } from "effect";
 import { createEffect, For, type ParentProps, Show, Switch, Match } from "solid-js";
 import {
   Breadcrumb,
@@ -44,7 +43,7 @@ import {
 import { UserDropdown } from "~/components/user-dropdown";
 import { authClient } from "~/lib/auth";
 import { DashboardUserContext } from "~/lib/dashboard-user";
-import { ApiClient, runApi } from "~/lib/client";
+import { api } from "~/lib/tanstack";
 
 const specialDrives = [
   {
@@ -154,28 +153,13 @@ export default function DashboardLayout(props: ParentProps) {
     }
   });
 
-  const drivesQuery = createQuery(() => ({
-    queryKey: ["drives"],
+  const drivesQuery = api.Drive.query.getDrives(() => ({
     enabled: !session().isPending && !!user(),
-    queryFn: () =>
-      runApi(
-        Effect.gen(function* () {
-          const api = yield* ApiClient;
-          return yield* api.Drive.getDrives();
-        }),
-      ),
   }));
 
-  const createDriveMutation = createMutation(() => ({
-    mutationFn: async (name: string) =>
-      runApi(
-        Effect.gen(function* () {
-          const api = yield* ApiClient;
-          return yield* api.Drive.createDrive({ payload: { name } });
-        }),
-      ),
+  const createDriveMutation = api.Drive.mutation.createDrive(() => ({
     onSuccess: async (drive) => {
-      await queryClient.invalidateQueries({ queryKey: ["drives"] });
+      await queryClient.invalidateQueries({ queryKey: api.Drive.query.getDrives.key() });
       navigate(`/drive/${drive.id}`);
     },
   }));
@@ -252,7 +236,7 @@ export default function DashboardLayout(props: ParentProps) {
                   <NewDriveDialog
                     pending={createDriveMutation.isPending}
                     onCreate={async (name) => {
-                      await createDriveMutation.mutateAsync(name);
+                      await createDriveMutation.mutateAsync({ payload: { name } });
                     }}
                   >
                     <SidebarMenuItem>

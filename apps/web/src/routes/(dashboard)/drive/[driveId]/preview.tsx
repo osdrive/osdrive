@@ -1,9 +1,7 @@
 import { A, useParams, useSearchParams } from "@solidjs/router";
-import { createQuery } from "@tanstack/solid-query";
 import { ArrowLeft, Download, ExternalLink, FileWarning } from "lucide-solid";
-import { Effect } from "effect";
 import { Match, Show, Switch } from "solid-js";
-import { ApiClient, runApi } from "~/lib/client";
+import { api } from "~/lib/tanstack";
 
 function formatSize(bytes: number | null): string {
   if (bytes === null) return "-";
@@ -113,21 +111,14 @@ export default function DrivePreviewPage() {
   const params = useParams<{ driveId: string }>();
   const [searchParams] = useSearchParams();
 
-  const entryQuery = createQuery(() => ({
-    queryKey: ["drive", params.driveId, "entry", searchParams.file],
+  const entryQuery = api.Drive.query.getEntry(() => ({
     enabled: !!searchParams.file,
-    queryFn: () =>
-      runApi(
-        Effect.gen(function* () {
-          const api = yield* ApiClient;
-          return yield* api.Drive.getEntry({
-            params: {
-              driveId: params.driveId as never,
-              entryId: searchParams.file as never,
-            },
-          });
-        }),
-      ),
+    request: {
+      params: {
+        driveId: params.driveId as never,
+        entryId: searchParams.file as never,
+      },
+    },
   }));
 
   return (

@@ -1,8 +1,7 @@
-import { createMutation, createQuery, useQueryClient } from "@tanstack/solid-query";
+import { useQueryClient } from "@tanstack/solid-query";
 import { Check, Copy, Link2, Upload } from "lucide-solid";
 import { createSignal, For, Show } from "solid-js";
-import { Effect } from "effect";
-import { ApiClient, runApi } from "~/lib/client";
+import { api } from "~/lib/tanstack";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -26,32 +25,11 @@ export default function SharePage() {
   const [dragging, setDragging] = createSignal(false);
   const [copied, setCopied] = createSignal(false);
 
-  const sharesQuery = createQuery(() => ({
-    queryKey: ["shares"],
-    queryFn: () =>
-      runApi(
-        Effect.gen(function* () {
-          const api = yield* ApiClient;
-          return yield* api.Share.listShares();
-        }),
-      ),
-  }));
+  const sharesQuery = api.Share.query.listShares(() => ({}));
 
-  const createShareMutation = createMutation(() => ({
-    mutationFn: async (input: { file: File; name: string }) => {
-      const formData = new FormData();
-      formData.set("name", input.name);
-      formData.set("file", input.file, input.file.name);
-
-      return runApi(
-        Effect.gen(function* () {
-          const api = yield* ApiClient;
-          return yield* api.Share.createShare({ payload: formData });
-        }),
-      );
-    },
+  const createShareMutation = api.Share.mutation.createShare(() => ({
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["shares"] });
+      await queryClient.invalidateQueries({ queryKey: api.Share.query.listShares.key() });
     },
   }));
 
@@ -86,8 +64,12 @@ export default function SharePage() {
     }
 
     await createShareMutation.mutateAsync({
-      file: selectedFile,
-      name: name().trim() || selectedFile.name,
+      payload: (() => {
+        const formData = new FormData();
+        formData.set("name", name().trim() || selectedFile.name);
+        formData.set("file", selectedFile, selectedFile.name);
+        return formData;
+      })(),
     });
   };
 

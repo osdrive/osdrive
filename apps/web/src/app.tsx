@@ -3,11 +3,12 @@ import { Router } from "@solidjs/router";
 import { FileRoutes } from "@solidjs/start/router";
 import { RegistryProvider } from "@effect/atom-solid";
 import { Suspense } from "solid-js";
+import { isServer } from "solid-js/web";
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
-import { SolidQueryDevtools } from "@tanstack/solid-query-devtools";
 import "./app.css";
 
-const client = new QueryClient();
+const queryClient = new QueryClient();
+if (!isServer) (window as any).__TANSTACK_QUERY_CLIENT__ = queryClient;
 
 export default function App() {
   return (
@@ -15,12 +16,10 @@ export default function App() {
       root={(props) => (
         <MetaProvider>
           <RegistryProvider>
-            <QueryClientProvider client={client}>
+            <QueryClientProvider client={queryClient}>
               <Title>OSDrive</Title>
 
               <Suspense fallback="Loading...">{props.children}</Suspense>
-
-              <SolidQueryDevtools initialIsOpen={false} />
             </QueryClientProvider>
           </RegistryProvider>
         </MetaProvider>

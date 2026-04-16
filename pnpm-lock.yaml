@@ -60,9 +60,6 @@ importers:
       '@tanstack/solid-query':
         specifier: ^5.99.0
         version: 5.99.0(solid-js@1.9.12)
-      '@tanstack/solid-query-devtools':
-        specifier: ^5.99.0
-        version: 5.99.0(@tanstack/solid-query@5.99.0(solid-js@1.9.12))(solid-js@1.9.12)
       better-auth:
         specifier: ^1.6.2
         version: 1.6.2(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(kysely@0.28.16))(react@19.2.5)(solid-js@1.9.12)
@@ -72,6 +69,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      dexie:
+        specifier: ^4.2.0
+        version: 4.4.2
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@opentelemetry/api@1.9.1)(kysely@0.28.16)
@@ -2312,9 +2312,6 @@ packages:
   '@tanstack/query-core@5.99.0':
     resolution: {integrity: sha512-3Jv3WQG0BCcH7G+7lf/bP8QyBfJOXeY+T08Rin3GZ1bshvwlbPt7NrDHMEzGdKIOmOzvIQmxjk28YEQX60k7pQ==}
 
-  '@tanstack/query-devtools@5.99.0':
-    resolution: {integrity: sha512-m4ufXaJ8FjWXw7xDtyzE/6fkZAyQFg9WrbMrUpt8ZecRJx58jiFOZ2lxZMphZdIpAnIeto/S8stbwLKLusyckQ==}
-
   '@tanstack/router-utils@1.133.19':
     resolution: {integrity: sha512-WEp5D2gPxvlLDRXwD/fV7RXjYtqaqJNXKB/L6OyZEbT+9BG/Ib2d7oG9GSUZNNMGPGYAlhBUOi3xutySsk6rxA==}
     engines: {node: '>=12'}
@@ -2322,12 +2319,6 @@ packages:
   '@tanstack/server-functions-plugin@1.134.5':
     resolution: {integrity: sha512-2sWxq70T+dOEUlE3sHlXjEPhaFZfdPYlWTSkHchWXrFGw2YOAa+hzD6L9wHMjGDQezYd03ue8tQlHG+9Jzbzgw==}
     engines: {node: '>=12'}
-
-  '@tanstack/solid-query-devtools@5.99.0':
-    resolution: {integrity: sha512-Y6zn38yZ032I9TGtEhXfoBAg9HuHm6e2eFGNzgu3ieJNckaGiCSATU1JMafM2j3TmdMb1EHHriHzIKrBUKCXcw==}
-    peerDependencies:
-      '@tanstack/solid-query': ^5.99.0
-      solid-js: ^1.6.0
 
   '@tanstack/solid-query@5.99.0':
     resolution: {integrity: sha512-XZxt95MYWivATb6ykmUobhtzR0l8uW3CNQt7FKkV1AgMR8YDirDoHoXBbNGRQidN30g3lqDxgFWdbi6HrZqDdg==}
@@ -2923,6 +2914,9 @@ packages:
 
   devlop@1.1.0:
     resolution: {integrity: sha512-RWmIqhcFf1lRYBvNmr7qTNuyCt/7/ns2jbpp1+PalgE/rDQcBT0fioSMUpJ93irlUhC5hrg4cYqe6U+0ImW0rA==}
+
+  dexie@4.4.2:
+    resolution: {integrity: sha512-zMtV8q79EFE5U8FKZvt0Y/77PCU/Hr/RDxv1EDeo228L+m/HTbeN2AjoQm674rhQCX8n3ljK87lajt7UQuZfvw==}
 
   diff@8.0.4:
     resolution: {integrity: sha512-DPi0FmjiSU5EvQV0++GFDOJ9ASQUVFh5kD+OzOnYdi7n3Wpm9hWWGfB/O2blfHcMVTL5WkQXSnRiK9makhrcnw==}
@@ -6213,8 +6207,6 @@ snapshots:
 
   '@tanstack/query-core@5.99.0': {}
 
-  '@tanstack/query-devtools@5.99.0': {}
-
   '@tanstack/router-utils@1.133.19':
     dependencies:
       '@babel/core': 7.29.0
@@ -6243,12 +6235,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
       - vite
-
-  '@tanstack/solid-query-devtools@5.99.0(@tanstack/solid-query@5.99.0(solid-js@1.9.12))(solid-js@1.9.12)':
-    dependencies:
-      '@tanstack/query-devtools': 5.99.0
-      '@tanstack/solid-query': 5.99.0(solid-js@1.9.12)
-      solid-js: 1.9.12
 
   '@tanstack/solid-query@5.99.0(solid-js@1.9.12)':
     dependencies:
@@ -6701,6 +6687,8 @@ snapshots:
   devlop@1.1.0:
     dependencies:
       dequal: 2.0.3
+
+  dexie@4.4.2: {}
 
   diff@8.0.4: {}
 
