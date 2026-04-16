@@ -204,7 +204,17 @@ function makeQueryHelper<G extends GroupName, E extends EndpointName<G>>(
         queryKey,
         queryFn: async (context: QueryFunctionContext<QueryKeyOf<G, E, Fn>>) => {
           const networkPromise = executeEndpoint(group, endpoint, request);
-          void restorePersistedQuery<DataOf<Fn>>(method, group, endpoint, queryKey, context.client as any);
+          const cached = await restorePersistedQuery<DataOf<Fn>>(method, group, endpoint, queryKey, context.client as any);
+
+          if (cached !== undefined) {
+            // Return cached data immediately to release suspense, update with fresh network data in the background
+            networkPromise.then((data) => {
+              (context.client as any).setQueryData(queryKey, data);
+              void persistQueryResult(method, group, endpoint, queryKey, data);
+            });
+            return cached;
+          }
+
           const data = await networkPromise;
           void persistQueryResult(method, group, endpoint, queryKey, data);
           return data;
