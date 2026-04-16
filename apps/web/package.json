@@ -10,8 +10,8 @@
     "typecheck": "tsgo",
     "db:generate": "drizzle-kit generate",
     "deploy:prod": "pnpm build && wrangler deploy",
-    "migrate:prod": "npx wrangler d1 migrations apply osdrive --remote",
-    "migrate:local": "npx wrangler d1 migrations apply osdrive --local"
+    "migrate:prod": "wrangler d1 migrations apply osdrive --remote",
+    "migrate:local": "wrangler d1 migrations apply osdrive --local"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.2",
