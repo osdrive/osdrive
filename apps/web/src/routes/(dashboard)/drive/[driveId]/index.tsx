@@ -20,6 +20,16 @@ import {
   Upload,
 } from "lucide-solid";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { Button } from "~/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
+import { Input } from "~/components/ui/input";
 import { api } from "~/lib/tanstack";
 
 type BrowserEntry = {
@@ -306,6 +316,20 @@ export default function DrivePage() {
   const [search, setSearch] = createSignal("");
   let fileInputRef: HTMLInputElement | undefined;
 
+  // Dialog state
+  const [createFolderOpen, setCreateFolderOpen] = createSignal(false);
+  const [createFolderName, setCreateFolderName] = createSignal("");
+
+  const [renameDriveOpen, setRenameDriveOpen] = createSignal(false);
+  const [renameDriveName, setRenameDriveName] = createSignal("");
+
+  const [deleteDriveOpen, setDeleteDriveOpen] = createSignal(false);
+
+  const [renameEntryOpen, setRenameEntryOpen] = createSignal(false);
+  const [renameEntryName, setRenameEntryName] = createSignal("");
+
+  const [deleteEntryOpen, setDeleteEntryOpen] = createSignal(false);
+
   const invalidateDrive = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: api.Drive.getDrives.key() }),
@@ -438,9 +462,15 @@ export default function DrivePage() {
     }
   };
 
-  const handleCreateFolder = async () => {
-    const name = window.prompt("Folder name");
+  const handleCreateFolder = () => {
+    setCreateFolderName("");
+    setCreateFolderOpen(true);
+  };
+
+  const handleCreateFolderSubmit = async () => {
+    const name = createFolderName().trim();
     if (!name) return;
+    setCreateFolderOpen(false);
     await createFolderMutation.mutateAsync({
       params: { driveId: params.driveId as never },
       payload: { name, parentId: (currentFolderId() ?? undefined) as never },
@@ -455,155 +485,307 @@ export default function DrivePage() {
     input.value = "";
   };
 
-  const handleRenameDrive = async () => {
+  const handleRenameDrive = () => {
     if (!driveQuery.data) return;
-    const name = window.prompt("Rename drive", driveQuery.data.name);
+    setRenameDriveName(driveQuery.data.name);
+    setRenameDriveOpen(true);
+  };
+
+  const handleRenameDriveSubmit = async () => {
+    const name = renameDriveName().trim();
     if (!name) return;
+    setRenameDriveOpen(false);
     await renameDriveMutation.mutateAsync({
       params: { driveId: params.driveId as never },
       payload: { name },
     });
   };
 
-  const handleDeleteDrive = async () => {
+  const handleDeleteDrive = () => {
     if (!driveQuery.data) return;
-    const confirmed = window.confirm(`Delete ${driveQuery.data.name} and all of its files?`);
-    if (!confirmed) return;
+    setDeleteDriveOpen(true);
+  };
+
+  const handleDeleteDriveConfirm = async () => {
+    setDeleteDriveOpen(false);
     await deleteDriveMutation.mutateAsync({ params: { driveId: params.driveId as never } });
   };
 
-  const handleRenameEntry = async () => {
+  const handleRenameEntry = () => {
     const entry = selectedEntry();
     if (!entry) return;
-    const name = window.prompt(`Rename ${entry.kind}`, entry.name);
+    setRenameEntryName(entry.name);
+    setRenameEntryOpen(true);
+  };
+
+  const handleRenameEntrySubmit = async () => {
+    const entry = selectedEntry();
+    if (!entry) return;
+    const name = renameEntryName().trim();
     if (!name) return;
+    setRenameEntryOpen(false);
     await renameEntryMutation.mutateAsync({
       params: { driveId: params.driveId as never, entryId: entry.id as never },
       payload: { name },
     });
   };
 
-  const handleDeleteEntry = async () => {
+  const handleDeleteEntry = () => {
     const entry = selectedEntry();
     if (!entry) return;
-    const confirmed = window.confirm(
-      entry.kind === "folder"
-        ? `Delete ${entry.name} and everything inside it?`
-        : `Delete ${entry.name}?`,
-    );
-    if (!confirmed) return;
+    setDeleteEntryOpen(true);
+  };
+
+  const handleDeleteEntryConfirm = async () => {
+    const entry = selectedEntry();
+    if (!entry) return;
+    setDeleteEntryOpen(false);
     await deleteEntryMutation.mutateAsync({
       params: { driveId: params.driveId as never, entryId: entry.id as never },
     });
   };
 
   return (
-    <Show
-      when={!driveQuery.isLoading && driveQuery.data}
-      fallback={<div class="p-6 text-sm text-muted-foreground">Loading drive...</div>}
-    >
-      {(drive) => (
-        <div class="flex overflow-hidden" style={{ height: "calc(100svh - 3.5rem)" }}>
-          <div class="flex min-w-0 flex-1 flex-col">
-            <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-white px-4 py-2">
-              <div class="min-w-0 flex-1">
-                <PathBreadcrumb
-                  driveName={drive().name}
-                  trail={breadcrumbTrail()}
-                  onNavigate={(id) => {
-                    setCurrentFolderId(id);
-                    setSelectedEntryId(null);
-                  }}
-                />
+    <>
+      <Show
+        when={!driveQuery.isLoading && driveQuery.data}
+        fallback={<div class="p-6 text-sm text-muted-foreground">Loading drive...</div>}
+      >
+        {(drive) => (
+          <div class="flex overflow-hidden" style={{ height: "calc(100svh - 3.5rem)" }}>
+            <div class="flex min-w-0 flex-1 flex-col">
+              <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-white px-4 py-2">
+                <div class="min-w-0 flex-1">
+                  <PathBreadcrumb
+                    driveName={drive().name}
+                    trail={breadcrumbTrail()}
+                    onNavigate={(id) => {
+                      setCurrentFolderId(id);
+                      setSelectedEntryId(null);
+                    }}
+                  />
+                </div>
+
+                <div class="relative min-w-[12rem] flex-1 sm:max-w-56 sm:flex-none">
+                  <Search class="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-stone-300" />
+                  <input
+                    type="search"
+                    value={search()}
+                    onInput={(event) => setSearch(event.currentTarget.value)}
+                    placeholder="Search this folder..."
+                    class="h-8 w-full rounded-lg border border-stone-200 bg-stone-50 pl-8 pr-3 text-sm outline-none transition-colors focus:border-stone-400"
+                  />
+                </div>
+
+                <input ref={fileInputRef} type="file" class="sr-only" onChange={handleUpload} />
+
+                <button
+                  onClick={handleCreateFolder}
+                  class="flex h-8 items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-3 text-sm text-stone-700 transition-colors hover:bg-stone-100"
+                >
+                  <Plus class="size-3.5" />
+                  Folder
+                </button>
+                <button
+                  onClick={() => fileInputRef?.click()}
+                  class="flex h-8 items-center gap-1.5 rounded-lg bg-stone-900 px-3 text-sm font-medium text-white transition-colors hover:bg-stone-800"
+                >
+                  <Upload class="size-3.5" />
+                  Upload
+                </button>
               </div>
 
-              <div class="relative min-w-[12rem] flex-1 sm:max-w-56 sm:flex-none">
-                <Search class="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-stone-300" />
-                <input
-                  type="search"
-                  value={search()}
-                  onInput={(event) => setSearch(event.currentTarget.value)}
-                  placeholder="Search this folder..."
-                  class="h-8 w-full rounded-lg border border-stone-200 bg-stone-50 pl-8 pr-3 text-sm outline-none transition-colors focus:border-stone-400"
-                />
+              <div class="flex-1 overflow-y-auto">
+                <table class="w-full">
+                  <thead class="sticky top-0 z-10">
+                    <tr class="border-b border-border bg-stone-50">
+                      <th class="w-8 py-2 pl-4 pr-2" />
+                      <th class="py-2 pr-4 text-left text-xs font-medium text-muted-foreground">
+                        Name
+                      </th>
+                      <th class="hidden py-2 pr-4 text-right text-xs font-medium text-muted-foreground sm:table-cell">
+                        Size
+                      </th>
+                      <th class="hidden py-2 pr-4 text-left text-xs font-medium text-muted-foreground md:table-cell">
+                        Modified
+                      </th>
+                      <th class="w-20 py-2 pr-4" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <Show
+                      when={currentFiles().length > 0}
+                      fallback={
+                        <tr>
+                          <td colSpan={5} class="py-16 text-center text-sm text-muted-foreground">
+                            {search().trim() ? "No files match this search" : "This folder is empty"}
+                          </td>
+                        </tr>
+                      }
+                    >
+                      <For each={currentFiles()}>
+                        {(file) => (
+                          <FileRow
+                            driveId={params.driveId}
+                            file={file}
+                            selected={selectedEntryId() === file.id}
+                            onSelect={() => setSelectedEntryId(file.id)}
+                            onOpen={() => handleOpen(file)}
+                          />
+                        )}
+                      </For>
+                    </Show>
+                  </tbody>
+                </table>
               </div>
-
-              <input ref={fileInputRef} type="file" class="sr-only" onChange={handleUpload} />
-
-              <button
-                onClick={handleCreateFolder}
-                class="flex h-8 items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-3 text-sm text-stone-700 transition-colors hover:bg-stone-100"
-              >
-                <Plus class="size-3.5" />
-                Folder
-              </button>
-              <button
-                onClick={() => fileInputRef?.click()}
-                class="flex h-8 items-center gap-1.5 rounded-lg bg-stone-900 px-3 text-sm font-medium text-white transition-colors hover:bg-stone-800"
-              >
-                <Upload class="size-3.5" />
-                Upload
-              </button>
             </div>
 
-            <div class="flex-1 overflow-y-auto">
-              <table class="w-full">
-                <thead class="sticky top-0 z-10">
-                  <tr class="border-b border-border bg-stone-50">
-                    <th class="w-8 py-2 pl-4 pr-2" />
-                    <th class="py-2 pr-4 text-left text-xs font-medium text-muted-foreground">
-                      Name
-                    </th>
-                    <th class="hidden py-2 pr-4 text-right text-xs font-medium text-muted-foreground sm:table-cell">
-                      Size
-                    </th>
-                    <th class="hidden py-2 pr-4 text-left text-xs font-medium text-muted-foreground md:table-cell">
-                      Modified
-                    </th>
-                    <th class="w-20 py-2 pr-4" />
-                  </tr>
-                </thead>
-                <tbody>
-                  <Show
-                    when={currentFiles().length > 0}
-                    fallback={
-                      <tr>
-                        <td colSpan={5} class="py-16 text-center text-sm text-muted-foreground">
-                          {search().trim() ? "No files match this search" : "This folder is empty"}
-                        </td>
-                      </tr>
-                    }
-                  >
-                    <For each={currentFiles()}>
-                      {(file) => (
-                        <FileRow
-                          driveId={params.driveId}
-                          file={file}
-                          selected={selectedEntryId() === file.id}
-                          onSelect={() => setSelectedEntryId(file.id)}
-                          onOpen={() => handleOpen(file)}
-                        />
-                      )}
-                    </For>
-                  </Show>
-                </tbody>
-              </table>
-            </div>
+            <MetadataSidebar
+              driveName={drive().name}
+              driveCreatedAt={drive().createdAt}
+              file={selectedEntry()}
+              driveId={params.driveId}
+              path={selectedPath()}
+              onRenameDrive={handleRenameDrive}
+              onDeleteDrive={handleDeleteDrive}
+              onRenameEntry={handleRenameEntry}
+              onDeleteEntry={handleDeleteEntry}
+            />
           </div>
+        )}
+      </Show>
 
-          <MetadataSidebar
-            driveName={drive().name}
-            driveCreatedAt={drive().createdAt}
-            file={selectedEntry()}
-            driveId={params.driveId}
-            path={selectedPath()}
-            onRenameDrive={handleRenameDrive}
-            onDeleteDrive={handleDeleteDrive}
-            onRenameEntry={handleRenameEntry}
-            onDeleteEntry={handleDeleteEntry}
+      {/* Create folder dialog */}
+      <Dialog open={createFolderOpen()} onOpenChange={setCreateFolderOpen}>
+        <DialogContent class="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>New folder</DialogTitle>
+          </DialogHeader>
+          <Input
+            placeholder="Folder name"
+            value={createFolderName()}
+            onInput={(e) => setCreateFolderName(e.currentTarget.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleCreateFolderSubmit()}
+            autofocus
           />
-        </div>
-      )}
-    </Show>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCreateFolderOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreateFolderSubmit} disabled={!createFolderName().trim()}>
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename drive dialog */}
+      <Dialog open={renameDriveOpen()} onOpenChange={setRenameDriveOpen}>
+        <DialogContent class="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Rename drive</DialogTitle>
+          </DialogHeader>
+          <Input
+            placeholder="Drive name"
+            value={renameDriveName()}
+            onInput={(e) => setRenameDriveName(e.currentTarget.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleRenameDriveSubmit()}
+            autofocus
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameDriveOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRenameDriveSubmit} disabled={!renameDriveName().trim()}>
+              Rename
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete drive dialog */}
+      <Dialog open={deleteDriveOpen()} onOpenChange={setDeleteDriveOpen}>
+        <DialogContent class="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete drive</DialogTitle>
+            <DialogDescription>
+              Delete{" "}
+              <span class="font-medium text-foreground">{driveQuery.data?.name}</span> and all of
+              its files? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDriveOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteDriveConfirm}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename entry dialog */}
+      <Dialog open={renameEntryOpen()} onOpenChange={setRenameEntryOpen}>
+        <DialogContent class="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Rename {selectedEntry()?.kind}</DialogTitle>
+          </DialogHeader>
+          <Input
+            placeholder="Name"
+            value={renameEntryName()}
+            onInput={(e) => setRenameEntryName(e.currentTarget.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleRenameEntrySubmit()}
+            autofocus
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameEntryOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRenameEntrySubmit} disabled={!renameEntryName().trim()}>
+              Rename
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete entry dialog */}
+      <Dialog open={deleteEntryOpen()} onOpenChange={setDeleteEntryOpen}>
+        <DialogContent class="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              Delete {selectedEntry()?.kind}
+            </DialogTitle>
+            <DialogDescription>
+              <Show
+                when={selectedEntry()?.kind === "folder"}
+                fallback={
+                  <>
+                    Delete{" "}
+                    <span class="font-medium text-foreground">{selectedEntry()?.name}</span>?
+                    This cannot be undone.
+                  </>
+                }
+              >
+                Delete{" "}
+                <span class="font-medium text-foreground">{selectedEntry()?.name}</span> and
+                everything inside it? This cannot be undone.
+              </Show>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteEntryOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteEntryConfirm}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
