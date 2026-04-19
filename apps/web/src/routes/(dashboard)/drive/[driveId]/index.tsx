@@ -12,7 +12,6 @@ import {
   Folder,
   FolderOpen,
   HardDrive,
-  Info,
   Pencil,
   Plus,
   Search,
@@ -48,7 +47,7 @@ type BrowserEntry = {
 };
 
 function formatSize(bytes: number | null): string {
-  if (bytes === null) return "-";
+  if (bytes === null) return "—";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -75,7 +74,7 @@ function isPreviewable(mimeType: string | null) {
   );
 }
 
-function fileIconClass(entry: { kind: string; mimeType: string | null }) {
+function fileIconColor(entry: { kind: string; mimeType: string | null }) {
   if (entry.kind === "folder") return "text-amber-500";
   if (!entry.mimeType) return "text-stone-400";
   if (entry.mimeType.startsWith("image/")) return "text-blue-500";
@@ -83,6 +82,16 @@ function fileIconClass(entry: { kind: string; mimeType: string | null }) {
   if (entry.mimeType.startsWith("audio/")) return "text-emerald-500";
   if (entry.mimeType === "application/pdf") return "text-red-500";
   return "text-stone-400";
+}
+
+function fileIconBg(entry: { kind: string; mimeType: string | null }) {
+  if (entry.kind === "folder") return "bg-amber-50";
+  if (!entry.mimeType) return "bg-stone-100";
+  if (entry.mimeType.startsWith("image/")) return "bg-blue-50";
+  if (entry.mimeType.startsWith("video/")) return "bg-violet-50";
+  if (entry.mimeType.startsWith("audio/")) return "bg-emerald-50";
+  if (entry.mimeType === "application/pdf") return "bg-red-50";
+  return "bg-stone-100";
 }
 
 function FileIcon(props: {
@@ -116,23 +125,23 @@ function PathBreadcrumb(props: {
   onNavigate: (id: string | null) => void;
 }) {
   return (
-    <nav class="flex min-w-0 items-center gap-1 overflow-hidden text-sm">
+    <nav class="flex min-w-0 items-center gap-0.5 overflow-hidden text-sm">
       <button
         onClick={() => props.onNavigate(null)}
-        class="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+        class="shrink-0 rounded px-1.5 py-0.5 text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-900"
       >
         {props.driveName}
       </button>
       <For each={props.trail}>
         {(crumb, i) => (
           <>
-            <ChevronRight class="size-3.5 shrink-0 text-muted-foreground" />
+            <ChevronRight class="size-3.5 shrink-0 text-stone-300" />
             <button
               onClick={() => props.onNavigate(crumb.id)}
-              class={`truncate transition-colors ${
+              class={`truncate rounded px-1.5 py-0.5 transition-colors ${
                 i() === props.trail.length - 1
-                  ? "font-medium text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "font-medium text-stone-900"
+                  : "text-stone-500 hover:bg-stone-100 hover:text-stone-900"
               }`}
             >
               {crumb.name}
@@ -153,35 +162,41 @@ function FileRow(props: {
 }) {
   return (
     <tr
-      class={`group cursor-pointer select-none border-b border-border transition-colors last:border-0 ${
-        props.selected ? "bg-stone-100" : "hover:bg-stone-50"
+      class={`group cursor-pointer select-none transition-colors ${
+        props.selected ? "bg-blue-50" : "hover:bg-stone-50"
       }`}
       onClick={props.onSelect}
       onDblClick={props.onOpen}
     >
-      <td class="w-8 py-2 pl-4 pr-2">
-        <FileIcon
-          kind={props.file.kind}
-          mimeType={props.file.mimeType}
-          open={props.file.kind === "folder" && props.selected}
-          class={`size-4 shrink-0 ${fileIconClass(props.file)}`}
-        />
+      <td class="w-12 py-2 pl-3 pr-1">
+        <div
+          class={`flex h-8 w-8 items-center justify-center rounded-lg ${fileIconBg(props.file)} ring-1 ring-inset ring-black/5`}
+        >
+          <FileIcon
+            kind={props.file.kind}
+            mimeType={props.file.mimeType}
+            open={props.file.kind === "folder" && props.selected}
+            class={`size-[18px] ${fileIconColor(props.file)}`}
+          />
+        </div>
       </td>
-      <td class="py-2 pr-4 text-sm font-medium text-stone-800">{props.file.name}</td>
-      <td class="hidden py-2 pr-4 text-right text-sm tabular-nums text-muted-foreground sm:table-cell">
-        {formatSize(props.file.size)}
+      <td class="py-2 pr-4">
+        <span class="text-sm font-medium text-stone-800">{props.file.name}</span>
       </td>
-      <td class="hidden py-2 pr-4 text-sm text-muted-foreground md:table-cell">
-        {formatDate(props.file.updatedAt)}
+      <td class="hidden py-2 pr-4 text-right sm:table-cell">
+        <span class="text-xs tabular-nums text-stone-400">{formatSize(props.file.size)}</span>
       </td>
-      <td class="w-20 py-2 pr-4 text-right">
+      <td class="hidden py-2 pr-4 text-right md:table-cell">
+        <span class="text-xs text-stone-400">{formatDate(props.file.updatedAt)}</span>
+      </td>
+      <td class="w-24 py-2 pr-3 text-right">
         <Show when={props.file.kind === "file" && isPreviewable(props.file.mimeType)}>
           <a
             href={`/drive/${props.driveId}/preview?file=${props.file.id}`}
             onClick={(event) => event.stopPropagation()}
-            class="inline-flex items-center gap-1 text-xs text-stone-500 opacity-0 transition-opacity group-hover:opacity-100 hover:text-stone-800"
+            class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-stone-400 opacity-0 transition-all group-hover:opacity-100 hover:bg-stone-900 hover:text-white"
           >
-            <Eye class="size-3.5" />
+            <Eye class="size-3" />
             Preview
           </a>
         </Show>
@@ -202,103 +217,143 @@ function MetadataSidebar(props: {
   onDeleteEntry: () => void;
 }) {
   return (
-    <aside class="flex w-72 shrink-0 flex-col border-l border-border bg-white">
-      <div class="flex items-center gap-2 border-b border-border px-4 py-3">
-        <Info class="size-4 text-muted-foreground" />
-        <span class="text-sm font-medium">Info</span>
+    <aside class="flex w-72 shrink-0 flex-col border-l border-stone-100 bg-stone-50/40">
+      <div class="border-b border-stone-100 px-4 py-3">
+        <span class="text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+          Inspector
+        </span>
       </div>
 
       <Show
         when={props.file}
         fallback={
-          <div class="flex flex-1 flex-col justify-between p-4">
-            <div class="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
-              Select a file or folder to view its details
+          <div class="flex flex-1 flex-col">
+            <div class="flex flex-1 items-center justify-center p-6">
+              <div class="text-center">
+                <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-stone-100">
+                  <HardDrive class="size-6 text-stone-400" />
+                </div>
+                <p class="text-sm font-medium text-stone-600">Nothing selected</p>
+                <p class="mt-1 text-xs text-stone-400">Click a file or folder to inspect it</p>
+              </div>
             </div>
-            <div class="space-y-2 border-t border-border pt-4">
+
+            <div class="border-t border-stone-100 p-3 space-y-1">
               <button
                 onClick={props.onRenameDrive}
-                class="flex w-full items-center justify-center gap-2 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50"
+                class="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-stone-600 transition-colors hover:bg-white hover:shadow-sm"
               >
-                <Pencil class="size-4" />
+                <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-stone-100 transition-colors group-hover:bg-stone-200">
+                  <Pencil class="size-3.5 text-stone-500" />
+                </div>
                 Rename drive
               </button>
               <button
                 onClick={props.onDeleteDrive}
-                class="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-50"
+                class="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-red-500 transition-colors hover:bg-red-50"
               >
-                <Trash2 class="size-4" />
+                <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-red-50 transition-colors group-hover:bg-red-100">
+                  <Trash2 class="size-3.5 text-red-400" />
+                </div>
                 Delete drive
               </button>
+            </div>
+
+            <div class="border-t border-stone-100 px-4 py-3 text-xs text-stone-400">
+              <div class="flex items-center gap-1.5">
+                <HardDrive class="size-3.5 shrink-0" />
+                <span class="truncate font-medium">{props.driveName}</span>
+              </div>
+              <p class="mt-1">Since {formatDate(props.driveCreatedAt)}</p>
             </div>
           </div>
         }
       >
         {(file) => (
-          <div class="flex flex-1 flex-col p-4">
-            <div class="flex flex-col items-center gap-3 py-3">
-              <div class="flex h-16 w-16 items-center justify-center rounded-xl bg-muted">
+          <div class="flex flex-1 flex-col overflow-y-auto">
+            {/* Icon + name */}
+            <div class="flex flex-col items-center gap-3 border-b border-stone-100 bg-gradient-to-b from-white to-stone-50/60 px-4 py-6">
+              <div
+                class={`flex h-16 w-16 items-center justify-center rounded-2xl ${fileIconBg(file())} shadow-sm ring-1 ring-inset ring-black/[0.06]`}
+              >
                 <FileIcon
                   kind={file().kind}
                   mimeType={file().mimeType}
-                  class={`size-8 ${fileIconClass(file())}`}
+                  class={`size-9 ${fileIconColor(file())}`}
                 />
               </div>
-              <p class="break-all text-center text-sm font-semibold leading-snug">{file().name}</p>
+              <div class="text-center">
+                <p class="break-all text-sm font-semibold leading-snug text-stone-900">
+                  {file().name}
+                </p>
+                <p class="mt-0.5 text-xs capitalize text-stone-400">{file().kind}</p>
+              </div>
             </div>
 
-            <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-sm">
-              <dt class="text-muted-foreground">Type</dt>
-              <dd class="font-medium capitalize">{file().kind}</dd>
-
-              <dt class="text-muted-foreground">Size</dt>
-              <dd class="font-medium tabular-nums">{formatSize(file().size)}</dd>
-
-              <dt class="text-muted-foreground">Mime</dt>
-              <dd class="break-all font-medium">{file().mimeType ?? "Folder"}</dd>
-
-              <dt class="text-muted-foreground">Path</dt>
-              <dd class="break-all font-medium">{props.path}</dd>
-
-              <dt class="text-muted-foreground">Created</dt>
-              <dd class="font-medium">{formatDate(file().createdAt)}</dd>
-
-              <dt class="text-muted-foreground">Modified</dt>
-              <dd class="font-medium">{formatDate(file().updatedAt)}</dd>
-            </dl>
-
-            <div class="mt-4 space-y-2">
+            {/* Actions */}
+            <div class="border-b border-stone-100 p-3 space-y-1">
               <Show when={file().kind === "file" && isPreviewable(file().mimeType)}>
                 <a
                   href={`/drive/${props.driveId}/preview?file=${file().id}`}
-                  class="flex items-center justify-center gap-2 rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-800"
+                  class="flex items-center justify-center gap-2 rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-800"
                 >
-                  <Eye class="size-4" />
+                  <Eye class="size-4 shrink-0" />
                   Preview file
                 </a>
               </Show>
               <button
                 onClick={props.onRenameEntry}
-                class="flex w-full items-center justify-center gap-2 rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50"
+                class="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-stone-600 transition-colors hover:bg-stone-100"
               >
-                <Pencil class="size-4" />
+                <Pencil class="size-4 shrink-0 text-stone-400" />
                 Rename {file().kind}
               </button>
               <button
                 onClick={props.onDeleteEntry}
-                class="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-50"
+                class="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-red-500 transition-colors hover:bg-red-50"
               >
-                <Trash2 class="size-4" />
+                <Trash2 class="size-4 shrink-0 text-red-400" />
                 Delete {file().kind}
               </button>
             </div>
 
-            <div class="mt-auto border-t border-border pt-4 text-xs text-muted-foreground">
-              <div class="flex items-center gap-2">
-                <HardDrive class="size-3.5 shrink-0" />
-                <span class="truncate">{props.driveName}</span>
-              </div>
-              <div class="mt-1">Since {formatDate(props.driveCreatedAt)}</div>
+            {/* Metadata */}
+            <div class="p-4 space-y-4">
+              <p class="text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+                Details
+              </p>
+              <dl class="space-y-2.5">
+                <div class="flex justify-between gap-4">
+                  <dt class="text-xs text-stone-400">Size</dt>
+                  <dd class="text-xs font-medium tabular-nums text-stone-700">
+                    {formatSize(file().size)}
+                  </dd>
+                </div>
+                <Show when={file().mimeType}>
+                  <div class="flex justify-between gap-4">
+                    <dt class="shrink-0 text-xs text-stone-400">Type</dt>
+                    <dd class="break-all text-right text-xs font-medium text-stone-700">
+                      {file().mimeType}
+                    </dd>
+                  </div>
+                </Show>
+                <div class="flex justify-between gap-4">
+                  <dt class="shrink-0 text-xs text-stone-400">Created</dt>
+                  <dd class="text-xs font-medium text-stone-700">{formatDate(file().createdAt)}</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                  <dt class="shrink-0 text-xs text-stone-400">Modified</dt>
+                  <dd class="text-xs font-medium text-stone-700">{formatDate(file().updatedAt)}</dd>
+                </div>
+              </dl>
+            </div>
+
+            {/* Path */}
+            <div class="mt-auto border-t border-stone-100 p-4">
+              <p class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+                Path
+              </p>
+              <p class="break-all font-mono text-xs leading-relaxed text-stone-500">{props.path}</p>
             </div>
           </div>
         )}
@@ -549,12 +604,18 @@ export default function DrivePage() {
     <>
       <Show
         when={!driveQuery.isLoading && driveQuery.data}
-        fallback={<div class="p-6 text-sm text-muted-foreground">Loading drive...</div>}
+        fallback={
+          <div class="flex flex-1 items-center justify-center p-6 text-sm text-stone-400">
+            Loading…
+          </div>
+        }
       >
         {(drive) => (
           <div class="flex overflow-hidden" style={{ height: "calc(100svh - 3.5rem)" }}>
+            {/* Main content */}
             <div class="flex min-w-0 flex-1 flex-col">
-              <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-white px-4 py-2">
+              {/* Toolbar */}
+              <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-stone-100 bg-white px-4 py-2.5">
                 <div class="min-w-0 flex-1">
                   <PathBreadcrumb
                     driveName={drive().name}
@@ -566,14 +627,14 @@ export default function DrivePage() {
                   />
                 </div>
 
-                <div class="relative min-w-[12rem] flex-1 sm:max-w-56 sm:flex-none">
-                  <Search class="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-stone-300" />
+                <div class="relative min-w-[10rem] flex-1 sm:max-w-52 sm:flex-none">
+                  <Search class="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-stone-300" />
                   <input
                     type="search"
                     value={search()}
                     onInput={(event) => setSearch(event.currentTarget.value)}
-                    placeholder="Search this folder..."
-                    class="h-8 w-full rounded-lg border border-stone-200 bg-stone-50 pl-8 pr-3 text-sm outline-none transition-colors focus:border-stone-400"
+                    placeholder="Search…"
+                    class="h-8 w-full rounded-full border border-stone-200 bg-stone-50 pl-8 pr-3 text-sm outline-none transition-colors placeholder:text-stone-300 focus:border-stone-300 focus:bg-white"
                   />
                 </div>
 
@@ -581,35 +642,47 @@ export default function DrivePage() {
 
                 <button
                   onClick={handleCreateFolder}
-                  class="flex h-8 items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-3 text-sm text-stone-700 transition-colors hover:bg-stone-100"
+                  class="flex h-8 items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 text-sm text-stone-600 transition-colors hover:bg-stone-50 hover:text-stone-900"
                 >
                   <Plus class="size-3.5" />
-                  Folder
+                  <span>Folder</span>
                 </button>
                 <button
                   onClick={() => fileInputRef?.click()}
-                  class="flex h-8 items-center gap-1.5 rounded-lg bg-stone-900 px-3 text-sm font-medium text-white transition-colors hover:bg-stone-800"
+                  class="flex h-8 items-center gap-1.5 rounded-full bg-stone-900 px-4 text-sm font-medium text-white transition-colors hover:bg-stone-700"
                 >
                   <Upload class="size-3.5" />
-                  Upload
+                  <span>Upload</span>
                 </button>
               </div>
 
-              <div class="flex-1 overflow-y-auto">
+              {/* File table */}
+              <div
+                class="flex-1 overflow-y-auto"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) setSelectedEntryId(null);
+                }}
+              >
                 <table class="w-full">
                   <thead class="sticky top-0 z-10">
-                    <tr class="border-b border-border bg-stone-50">
-                      <th class="w-8 py-2 pl-4 pr-2" />
-                      <th class="py-2 pr-4 text-left text-xs font-medium text-muted-foreground">
-                        Name
+                    <tr class="border-b border-stone-100 bg-white/90 backdrop-blur-sm">
+                      <th class="w-12 py-2.5 pl-3 pr-1" />
+                      <th class="py-2.5 pr-4 text-left">
+                        <span class="text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+                          Name
+                        </span>
                       </th>
-                      <th class="hidden py-2 pr-4 text-right text-xs font-medium text-muted-foreground sm:table-cell">
-                        Size
+                      <th class="hidden py-2.5 pr-4 text-right sm:table-cell">
+                        <span class="text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+                          Size
+                        </span>
                       </th>
-                      <th class="hidden py-2 pr-4 text-left text-xs font-medium text-muted-foreground md:table-cell">
-                        Modified
+                      <th class="hidden py-2.5 pr-4 text-right md:table-cell">
+                        <span class="text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+                          Modified
+                        </span>
                       </th>
-                      <th class="w-20 py-2 pr-4" />
+                      <th class="w-24 py-2.5 pr-3" />
                     </tr>
                   </thead>
                   <tbody>
@@ -617,8 +690,27 @@ export default function DrivePage() {
                       when={currentFiles().length > 0}
                       fallback={
                         <tr>
-                          <td colSpan={5} class="py-16 text-center text-sm text-muted-foreground">
-                            {search().trim() ? "No files match this search" : "This folder is empty"}
+                          <td colSpan={5} class="py-20 text-center">
+                            <div class="flex flex-col items-center gap-2">
+                              <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-stone-100">
+                                <Show
+                                  when={search().trim()}
+                                  fallback={<Folder class="size-6 text-stone-400" />}
+                                >
+                                  <Search class="size-6 text-stone-400" />
+                                </Show>
+                              </div>
+                              <p class="text-sm font-medium text-stone-500">
+                                {search().trim()
+                                  ? "No files match this search"
+                                  : "This folder is empty"}
+                              </p>
+                              <p class="text-xs text-stone-400">
+                                {search().trim()
+                                  ? "Try a different search term"
+                                  : "Upload files or create a folder to get started"}
+                              </p>
+                            </div>
                           </td>
                         </tr>
                       }
@@ -669,10 +761,7 @@ export default function DrivePage() {
             autofocus
           />
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setCreateFolderOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setCreateFolderOpen(false)}>
               Cancel
             </Button>
             <Button onClick={handleCreateFolderSubmit} disabled={!createFolderName().trim()}>
@@ -756,17 +845,15 @@ export default function DrivePage() {
       <Dialog open={deleteEntryOpen()} onOpenChange={setDeleteEntryOpen}>
         <DialogContent class="max-w-sm">
           <DialogHeader>
-            <DialogTitle>
-              Delete {selectedEntry()?.kind}
-            </DialogTitle>
+            <DialogTitle>Delete {selectedEntry()?.kind}</DialogTitle>
             <DialogDescription>
               <Show
                 when={selectedEntry()?.kind === "folder"}
                 fallback={
                   <>
                     Delete{" "}
-                    <span class="font-medium text-foreground">{selectedEntry()?.name}</span>?
-                    This cannot be undone.
+                    <span class="font-medium text-foreground">{selectedEntry()?.name}</span>? This
+                    cannot be undone.
                   </>
                 }
               >

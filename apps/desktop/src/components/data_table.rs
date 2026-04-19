@@ -6,8 +6,8 @@ use crate::state::{FocusSelection, State};
 
 use super::{TableRow, open_node, render_titles};
 
-const SCROLLBAR_THUMB_WIDTH: Pixels = px(8.);
-const SCROLLBAR_THUMB_HEIGHT: Pixels = px(100.);
+const SCROLLBAR_THUMB_WIDTH: Pixels = px(5.);
+const SCROLLBAR_THUMB_HEIGHT: Pixels = px(80.);
 
 pub struct DataTable {
     state: Entity<State>,
@@ -66,8 +66,8 @@ impl DataTable {
             .right_1()
             .h(SCROLLBAR_THUMB_HEIGHT)
             .w(SCROLLBAR_THUMB_WIDTH)
-            .bg(rgb(0xC0C0C0))
-            .hover(|this| this.bg(rgb(0xA0A0A0)))
+            .bg(rgba(0x00000026))
+            .hover(|this| this.bg(rgba(0x00000040)))
             .rounded_lg()
             .child(
                 canvas(
@@ -156,8 +156,6 @@ impl Render for DataTable {
                     .flex_col()
                     .flex_1()
                     .overflow_hidden()
-                    .border_1()
-                    .border_color(rgb(0xE0E0E0))
                     // .rounded_sm()
                     .child(render_titles())
                     .child(

@@ -7,7 +7,7 @@ use crate::{
     state::{PathChange, State},
 };
 
-use super::{Icon, button, button2};
+use super::{button, button2};
 
 pub struct PathBar {
     state: Entity<State>,
@@ -19,13 +19,13 @@ impl PathBar {
         let text_input = cx.new(|cx: &mut Context<TextInput>| {
             cx.subscribe(&state, |subscriber, emitter, _: &PathChange, cx| {
                 subscriber.content =
-                    SharedString::new(emitter.read(cx).path().to_str().unwrap().to_string()); // TODO: Utf-8 strings
+                    SharedString::new(emitter.read(cx).path().to_str().unwrap().to_string());
             })
             .detach();
 
             TextInput {
                 focus_handle: cx.focus_handle(),
-                content: SharedString::new(state.read(cx).path().to_str().unwrap().to_string()), // TODO: Utf-8 strings
+                content: SharedString::new(state.read(cx).path().to_str().unwrap().to_string()),
                 placeholder: "Type here...".into(),
                 selected_range: 0..0,
                 selection_reversed: false,
@@ -44,9 +44,58 @@ impl Render for PathBar {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex()
-            .bg(rgb(0xffffff))
-            .text_color(rgb(0x0))
-            .child(div().w_full().child(self.text_input.clone()))
+            .items_center()
+            .gap_2()
+            .bg(rgb(0xF2F2F7))
+            .border_b_1()
+            .border_color(rgb(0xD1D1D6))
+            .px_3()
+            .py_2()
+            // Navigation buttons
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_1()
+                    .flex_none()
+                    .child(button2("←", !self.state.read(cx).can_go_back(), {
+                        let state = self.state.clone();
+                        move |_, cx| {
+                            state.update(cx, |state, cx| state.go_back(cx));
+                        }
+                    }))
+                    .child(button2("→", !self.state.read(cx).can_go_forward(), {
+                        let state = self.state.clone();
+                        move |_, cx| {
+                            state.update(cx, |state, cx| state.go_forward(cx));
+                        }
+                    }))
+                    .child(button2("↑", !self.state.read(cx).can_go_up(), {
+                        let state = self.state.clone();
+                        move |_, cx| {
+                            state.update(cx, |state, cx| state.go_up(cx));
+                        }
+                    })),
+            )
+            // Divider
+            .child(
+                div()
+                    .w(px(1.))
+                    .h(px(18.))
+                    .bg(rgb(0xC5C5C7))
+                    .flex_none(),
+            )
+            // Path input
+            .child(
+                div()
+                    .flex_1()
+                    .bg(rgb(0xFFFFFF))
+                    .border_1()
+                    .border_color(rgb(0xD1D1D6))
+                    .rounded_sm()
+                    .px_2()
+                    .child(self.text_input.clone()),
+            )
             .child(button("Go", {
                 let state = self.state.clone();
                 let text_input = self.text_input.clone();
@@ -55,33 +104,5 @@ impl Render for PathBar {
                     state.update(cx, |state, cx| state.set_path(cx, path));
                 }
             }))
-            .child(button2("Up", !self.state.read(cx).can_go_up(), {
-                let state = self.state.clone();
-                move |_, cx| {
-                    state.update(cx, |state, cx| state.go_up(cx));
-                }
-            }))
-            .child(button2("Back", !self.state.read(cx).can_go_back(), {
-                let state = self.state.clone();
-                move |_, cx| {
-                    state.update(cx, |state, cx| state.go_back(cx));
-                }
-            }))
-            .child(button2("Forward", !self.state.read(cx).can_go_forward(), {
-                let state = self.state.clone();
-                move |_, cx| {
-                    state.update(cx, |state, cx| state.go_forward(cx));
-                }
-            }))
-            .child(Icon::PhFile)
-        // svg()
-        //     .path("./gpuidrive/icons/PhFile.svg")
-        //     .size_8()
-        //     .text_color(black())
-        //     .id("PhFile"),
-        // img(ImageSource::Resource(Resource::Embedded(
-        //     SharedString::new(todo),
-        // )))
-        // ImageSource::Resource(PH_FILE.clone()))
     }
 }
