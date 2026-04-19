@@ -32,4 +32,9 @@
       "migrations_dir": "drizzle",
     },
   ],
+  "send_email": [
+    {
+      "name": "EMAIL",
+    },
+  ],
 }

@@ -1,7 +1,7 @@
 // TODO: Remove this!
 
 import type { APIEvent } from "@solidjs/start/server";
-import { sendEmail } from "~/server/lib/email";
+import { env } from "cloudflare:workers";
 
 const demoRecipient = "oscar@otbeaumont.me";
 const demoSender = "hello@osdrive.app";
@@ -9,7 +9,7 @@ const demoSender = "hello@osdrive.app";
 export async function POST({ request }: APIEvent) {
   try {
     const now = new Date().toISOString();
-    await sendEmail({
+    await env.EMAIL.send({
       from: demoSender,
       to: demoRecipient,
       subject: "OSDrive email demo",

@@ -7,18 +7,18 @@ Resources:
     Properties:
       UserName: OSDriveCloudflare
       Policies:
-        - PolicyName: OSDriveCloudflarePolicy-SES
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - ses:SendEmail
-                  - ses:SendRawEmail
-                Resource: "*"
-                Condition:
-                  StringEquals:
-                    ses:FromAddress: hello@osdrive.app
+        # - PolicyName: OSDriveCloudflarePolicy-SES
+        #   PolicyDocument:
+        #     Version: "2012-10-17"
+        #     Statement:
+        #       - Effect: Allow
+        #         Action:
+        #           - ses:SendEmail
+        #           - ses:SendRawEmail
+        #         Resource: "*"
+        #         Condition:
+        #           StringEquals:
+        #             ses:FromAddress: hello@osdrive.app
 
   CloudflareUserAccessKey:
     Type: AWS::IAM::AccessKey
