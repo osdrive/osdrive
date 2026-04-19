@@ -7,7 +7,7 @@ use crate::{
     state::{PathChange, State},
 };
 
-use super::{Icon, OnChange, button, button2};
+use super::{Icon, button, button2};
 
 pub struct PathBar {
     state: Entity<State>,
@@ -17,7 +17,7 @@ pub struct PathBar {
 impl PathBar {
     pub fn init(cx: &mut Context<Self>, state: Entity<State>) -> Self {
         let text_input = cx.new(|cx: &mut Context<TextInput>| {
-            cx.subscribe(&state, |subscriber, emitter, event: &PathChange, cx| {
+            cx.subscribe(&state, |subscriber, emitter, _: &PathChange, cx| {
                 subscriber.content =
                     SharedString::new(emitter.read(cx).path().to_str().unwrap().to_string()); // TODO: Utf-8 strings
             })
@@ -36,29 +36,25 @@ impl PathBar {
             }
         });
 
-        cx.subscribe(&text_input, {
-            let state = state.clone();
-
-            move |subscriber, _emitter, event: &OnChange, cx| {
-                state.update(cx, |state, cx| {
-                    // TODO: This won't handle non-utf8 paths
-                    state.set_path(cx, PathBuf::from(event.0.to_string()));
-                });
-            }
-        })
-        .detach();
-
         Self { state, text_input }
     }
 }
 
 impl Render for PathBar {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex()
             .bg(rgb(0xffffff))
             .text_color(rgb(0x0))
             .child(div().w_full().child(self.text_input.clone()))
+            .child(button("Go", {
+                let state = self.state.clone();
+                let text_input = self.text_input.clone();
+                move |_, cx| {
+                    let path = PathBuf::from(text_input.read(cx).content.to_string());
+                    state.update(cx, |state, cx| state.set_path(cx, path));
+                }
+            }))
             .child(button2("Up", !self.state.read(cx).can_go_up(), {
                 let state = self.state.clone();
                 move |_, cx| {

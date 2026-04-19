@@ -23,7 +23,7 @@ impl MainWindow {
         let state = cx.new(|_| State::init());
         Self {
             path_bar: cx.new(|cx| PathBar::init(cx, state.clone())),
-            data_table: cx.new(|cx| DataTable::new(state.clone())),
+            data_table: cx.new(|_| DataTable::new(state.clone())),
             quick_preview: cx.new(|cx| {
                 cx.observe(&state, |quick_preview: &mut QuickPreview, state, cx| {
                     let state = state.read(cx);

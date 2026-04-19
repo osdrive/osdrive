@@ -2,9 +2,8 @@ use std::rc::Rc;
 
 use gpui::{prelude::FluentBuilder, *};
 use human_bytes::human_bytes;
-use opener::open;
 
-use crate::state::{Node, NodeKind, State};
+use crate::{permissions, state::{Node, NodeKind, State}};
 
 #[derive(IntoElement)]
 pub struct TableRow {
@@ -33,7 +32,7 @@ impl TableRow {
         &self,
         key: &str,
         width: DefiniteLength,
-        cx: &mut App,
+        _: &mut App,
     ) -> impl IntoElement + use<> {
         div()
             .whitespace_nowrap()
@@ -92,7 +91,7 @@ pub fn open_node(state: &Entity<State>, cx: &mut App, node: &Node, force: bool) 
             state.update(cx, move |state: &mut State, cx| state.set_path(cx, path));
         }
         NodeKind::File | NodeKind::Directory => {
-            open(node.path.clone()).unwrap();
+            let _ = permissions::open_path(&node.path);
         }
         NodeKind::Unknown => {}
     }

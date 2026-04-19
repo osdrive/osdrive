@@ -3,6 +3,8 @@ use std::{ffi::OsString, fs::FileType, os::unix::fs::MetadataExt, path::PathBuf,
 use chrono::{DateTime, Local};
 use gpui::{Context, EventEmitter};
 
+use crate::permissions;
+
 pub struct State {
     nodes: Vec<Rc<Node>>,
 
@@ -11,6 +13,7 @@ pub struct State {
     current: PathBuf,
 
     selected: Option<usize>,
+    last_error: Option<String>,
 }
 
 /// Represents a node on the filesystem.
@@ -46,16 +49,13 @@ impl From<FileType> for NodeKind {
 
 impl State {
     pub fn init() -> Self {
-        let current = PathBuf::from("/Users/oscar/Desktop"); // TODO: Don't hardcode username
-        let current = PathBuf::from("/Users/oscar/Library/pnpm/store/v10/files"); // TODO
-        // let current = PathBuf::from("/Users/oscar/Desktop/sdtest"); // TODO
-
         let mut this = Self {
             nodes: Default::default(),
             backward: Default::default(),
             forward: Default::default(),
-            current,
+            current: permissions::initial_directory(),
             selected: None,
+            last_error: None,
         };
         this.load_content();
         this
@@ -74,12 +74,23 @@ impl State {
     }
 
     pub fn set_path(&mut self, cx: &mut Context<Self>, path: PathBuf) {
+        if !path.exists() {
+            return;
+        }
+
+        if let Err(error) = permissions::ensure_access_for_path(&path) {
+            self.last_error = Some(error);
+            cx.notify();
+            return;
+        }
+
         if self.current != path {
             self.backward.push(self.current.clone());
             self.forward.clear();
             self.current = path;
 
             self.selected = None;
+            self.last_error = None;
 
             cx.emit(PathChange);
             cx.notify();
@@ -129,28 +140,36 @@ impl State {
     }
 
     fn load_content(&mut self) {
-        match std::fs::read_dir(self.path()) {
-            Ok(dir) => {
-                // TODO: Error handing
-                // TODO: Is this running off the main thread?
-                self.nodes = dir
-                    .map(|entry| {
-                        let entry = entry.unwrap();
-                        let metadata = entry.metadata().unwrap();
+        match permissions::with_access(self.path(), || {
+            Ok(std::fs::read_dir(self.path())?
+                .filter_map(|entry| {
+                    let entry = entry.ok()?;
+                    let metadata = entry.metadata().ok()?;
 
-                        Rc::new(Node {
-                            path: entry.path(),
-                            name: entry.file_name(),
-                            kind: entry.file_type().unwrap().into(),
-                            size: metadata.size(),
-                            created: metadata.created().unwrap().into(),
-                            modified: metadata.modified().unwrap().into(),
-                        })
-                    })
-                    .collect();
+                    Some(Rc::new(Node {
+                        path: entry.path(),
+                        name: entry.file_name(),
+                        kind: entry.file_type().ok()?.into(),
+                        size: metadata.size(),
+                        created: metadata.created().ok()?.into(),
+                        modified: metadata.modified().ok()?.into(),
+                    }))
+                })
+                .collect())
+        }) {
+            Ok(dir) => {
+                self.last_error = None;
+                self.nodes = dir;
             }
-            Err(_) => self.nodes = vec![], // TODO: Proper error handling
+            Err(error) => {
+                self.last_error = Some(format!("Couldn't read {}: {error}", self.path().display()));
+                self.nodes = vec![];
+            }
         }
+    }
+
+    pub fn last_error(&self) -> Option<&str> {
+        self.last_error.as_deref()
     }
 
     pub fn can_go_back(&self) -> bool {

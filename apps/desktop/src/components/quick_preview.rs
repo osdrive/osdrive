@@ -1,9 +1,8 @@
 use std::{rc::Rc, time::Duration};
 
 use gpui::*;
-use opener::open;
 
-use crate::state::{Node, NodeKind, State};
+use crate::{permissions, state::{Node, NodeKind}};
 
 pub struct QuickPreview {
     node: Option<Rc<Node>>,
@@ -30,8 +29,8 @@ impl QuickPreview {
 impl Render for QuickPreview {
     fn render(
         &mut self,
-        window: &mut gpui::Window,
-        cx: &mut gpui::Context<Self>,
+        _: &mut gpui::Window,
+        _: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
         if !self.toggle {
             return div().into_any();
@@ -104,7 +103,8 @@ impl Render for QuickPreview {
 fn text_preview(node: &Node) -> Div {
     // TODO: Handle non-UTF8 file content
     // TODO: We should probs be caching this between renders
-    let content = std::fs::read_to_string(&node.path).unwrap();
+    let content = permissions::with_access(&node.path, || std::fs::read_to_string(&node.path))
+        .unwrap_or_else(|error| format!("Couldn't preview file: {error}"));
 
     // ImageAssetLoader
 
@@ -130,8 +130,8 @@ fn image_preview(node: &Node) -> Div {
             // .with_loading(|| Self::loading_element().into_any_element())
             .on_click({
                 let path = node.path.clone();
-                move |_, _, cx| {
-                    open(&path).unwrap();
+                move |_, _, _| {
+                    let _ = permissions::open_path(&path);
                 }
             }),
     )

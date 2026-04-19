@@ -4,6 +4,7 @@ use crate::{
     components::{button, button2},
     file_provider,
     index::{self, IndexStats},
+    permissions,
     window::CloseWindow,
 };
 
@@ -16,6 +17,7 @@ enum IndexState {
 
 pub struct ProviderWindow {
     status: SharedString,
+    access_status: SharedString,
     index_state: IndexState,
 }
 
@@ -23,12 +25,17 @@ impl ProviderWindow {
     pub fn init() -> Self {
         Self {
             status: file_provider::refresh_status_message().into(),
+            access_status: permissions::access_status_message().into(),
             index_state: IndexState::Idle,
         }
     }
 
     fn set_status(&mut self, status: String) {
         self.status = status.into();
+    }
+
+    fn refresh_access_status(&mut self) {
+        self.access_status = permissions::access_status_message().into();
     }
 
     fn start_indexing(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -92,7 +99,7 @@ impl ProviderWindow {
 }
 
 impl Render for ProviderWindow {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let view = cx.entity().clone();
         let mut content = div()
             .flex()
@@ -119,6 +126,18 @@ impl Render for ProviderWindow {
             )
             .child(
                 div()
+                    .text_sm()
+                    .text_color(rgb(0x444444))
+                    .child(self.access_status.clone()),
+            )
+            .child(
+                div()
+                    .text_sm()
+                    .text_color(rgb(0x666666))
+                    .child("Folder-by-folder access is the default. Full Disk Access is optional and broader."),
+            )
+            .child(
+                div()
                     .flex()
                     .gap_2()
                     .child(button("Register with macOS", {
@@ -135,6 +154,25 @@ impl Render for ProviderWindow {
                         move |_, cx| {
                             view.update(cx, |this, cx| {
                                 this.set_status(file_provider::open_share_extension_settings_message());
+                                cx.notify();
+                            });
+                        }
+                    }))
+                    .child(button("Grant Folder Access", {
+                        let view = view.clone();
+                        move |_, cx| {
+                            view.update(cx, |this, cx| {
+                                this.set_status(permissions::prompt_for_folder_access_message());
+                                this.refresh_access_status();
+                                cx.notify();
+                            });
+                        }
+                    }))
+                    .child(button("Open Full Disk Access", {
+                        let view = view.clone();
+                        move |_, cx| {
+                            view.update(cx, |this, cx| {
+                                this.set_status(permissions::open_full_disk_access_settings_message());
                                 cx.notify();
                             });
                         }

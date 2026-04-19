@@ -8,6 +8,7 @@ mod assets;
 mod components;
 mod file_provider;
 mod index;
+mod permissions;
 mod provider_window;
 mod state;
 mod vfs_model;
