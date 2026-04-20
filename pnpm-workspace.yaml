@@ -1,13 +1,13 @@
 packages:
   - apps/web
 
-catalogMode: prefer
-
 catalog:
   "@types/node": ^24
   # vite: npm:@voidzero-dev/vite-plus-core@latest
   # vitest: npm:@voidzero-dev/vite-plus-test@latest
   vite-plus: latest
+
+catalogMode: prefer
 
 # overrides:
 #   vite: "catalog:"
