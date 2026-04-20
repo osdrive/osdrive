@@ -4,6 +4,8 @@ mod icon;
 mod image;
 mod path_bar;
 mod quick_preview;
+mod sidebar;
+mod status_bar;
 mod table_row;
 mod text_input;
 
@@ -13,5 +15,7 @@ pub use icon::*;
 pub use image::*;
 pub use path_bar::*;
 pub use quick_preview::*;
+pub use sidebar::*;
+pub use status_bar::*;
 pub use table_row::*;
 pub use text_input::*;

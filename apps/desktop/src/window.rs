@@ -1,7 +1,7 @@
 use gpui::*;
 
 use crate::{
-    components::{DataTable, PathBar, QuickPreview, open_node},
+    components::{DataTable, PathBar, QuickPreview, Sidebar, StatusBar, open_node},
     state::State,
 };
 
@@ -11,6 +11,8 @@ pub struct MainWindow {
     state: Entity<State>,
     path_bar: Entity<PathBar>,
     data_table: Entity<DataTable>,
+    sidebar: Entity<Sidebar>,
+    status_bar: Entity<StatusBar>,
     quick_preview: Entity<QuickPreview>,
     focus: FocusHandle,
 }
@@ -24,13 +26,15 @@ impl MainWindow {
         Self {
             path_bar: cx.new(|cx| PathBar::init(cx, state.clone())),
             data_table: cx.new(|_| DataTable::new(state.clone())),
+            sidebar: cx.new(|cx| Sidebar::new(cx, state.clone())),
+            status_bar: cx.new(|cx| StatusBar::new(cx, state.clone())),
             quick_preview: cx.new(|cx| {
                 cx.observe(&state, |quick_preview: &mut QuickPreview, state, cx| {
                     let state = state.read(cx);
-                    quick_preview.set(state.selected().and_then(|s| state.nodes().get(s)).cloned());
+                    quick_preview
+                        .set(state.selected().and_then(|s| state.nodes().get(s)).cloned());
                 })
                 .detach();
-
                 QuickPreview::init()
             }),
             state,
@@ -42,14 +46,13 @@ impl MainWindow {
 impl Render for MainWindow {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         div()
-            // TODO: move this onto the data view
             .on_key_down({
                 let state = self.state.clone();
                 let preview = self.quick_preview.clone();
 
                 move |event, _, cx| {
                     let modifier =
-                        event.keystroke.modifiers.platform || event.keystroke.modifiers.shift; // TODO: Make this better
+                        event.keystroke.modifiers.platform || event.keystroke.modifiers.shift;
 
                     match &*event.keystroke.key {
                         "[" if modifier => {
@@ -65,16 +68,13 @@ impl Render for MainWindow {
                             let s = state.read(cx);
                             if let Some(selection) = s.selected() {
                                 let node = s.nodes().get(selection).unwrap().clone();
-
                                 open_node(&state, cx, &node, false);
                             }
                         }
-                        // TODO: How to navigate forward in history stack with keyboard????
                         "o" if modifier => {
                             let s = state.read(cx);
                             if let Some(selection) = s.selected() {
                                 let node = s.nodes().get(selection).unwrap().clone();
-
                                 open_node(&state, cx, &node, true);
                             }
                         }
@@ -88,7 +88,11 @@ impl Render for MainWindow {
                             state.update(cx, |state, cx| state.clear_selection(cx));
                         }
                         "enter" => {
-                            // TODO: Implement rename
+                            let s = state.read(cx);
+                            if let Some(selection) = s.selected() {
+                                let node = s.nodes().get(selection).unwrap().clone();
+                                open_node(&state, cx, &node, true);
+                            }
                         }
                         "space" => {
                             preview.update(cx, |s, cx| {
@@ -103,20 +107,29 @@ impl Render for MainWindow {
             .font_family(".SystemUIFont")
             .on_action(|_: &CloseWindow, window, _| window.remove_window())
             .track_focus(&self.focus)
-            .relative() // Makes this the positioning context for absolute children
-            .size_full() // Or whatever size you need
+            .relative()
+            .size_full()
+            .bg(rgb(0xFFFFFF))
             .child(
                 div()
                     .absolute()
-                    .inset_0() // This spreads the div to fill the container
+                    .inset_0()
                     .child(
                         div()
                             .flex()
-                            .flex_col()
+                            .flex_row()
                             .size_full()
-                            .child(self.path_bar.clone())
-                            .child(self.data_table.clone())
-                            .child(self.quick_preview.clone()),
+                            .child(self.sidebar.clone())
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .flex_1()
+                                    .overflow_hidden()
+                                    .child(self.path_bar.clone())
+                                    .child(self.data_table.clone())
+                                    .child(self.status_bar.clone()),
+                            ),
                     ),
             )
             .child(self.quick_preview.clone())
