@@ -1,8 +1,13 @@
+import { Meta, Title } from "@solidjs/meta";
+import { HttpStatusCode } from "@solidjs/start";
 import { Button } from "~/components/ui/button";
 
 export default function Page() {
   return (
     <main class="flex-1 flex items-center justify-center px-8 py-24">
+      <HttpStatusCode code={404} />
+      <Title>Page not found — OSDrive</Title>
+      <Meta name="robots" content="noindex" />
       <div class="text-center max-w-sm">
         <p class="text-xs text-stone-400 uppercase tracking-[0.2em] mb-7">404</p>
         <h1 class="text-5xl font-light tracking-tight text-stone-900 leading-tight mb-5">

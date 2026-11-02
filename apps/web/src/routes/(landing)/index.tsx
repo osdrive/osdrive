@@ -1,4 +1,5 @@
 import * as Popover from "@kobalte/core/popover";
+import { Link, Meta, Title } from "@solidjs/meta";
 import type { JSX, ParentProps } from "solid-js";
 import { Button } from "~/components/ui/button";
 import { Separator } from "~/components/ui/separator";
@@ -6,6 +7,13 @@ import { Separator } from "~/components/ui/separator";
 export default function Page() {
   return (
     <>
+      <Title>OSDrive — the cloud drive that feels local</Title>
+      <Meta
+        name="description"
+        content="OSDrive mounts your cloud storage natively in Finder, keeps a live filesystem index for instant access, and syncs across every device — automatically."
+      />
+      <Link rel="canonical" href="https://osdrive.app/" />
+
       {/* Hero — centered, no right panel */}
       <section class="pt-24 pb-18 px-8">
         <div class="mx-auto max-w-3xl text-center">

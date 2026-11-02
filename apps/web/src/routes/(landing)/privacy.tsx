@@ -1,3 +1,4 @@
+import { Link, Meta, Title } from "@solidjs/meta";
 import { Separator } from "~/components/ui/separator";
 
 const LAST_UPDATED = "April 10, 2025";
@@ -5,6 +6,12 @@ const LAST_UPDATED = "April 10, 2025";
 export default function Page() {
   return (
     <main class="mx-auto max-w-2xl px-8 py-20 w-full">
+      <Title>Privacy Policy — OSDrive</Title>
+      <Meta
+        name="description"
+        content="How OSDrive collects, uses, and protects your data. Your files are encrypted at rest and in transit."
+      />
+      <Link rel="canonical" href="https://osdrive.app/privacy" />
       <div class="mb-14">
         <p class="text-xs text-stone-400 uppercase tracking-[0.2em] mb-4">Legal</p>
         <h1 class="text-5xl font-light tracking-tight text-stone-900 mb-4">Privacy Policy</h1>
